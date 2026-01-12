@@ -387,6 +387,11 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
             # Для техпроцессов: id : name
             bp_id_attr = attrs.get("id", "")
             display_name = f"{bp_id_attr} : {attrs.get('name')}"
+        elif element_type == 'operation_id':
+            # Для операций: oper_id : name, где oper_id - правая часть id до пробела
+            bp_id_attr = attrs.get("id", "")
+            oper_id = bp_id_attr.split()[-1] if bp_id_attr else ""
+            display_name = f"{oper_id} : {attrs.get('name')}"
         else:
             # Для фаз: type_name : name
             type_obj = attrs.get("type", {})
@@ -412,7 +417,7 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
             element_type: bp_id,
             "name": display_name,
             "original_name": attrs.get("name"),
-            "description": attrs.get("name"),  # Use name as description for now
+            "description": attrs.get("description", ""),  # Use description attribute
             "org_unit": org_unit,
             "process_type": process_type,
         }
