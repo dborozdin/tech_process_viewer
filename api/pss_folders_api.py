@@ -5,25 +5,28 @@ class FoldersAPI:
         self.db_api= db_api
         
     def find_folder(self, PSS_folder_name):
+        print(f'----------------------- find_folder ------------------------')
         print(f'find_folder with PSS_folder_name={PSS_folder_name}')
         query = f"""SELECT NO_CASE
         Ext_
         FROM
         Ext_{{apl_folder(.name = "{PSS_folder_name}")}}
         END_SELECT"""
+        print(f'Executing DB query in find_folder: {query}')
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
         request_result = requests.post(
             url=self.db_api.URL_QUERY,
             headers={"X-APL-SessionKey": self.db_api.connect_data['session_key']},
             data=query
         )
+        print(f'DB query result in find_folder: {request_result.json() if request_result.status_code==200 else request_result.text}')
         if request_result.status_code==200:
             data_json=request_result.json()
             if data_json and data_json['count_all'] > 0:
                 folder_id = data_json['instances'][0]['id']
-                print(f'Found folder for import with id={folder_id}')  
+                print(f'Found folder for import with id={folder_id}')
                 content_data = data_json['instances'][0]['attributes']['content']
-                print(f'Folder content data={content_data}')  
+                print(f'Folder content data={content_data}')
                 content = [item['id'] for item in content_data]
                 return folder_id, 'found', content
             else:

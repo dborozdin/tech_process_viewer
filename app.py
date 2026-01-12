@@ -40,9 +40,11 @@ def tech_processes():
 def details():
     return render_template('technical_process_details.html')
 
-def query_apl(query: str) -> dict:
+def query_apl(query: str, description: str=None) -> dict:
     global API
     """Выполняет запрос к APL и возвращает JSON."""
+    print(f'----------------------- query_apl ({description}) ------------------------')
+    print(f'Executing DB query: {query}')
     HEADERS = {
         "X-APL-SessionKey": API.connect_data['session_key'],
         "Content-Type": "application/json",
@@ -51,7 +53,9 @@ def query_apl(query: str) -> dict:
     BASE_URL = API.URL_QUERY
     response = requests.post(BASE_URL, headers=HEADERS, data=query.encode("utf-8"))
     response.raise_for_status()
-    return response.json()
+    result = response.json()
+    print(f'DB query result: {result}')
+    return result
 
 
 def fetch_aircrafts():
@@ -130,6 +134,7 @@ def get_db_list():
 
 def fetch_aircrafts_from_folder():
     global API
+    print(f'----------------------- fetch_aircrafts_from_folder ------------------------')
     # Find the "Aircrafts" folder
     folder_data = API.folders_api.find_folder("Aircrafts")
     if not folder_data:
@@ -149,7 +154,7 @@ def fetch_aircrafts_from_folder():
     FROM
     Ext_{{{ids_str}}}
     END_SELECT"""
-    pdf_data = query_apl(query_pdf)
+    pdf_data = query_apl(query= query_pdf, description="Get apl_product_definition_formation instances from Aircrafts folder")
     print(f'PDF query data: {pdf_data}')
 
     product_ids = []
@@ -174,7 +179,7 @@ def fetch_aircrafts_from_folder():
     FROM
     Ext_{{{prod_ids_str}}}
     END_SELECT"""
-    products_data = query_apl(query_products)
+    products_data = query_apl(query_products, description="Get products by IDs from apl_product_definition_formation")
     print(f'Products query data: {products_data}')
 
     result = []
@@ -240,7 +245,7 @@ def fetch_processes(aircraft_id: int):
     FROM
     Ext_{{apl_business_process_reference(.item=#{aircraft_id})}}.assigned_process
     END_SELECT"""
-    refs_data = query_apl(query_refs)
+    refs_data = query_apl(query_refs, description="Get business process references for aircraft")
     process_ids = [inst["id"] for inst in refs_data.get("instances", [])]
 
     if not process_ids:
@@ -254,7 +259,7 @@ def fetch_processes(aircraft_id: int):
     Ext_{{{ids_str}}}
     Ext2{{apl_business_process(.# in #Ext_)}}
     END_SELECT"""
-    proc_data = query_apl(query_processes)
+    proc_data = query_apl(query_processes, description="Get business processes by IDs")
 
     result = []
     for proc in proc_data.get("instances", []):
@@ -273,6 +278,8 @@ def fetch_processes(aircraft_id: int):
 @app.route('/api/processes/<aircraft_id>')
 def get_processes(aircraft_id):
     global API
+    if API is None or API.connect_data is None:
+        return jsonify({'error': 'Not connected to DB'}), 400
 
     processes = fetch_processes(aircraft_id)
     print(json.dumps(processes, indent=2, ensure_ascii=False))
@@ -298,7 +305,7 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
     Ext2{{apl_business_process(.# IN #Ext_)}}
     END_SELECT"""
     print(f'fetch_phases query: {query_refs}')
-    refs_data = query_apl(query_refs)
+    refs_data = query_apl(query_refs, description="Get business process details by process ID")
     insts = refs_data.get("instances", [])
     print(f'inst_ids: {insts}')
     phases_ids=[]
@@ -319,7 +326,7 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
     Ext_{{{ids_str}}}
     Ext2{{apl_business_process(.# in #Ext_)}}
     END_SELECT"""
-    proc_data = query_apl(query_processes)
+    proc_data = query_apl(query_processes, description="Get subprocesses (phases/technical processes) by IDs")
 
     result = []
     for proc in proc_data.get("instances", []):
@@ -338,6 +345,8 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
 @app.route('/api/phases/<process_id>')
 def get_phases(process_id):
     global API
+    if API is None or API.connect_data is None:
+        return jsonify({'error': 'Not connected to DB'}), 400
 
     phases = fetch_phases_or_tp(process_id, element_type='phase_id', parent_element_type='process_id')
     print(json.dumps(phases, indent=2, ensure_ascii=False))

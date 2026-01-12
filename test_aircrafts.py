@@ -1,19 +1,24 @@
 import requests
 from api.pss_api import DatabaseAPI
 
-def query_apl(api, query: str) -> dict:
+def query_apl(api, query: str, description: str=None) -> dict:
     """Выполняет запрос к APL и возвращает JSON."""
+    print(f'----------------------- query_apl ({description}) ------------------------')
+    print(f'Executing DB query: {query}')
     HEADERS = {
         "X-APL-SessionKey": api.connect_data['session_key'],
         "Content-Type": "application/json",
-        "Cookie": f"X-APL-SessionKey={api.connect_data['session_key']}"
+        "Cookie": f"X-Apl-SessionKey={api.connect_data['session_key']}"
     }
     BASE_URL = api.URL_QUERY
     response = requests.post(BASE_URL, headers=HEADERS, data=query.encode("utf-8"))
     response.raise_for_status()
-    return response.json()
+    result = response.json()
+    print(f'DB query result: {result}')
+    return result
 
 def test_aircrafts():
+    print(f'----------------------- test_aircrafts ------------------------')
     # Connect to DB
     server_port = 'http://localhost:7239'
     db = 'pss_moma_08_07_2025'
@@ -52,7 +57,7 @@ def test_aircrafts():
     FROM
     Ext_{{{ids_str}}}
     END_SELECT"""
-    pdf_data = query_apl(api, query_pdf)
+    pdf_data = query_apl(api, query_pdf, description="Get apl_product_definition_formation instances from Aircrafts folder")
     print(f'PDF query data: {pdf_data}')
 
     product_ids = []
@@ -75,7 +80,7 @@ def test_aircrafts():
     FROM
     Ext_{{{prod_ids_str}}}
     END_SELECT"""
-    products_data = query_apl(api, query_products)
+    products_data = query_apl(api, query_products, description="Get products by IDs from apl_product_definition_formation")
     print(f'Products query data: {products_data}')
 
     # Output id and name for each product
