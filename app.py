@@ -564,37 +564,53 @@ def get_technical_process_details(tech_proc_id):
             attrs = inst.get("attributes", {})
             obj = attrs.get("object", {})
             if isinstance(obj, dict) and 'id' in obj:
-                mat_id = obj['id']
-                # Assume the object is a product or material entity
-                query_mat = f"""SELECT NO_CASE
+                assembly_pdf_id = obj['id']  # This is the relating_product_definition (assembly)
+                # Find incoming assemblies for this pdf
+                query_assemblies = f"""SELECT NO_CASE
                 Ext_
                 FROM
-                Ext_{{#{mat_id}}}
+                Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence(.relating_product_definition = #{assembly_pdf_id})}}
                 END_SELECT"""
-                mat_data = query_apl(query_mat, description="Get material details")
-                if mat_data.get("instances"):
-                    mat_attrs = mat_data["instances"][0]["attributes"]
-                    unit_obj = attrs.get("unit_component", {})
-                    unit_name = ""
-                    if isinstance(unit_obj, dict) and 'id' in unit_obj:
-                        unit_id = unit_obj['id']
-                        query_unit = f"""SELECT NO_CASE
+                assemblies_data = query_apl(query_assemblies, description="Get assemblies for material resource")
+                for assembly_inst in assemblies_data.get("instances", []):
+                    assembly_attrs = assembly_inst.get("attributes", {})
+                    related_pdf = assembly_attrs.get("related_product_definition", {})
+                    if isinstance(related_pdf, dict) and 'id' in related_pdf:
+                        related_pdf_id = related_pdf['id']
+                        # Get the product from this pdf
+                        query_related_pdf = f"""SELECT NO_CASE
                         Ext_
                         FROM
-                        Ext_{{#{unit_id}}}
+                        Ext_{{#{related_pdf_id}}}
                         END_SELECT"""
-                        unit_data = query_apl(query_unit, description="Get unit details")
-                        if unit_data.get("instances"):
-                            unit_attrs = unit_data["instances"][0]["attributes"]
-                            unit_name = unit_attrs.get("name", "")
-                    mat_item = {
-                        'name': mat_attrs.get('name', ''),
-                        'code': mat_attrs.get('id', ''),
-                        'id': mat_attrs.get('id', ''),
-                        'standart': '',  # TODO: if applicable
-                        'uom': unit_name
-                    }
-                    tech_proc['materials'].append(mat_item)
+                        related_data = query_apl(query_related_pdf, description="Get related product details")
+                        if related_data.get("instances"):
+                            related_attrs = related_data["instances"][0]["attributes"]
+                            of_product = related_attrs.get("of_product", {})
+                            if isinstance(of_product, dict) and 'id' in of_product:
+                                product_id = of_product['id']
+                                product_attrs = of_product.get("attributes", {})
+                                unit_obj = assembly_attrs.get("unit_component", {})
+                                unit_name = ""
+                                if isinstance(unit_obj, dict) and 'id' in unit_obj:
+                                    unit_id = unit_obj['id']
+                                    query_unit = f"""SELECT NO_CASE
+                                    Ext_
+                                    FROM
+                                    Ext_{{#{unit_id}}}
+                                    END_SELECT"""
+                                    unit_data = query_apl(query_unit, description="Get unit details")
+                                    if unit_data.get("instances"):
+                                        unit_attrs = unit_data["instances"][0]["attributes"]
+                                        unit_name = unit_attrs.get("name", "")
+                                mat_item = {
+                                    'name': product_attrs.get('name', ''),
+                                    'code': product_attrs.get('id', ''),
+                                    'id': product_attrs.get('id', ''),
+                                    'standart': '',  # TODO: if applicable
+                                    'uom': unit_name
+                                }
+                                tech_proc['materials'].append(mat_item)
 
     print(f'Technical process data={tech_proc}')
     return jsonify(tech_proc)
