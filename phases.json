@@ -1,0 +1,30 @@
+[
+  {
+    "phase_id": 1,
+    "process_id": 1,
+    "name": "Phase 1: Preparation",
+    "org_unit": 101,
+    "type": "Initial"
+  },
+  {
+    "phase_id": 2,
+    "process_id": 1,
+    "name": "Phase 2: Execution",
+    "org_unit": 101,
+    "type": "Core"
+  },
+  {
+    "phase_id": 3,
+    "process_id": 2,
+    "name": "Phase 1: Setup",
+    "org_unit": 102,
+    "type": "Initial"
+  },
+  {
+    "phase_id": 4,
+    "process_id": 3,
+    "name": "Phase 1: Inspection",
+    "org_unit": 103,
+    "type": "Initial"
+  }
+]

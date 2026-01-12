@@ -1,0 +1,22 @@
+[
+  {
+    "tech_proc_id": 813346,
+    "material_id": 1
+  },
+  {
+    "tech_proc_id": 813346,
+    "material_id": 3
+  },
+  {
+    "tech_proc_id": 813346,
+    "material_id": 2
+  },
+  {
+    "tech_proc_id": 3,
+    "material_id": 1
+  },
+  {
+    "tech_proc_id": 4,
+    "material_id": 3
+  }
+]

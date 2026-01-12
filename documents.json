@@ -1,0 +1,20 @@
+[
+  {
+    "document_id": 1,
+    "name": "Safety Guidelines",
+    "code": "DOC001",
+    "type": "s"
+  },
+  {
+    "document_id": 2,
+    "name": "Technical Specs",
+    "code": "DOC002",
+    "type": "t"
+  },
+  {
+    "document_id": 3,
+    "name": "Equipment Manual",
+    "code": "DOC003",
+    "type": "e"
+  }
+]

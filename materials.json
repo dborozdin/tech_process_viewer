@@ -1,0 +1,26 @@
+[
+  {
+    "material_id": 1,
+    "name": "Steel Sheet",
+    "code": "MAT001",
+    "id": "MATID001",
+    "standart": "ASTM A36",
+    "uom": "kg"
+  },
+  {
+    "material_id": 2,
+    "name": "Paint Primer",
+    "code": "MAT002",
+    "id": "MATID002",
+    "standart": "MIL-PRF-23377",
+    "uom": "liter"
+  },
+  {
+    "material_id": 3,
+    "name": "Welding Rod",
+    "code": "MAT003",
+    "id": "MATID003",
+    "standart": "AWS E7018",
+    "uom": "pack"
+  }
+]

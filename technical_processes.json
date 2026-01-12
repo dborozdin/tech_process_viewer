@@ -1,0 +1,30 @@
+[
+  {
+    "tech_proc_id": 1,
+    "phase_id": 1,
+    "name": "Welding Procedure",
+    "org_unit": 101,
+    "process_type": "Standart"
+  },
+  {
+    "tech_proc_id": 2,
+    "phase_id": 2,
+    "name": "Painting Procedure",
+    "org_unit": 101,
+    "process_type": "Customized"
+  },
+  {
+    "tech_proc_id": 3,
+    "phase_id": 3,
+    "name": "Testing Procedure",
+    "org_unit": 102,
+    "process_type": "Standart"
+  },
+  {
+    "tech_proc_id": 4,
+    "phase_id": 4,
+    "name": "Repair Procedure",
+    "org_unit": 103,
+    "process_type": "Standart"
+  }
+]

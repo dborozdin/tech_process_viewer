@@ -1,0 +1,23 @@
+[
+  {
+    "process_id": 1,
+    "aircraft_id": 813321,
+    "name": "Assembly Process",
+    "org_unit": 101,
+    "process_type": "Standart"
+  },
+  {
+    "process_id": 2,
+    "aircraft_id": 813321,
+    "name": "Testing Process",
+    "org_unit": 102,
+    "process_type": "Customized"
+  },
+  {
+    "process_id": 3,
+    "aircraft_id": 813321,
+    "name": "Maintenance Process",
+    "org_unit": 103,
+    "process_type": "Standart"
+  }
+]

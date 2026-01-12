@@ -1,0 +1,22 @@
+[
+  {
+    "aircraft_id": 1,
+    "code": "A001",
+    "name": "Boeing 737",
+    "data_type": "Typical",
+    "serial_number": "SN123",
+    "release_date": "2023-01-01",
+    "repair_date": null,
+    "user_id": 1
+  },
+  {
+    "aircraft_id": 2,
+    "code": "A002",
+    "name": "Airbus A320",
+    "data_type": "Customized",
+    "serial_number": "SN456",
+    "release_date": "2023-02-01",
+    "repair_date": "2024-01-01",
+    "user_id": 1
+  }
+]

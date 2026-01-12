@@ -1,0 +1,37 @@
+[
+  {
+    "operation_id": 1,
+    "tech_proc_id": 813346,
+    "name": "Operation 1: Cut Metal",
+    "description": "Cut the metal sheets to size.",
+    "man_hours": 2.5
+  },
+  {
+    "operation_id": 2,
+    "tech_proc_id": 813346,
+    "name": "Operation 2: Weld Joints",
+    "description": "Weld the joints together.",
+    "man_hours": 4.0
+  },
+  {
+    "operation_id": 3,
+    "tech_proc_id": 813346,
+    "name": "Operation 1: Prime Surface",
+    "description": "Apply primer to the surface.",
+    "man_hours": 1.5
+  },
+  {
+    "operation_id": 4,
+    "tech_proc_id": 813346,
+    "name": "Operation 1: Run Tests",
+    "description": "Perform system tests.",
+    "man_hours": 3.0
+  },
+  {
+    "operation_id": 5,
+    "tech_proc_id": 813346,
+    "name": "Operation 1: Inspect Damage",
+    "description": "Inspect for damage.",
+    "man_hours": 2.0
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "step_id": 1,
+    "operation_id": 1,
+    "number": 1,
+    "name": "Step 1: Measure",
+    "description": "Measure the dimensions."
+  },
+  {
+    "step_id": 2,
+    "operation_id": 1,
+    "number": 2,
+    "name": "Step 2: Cut",
+    "description": "Cut along the lines."
+  },
+  {
+    "step_id": 3,
+    "operation_id": 2,
+    "number": 1,
+    "name": "Step 1: Align",
+    "description": "Align the parts."
+  },
+  {
+    "step_id": 4,
+    "operation_id": 2,
+    "number": 2,
+    "name": "Step 2: Weld",
+    "description": "Apply welding."
+  },
+  {
+    "step_id": 5,
+    "operation_id": 3,
+    "number": 1,
+    "name": "Step 1: Clean Surface",
+    "description": "Clean the surface before priming."
+  }
+]
