@@ -348,15 +348,51 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
     END_SELECT"""
     proc_data = query_apl(query_processes, description="Get subprocesses (phases/technical processes) by IDs")
 
+    # Собираем type_ids
+    type_ids = []
+    for inst in proc_data.get("instances", []):
+        if inst.get("type") == "apl_business_process":
+            type_obj = inst.get("attributes", {}).get("type", {})
+            if isinstance(type_obj, dict) and "id" in type_obj:
+                type_ids.append(type_obj["id"])
+
+    # Получаем type_names
+    type_map = {}
+    if type_ids:
+        type_ids_str = ", ".join(f"#{tid}" for tid in type_ids)
+        query_types = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{{type_ids_str}}}
+        END_SELECT"""
+        types_data = query_apl(query_types, description="Get business process types by IDs")
+        for inst in types_data.get("instances", []):
+            type_id = inst.get("id")
+            type_name = inst.get("attributes", {}).get("name", "")
+            type_map[type_id] = type_name
+
     # Get resource type for "Vreme rada"
     res_type_id = API.resources_api.find_resource_type_by_name("Vreme rada")
 
     result = []
     for proc in proc_data.get("instances", []):
+        if proc.get("type") != "apl_business_process":
+            continue
         attrs = proc.get("attributes", {})
         customized = attrs.get("customized", False)
         process_type = "Customized" if customized else "Typical"
         bp_id = proc.get("id")
+        # Получаем display_name
+        if element_type == 'tech_proc_id':
+            # Для техпроцессов: id : name
+            bp_id_attr = attrs.get("id", "")
+            display_name = f"{bp_id_attr} : {attrs.get('name')}"
+        else:
+            # Для фаз: type_name : name
+            type_obj = attrs.get("type", {})
+            type_id = type_obj.get("id") if isinstance(type_obj, dict) else None
+            type_name = type_map.get(type_id, "") if type_id else ""
+            display_name = f"{type_name} : {attrs.get('name')}" if type_name else attrs.get("name")
         org_unit = ""
         if res_type_id:
             resource_id = API.resources_api.find_resource_by_bp_and_type(bp_id, res_type_id)
@@ -374,7 +410,8 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
         item = {
             parent_element_type: process_id,
             element_type: bp_id,
-            "name": attrs.get("name"),
+            "name": display_name,
+            "original_name": attrs.get("name"),
             "org_unit": org_unit,
             "process_type": process_type,
         }

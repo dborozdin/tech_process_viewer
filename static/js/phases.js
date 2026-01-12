@@ -43,7 +43,7 @@ $(document).ready(function() {
                 let tbody = $('#phases-table tbody');
                 tbody.empty();
                 data.forEach(item => {
-                    let row = `<tr class="clickable" data-id="${item.phase_id}" data-name="${item.name}">
+                    let row = `<tr class="clickable" data-id="${item.phase_id}" data-name="${item.original_name || item.name}">
                         <td>${item.name}</td>
                         <td>${item.org_unit}</td>
                         <td>${item.process_type || ''}</td>
