@@ -542,10 +542,23 @@ def get_technical_process_details(tech_proc_id):
             doc_data = query_apl(query_doc, description="Get document details")
             if doc_data.get("instances"):
                 doc_attrs = doc_data["instances"][0]["attributes"]
+                type_value = ''
+                kind = doc_attrs.get('kind', {})
+                if isinstance(kind, dict) and 'id' in kind:
+                    doc_type_id = kind['id']
+                    query_doc_type = f"""SELECT NO_CASE
+                    Ext_
+                    FROM
+                    Ext_{{#{doc_type_id}}}
+                    END_SELECT"""
+                    doc_type_data = query_apl(query_doc_type, description="Get document type details")
+                    if doc_type_data.get("instances"):
+                        doc_type_attrs = doc_type_data["instances"][0]["attributes"]
+                        type_value = doc_type_attrs.get('product_data_type', '')
                 doc_item = {
                     'name': doc_attrs.get('name', ''),
                     'code': doc_attrs.get('id', ''),
-                    'type': ''  # TODO: get type if needed
+                    'type': type_value
                 }
                 tech_proc['documents'].append(doc_item)
 
