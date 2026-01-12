@@ -119,27 +119,34 @@ def fetch_aircrafts():
 
     return result
 
+@app.route('/api/connect', methods=['POST'])
+def connect_db():
+    global API
+    try:
+        URL_DB_API = 'http://localhost:7239/rest'
+        API = DatabaseAPI(URL_DB_API, 'user=Administrator&db=pss_moma_08_07_2025')
+
+        session_key = API.reconnect_db()
+        if session_key is None:
+            return jsonify({'connected': False, 'message': 'Failed to connect to DB'}), 500
+
+        return jsonify({'connected': True, 'session_key': session_key})
+    except Exception as e:
+        return jsonify({'connected': False, 'message': str(e)}), 500
+
 @app.route('/api/aircraft')
 def get_aircraft():
     global API
-    URL_DB_API = 'http://localhost:7239/rest'
-    API = DatabaseAPI(URL_DB_API, 'user=Administrator&db=pss_moma_08_07_2025')
+    if API is None or API.connect_data is None:
+        return jsonify({'error': 'Not connected to DB'}), 400
 
-    session_key = API.reconnect_db()
-    if session_key is None:
-        raise Exception("Error connecting DB, check DB exist and application server is available")
-
-    aircrafts = fetch_aircrafts()
-    print(json.dumps(aircrafts, indent=2, ensure_ascii=False))
-    return jsonify(aircrafts)
-
-    #filepath = os.path.join(BASE_DIR, 'aircraft.json')
-    #with open(filepath, 'r') as f:
-        #data = json.load(f)
-        #print(f'Opened file {filepath}')
-        #result_data= data
-        #print(f'get_aircraft result={result_data}')
-        #return jsonify(result_data)
+    # Load aircrafts from aircraft.json after successful connection
+    filepath = os.path.join(BASE_DIR, 'aircraft.json')
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+        print(f'Opened file {filepath}')
+        print(f'get_aircraft result={data}')
+        return jsonify(data)
 
 
 def fetch_processes(aircraft_id: int):

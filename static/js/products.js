@@ -25,8 +25,26 @@ $(document).ready(function() {
             }
         });
     }
-    loadAircraftList();
-    $('#products-section').removeClass('hidden');
+
+    $('#connect-btn').on('click', function() {
+        $.ajax({
+            url: '/api/connect',
+            method: 'POST',
+            success: function(data) {
+                if (data.connected) {
+                    $('#db-status').text('DB Status: Connected');
+                    $('#products-section').show();
+                    loadAircraftList();
+                } else {
+                    $('#db-status').text('DB Status: Connection Failed - ' + data.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#db-status').text('DB Status: Connection Failed');
+                console.error('Error connecting to DB:', error);
+            }
+        });
+    });
 
     $('#aircraft-table').on('click', 'tr.clickable', function() {
         let aircraftId = $(this).data('id');
