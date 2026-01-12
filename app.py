@@ -589,28 +589,36 @@ def get_technical_process_details(tech_proc_id):
                             of_product = related_attrs.get("of_product", {})
                             if isinstance(of_product, dict) and 'id' in of_product:
                                 product_id = of_product['id']
-                                product_attrs = of_product.get("attributes", {})
-                                unit_obj = assembly_attrs.get("unit_component", {})
-                                unit_name = ""
-                                if isinstance(unit_obj, dict) and 'id' in unit_obj:
-                                    unit_id = unit_obj['id']
-                                    query_unit = f"""SELECT NO_CASE
-                                    Ext_
-                                    FROM
-                                    Ext_{{#{unit_id}}}
-                                    END_SELECT"""
-                                    unit_data = query_apl(query_unit, description="Get unit details")
-                                    if unit_data.get("instances"):
-                                        unit_attrs = unit_data["instances"][0]["attributes"]
-                                        unit_name = unit_attrs.get("name", "")
-                                mat_item = {
-                                    'name': product_attrs.get('name', ''),
-                                    'code': product_attrs.get('id', ''),
-                                    'id': product_attrs.get('id', ''),
-                                    'standart': '',  # TODO: if applicable
-                                    'uom': unit_name
-                                }
-                                tech_proc['materials'].append(mat_item)
+                                # Query the product details
+                                query_product = f"""SELECT NO_CASE
+                                Ext_
+                                FROM
+                                Ext_{{#{product_id}}}
+                                END_SELECT"""
+                                product_data = query_apl(query_product, description="Get product details for material")
+                                if product_data.get("instances"):
+                                    product_attrs = product_data["instances"][0]["attributes"]
+                                    unit_obj = assembly_attrs.get("unit_component", {})
+                                    unit_name = ""
+                                    if isinstance(unit_obj, dict) and 'id' in unit_obj:
+                                        unit_id = unit_obj['id']
+                                        query_unit = f"""SELECT NO_CASE
+                                        Ext_
+                                        FROM
+                                        Ext_{{#{unit_id}}}
+                                        END_SELECT"""
+                                        unit_data = query_apl(query_unit, description="Get unit details")
+                                        if unit_data.get("instances"):
+                                            unit_attrs = unit_data["instances"][0]["attributes"]
+                                            unit_name = unit_attrs.get("name", "")
+                                    mat_item = {
+                                        'name': product_attrs.get('name', ''),
+                                        'code': related_attrs.get('code1', ''),
+                                        'id': product_attrs.get('id', ''),
+                                        'quantity': assembly_attrs.get('value_component', ''),
+                                        'uom': unit_name
+                                    }
+                                    tech_proc['materials'].append(mat_item)
 
     print(f'Technical process data={tech_proc}')
     return jsonify(tech_proc)

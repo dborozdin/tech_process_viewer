@@ -115,7 +115,7 @@ $(document).ready(function() {
                         <td>${mat.name}</td>
                         <td>${mat.code}</td>
                         <td>${mat.id}</td>
-                        <td>${mat.standart}</td>
+                        <td>${mat.quantity}</td>
                         <td>${mat.uom}</td>
                     </tr>`;
                     matsTbody.append(row);
