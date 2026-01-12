@@ -551,8 +551,8 @@ def get_technical_process_details(tech_proc_id):
 
     # Fetch materials from resources
     tech_proc['materials'] = []
-    # Assume material resource type is "Materijal" or find all resources
-    mat_type_id = API.resources_api.find_resource_type_by_name("Materijal")
+    # Assume material resource type is "Potrošni materijal" or find all resources
+    mat_type_id = API.resources_api.find_resource_type_by_name("Potrošni materijal")
     if mat_type_id:
         query_mats = f"""SELECT NO_CASE
         Ext_
