@@ -128,6 +128,75 @@ def get_db_list():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def fetch_aircrafts_from_folder():
+    global API
+    # Find the "Aircrafts" folder
+    folder_data = API.folders_api.find_folder("Aircrafts")
+    if not folder_data:
+        print("Aircrafts folder not found")
+        return []
+
+    folder_id, status, content_ids = folder_data
+    if not content_ids:
+        print("No content in Aircrafts folder")
+        return []
+
+    # content_ids are apl_product_definition_formation ids
+    # Query to get the of_product ids
+    ids_str = ", ".join(f"#{cid}" for cid in content_ids)
+    query_pdf = f"""SELECT NO_CASE
+    Ext_
+    FROM
+    Ext_{{{ids_str}}}
+    END_SELECT"""
+    pdf_data = query_apl(query_pdf)
+    print(f'PDF query data: {pdf_data}')
+
+    product_ids = []
+    pdf_map = {}
+    for inst in pdf_data.get("instances", []):
+        attrs = inst.get("attributes", {})
+        of_product = attrs.get("of_product", {})
+        if isinstance(of_product, dict) and 'id' in of_product:
+            product_ids.append(of_product['id'])
+            pdf_map[of_product['id']] = inst.get("id")  # product_id -> pdf_id
+
+    print(f'Product IDs: {product_ids}')
+
+    if not product_ids:
+        print("No product IDs found")
+        return []
+
+    # Query for the products
+    prod_ids_str = ", ".join(f"#{pid}" for pid in product_ids)
+    query_products = f"""SELECT NO_CASE
+    Ext_
+    FROM
+    Ext_{{{prod_ids_str}}}
+    END_SELECT"""
+    products_data = query_apl(query_products)
+    print(f'Products query data: {products_data}')
+
+    result = []
+    for inst in products_data.get("instances", []):
+        attrs = inst.get("attributes", {})
+        prod_id = attrs.get("id")
+        prod_name = attrs.get("name")
+        aircraft_id = pdf_map.get(inst.get("id"))
+        item = {
+            "aircraft_id": aircraft_id,
+            "code": prod_id,
+            "name": prod_name,
+            "data_type": "Typical",
+            "serial_number": None,
+            "release_date": None,
+            "repair_date": None,
+            "user_id": 1
+        }
+        result.append(item)
+
+    return result
+
 @app.route('/api/connect', methods=['POST'])
 def connect_db():
     global API
@@ -157,13 +226,10 @@ def get_aircraft():
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 
-    # Load aircrafts from aircraft.json after successful connection
-    filepath = os.path.join(BASE_DIR, 'aircraft.json')
-    with open(filepath, 'r') as f:
-        data = json.load(f)
-        print(f'Opened file {filepath}')
-        print(f'get_aircraft result={data}')
-        return jsonify(data)
+    # Get products from "Aircrafts" folder
+    data = fetch_aircrafts_from_folder()
+    print(f'get_aircraft result={data}')
+    return jsonify(data)
 
 
 def fetch_processes(aircraft_id: int):
