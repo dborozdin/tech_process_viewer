@@ -14,6 +14,18 @@ body {
     position: relative;
 }
 
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#db-status {
+    font-weight: bold;
+    color: #003087;
+}
+
 h1, h2, h3, h4 {
     color: #003087;
     margin-bottom: 15px;
@@ -84,6 +96,101 @@ tr.clickable:hover, tr.clickable-op:hover {
 #tech-proc-info p {
     margin: 5px 0;
     font-size: 14px;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #d3d3d3;
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#db-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: #003087;
+    font-weight: normal;
+}
+
+#db-form input, #db-form select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#db-form button {
+    background-color: #005566;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#db-form button:hover {
+    background-color: #004455;
+}
+
+/* Material-style button */
+.material-button {
+    background-color: #3f51b5;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    outline: none;
+}
+
+.material-button:hover {
+    background-color: #303f9f;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.material-button:active {
+    background-color: #283593;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 #steps-container table {

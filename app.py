@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import os
 import json
 import requests
@@ -48,7 +48,7 @@ def query_apl(query: str) -> dict:
         "Content-Type": "application/json",
         "Cookie": f"X-Apl-SessionKey={API.connect_data['session_key']}"
     }
-    BASE_URL = "http://localhost:7239/rest&size=100000/query&all_attrs=true"
+    BASE_URL = API.URL_QUERY
     response = requests.post(BASE_URL, headers=HEADERS, data=query.encode("utf-8"))
     response.raise_for_status()
     return response.json()
@@ -119,18 +119,35 @@ def fetch_aircrafts():
 
     return result
 
+@app.route('/api/dblist')
+def get_db_list():
+    try:
+        response = requests.get('http://localhost:7239/rest/dblist/')
+        response.raise_for_status()
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/connect', methods=['POST'])
 def connect_db():
     global API
     try:
-        URL_DB_API = 'http://localhost:7239/rest'
-        API = DatabaseAPI(URL_DB_API, 'user=Administrator&db=pss_moma_08_07_2025')
+        data = request.get_json()
+        server_port = data.get('server_port', 'http://localhost:7239')
+        db = data.get('db', 'pss_moma_08_07_2025')
+        user = data.get('user', 'Administrator')
+        password = data.get('password', '')
+
+        # Assuming password is not used in credentials, as per original
+        credentials = f'user={user}&db={db}'
+        URL_DB_API = server_port + '/rest'
+        API = DatabaseAPI(URL_DB_API, credentials)
 
         session_key = API.reconnect_db()
         if session_key is None:
             return jsonify({'connected': False, 'message': 'Failed to connect to DB'}), 500
 
-        return jsonify({'connected': True, 'session_key': session_key})
+        return jsonify({'connected': True, 'session_key': session_key, 'db': db, 'user': user})
     except Exception as e:
         return jsonify({'connected': False, 'message': str(e)}), 500
 

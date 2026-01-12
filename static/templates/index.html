@@ -15,9 +15,37 @@
             <!-- Fallback breadcrumb -->
             <a data-level="products">aircrafts</a>
         </div>
-        <h1>PDM Application</h1>
-        <div id="db-status">DB Status: Disconnected</div>
-        <button id="connect-btn">Connect to DB</button>
+        <div class="header">
+            <h1>PDM Application</h1>
+            <div id="db-status">DB Status: Disconnected</div>
+        </div>
+        <button id="connect-btn" class="material-button">Connect to DB</button>
+
+        <!-- Modal Dialog for DB Connection -->
+        <div id="db-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Connect to Database</h3>
+                <form id="db-form">
+                    <label for="server-port">Server/Port:</label>
+                    <input type="text" id="server-port" name="server_port" value="http://localhost:7239" required><br><br>
+
+                    <label for="db-select">Database:</label>
+                    <select id="db-select" name="db" required>
+                        <option value="pss_moma_08_07_2025">pss_moma_08_07_2025</option>
+                    </select><br><br>
+
+                    <label for="user">User:</label>
+                    <input type="text" id="user" name="user" value="Administrator" required><br><br>
+
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" value=""><br><br>
+
+                    <button type="submit" id="modal-connect-btn">Connect</button>
+                </form>
+            </div>
+        </div>
+
         <div id="products-section" style="display: none;">
             <h2>Select an aircraft</h2>
             <table id="aircraft-table">
