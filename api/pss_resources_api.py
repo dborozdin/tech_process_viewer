@@ -158,10 +158,41 @@ class ResourcesAPI:
             print(f'Found resource type with id={res_type_id}')
         return res_type_id
     
+    def find_resource_data_by_id(self, res_id):
+        if res_id==None:
+            print('Error! Resource id not specified!')
+            return None
+
+        query="""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{apl_business_process_resource(.#=#""" + str(res_id) + """)}
+        END_SELECT"""
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+        try:
+            response = requests.post(
+                url=self.db_api.URL_QUERY,
+                headers={"X-APL-SessionKey": self.db_api.connect_data['session_key']},
+                data=query
+            )
+
+            data_json = response.json()  # может выбросить JSONDecodeError
+
+        except json.JSONDecodeError as e:
+            print("❌ Ошибка при разборе JSON:", e)
+            print("↩️ Ответ от сервера:", repr(response.text))
+            data_json = None  # или {} / [] / raise
+
+        except requests.RequestException as e:
+            print("📡 Ошибка при запросе:", e)
+            data_json = None
+
+        return data_json
+
     def find_or_create_resource_type(self, res_type_name):
         """Find a resource type by name or create it if it doesn't exist."""
-        res_type_sys_id= self.find_resource_type_by_name(res_type_name=res_type_name) 
-        if res_type_sys_id is None:  
+        res_type_sys_id= self.find_resource_type_by_name(res_type_name=res_type_name)
+        if res_type_sys_id is None:
             return self.create_resource_type(res_type_name=res_type_name)
         else:
-            return res_type_sys_id 
+            return res_type_sys_id

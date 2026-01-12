@@ -56,6 +56,37 @@ class OrganizationsAPI:
             org_id = data_json['instances'][0]['id']
             print(f'Found organization with id={org_id}')
         return org_id
+
+    def find_organization_data_by_sys_id(self, org_sys_id):
+        if org_sys_id==None:
+            print('Error! Organization sys_id not specified!')
+            return None
+
+        query="""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{organization(.#=#""" + str(org_sys_id) + """)}
+        END_SELECT"""
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+        try:
+            response = requests.post(
+                url=self.db_api.URL_QUERY,
+                headers={"X-APL-SessionKey": self.db_api.connect_data['session_key']},
+                data=query
+            )
+
+            data_json = response.json()  # может выбросить JSONDecodeError
+
+        except json.JSONDecodeError as e:
+            print("❌ Ошибка при разборе JSON:", e)
+            print("↩️ Ответ от сервера:", repr(response.text))
+            data_json = None  # или {} / [] / raise
+
+        except requests.RequestException as e:
+            print("📡 Ошибка при запросе:", e)
+            data_json = None
+
+        return data_json
     
     def find_or_create_organization(self, org_id, org_name):
         """Find a organization by id or create it if it doesn't exist."""
@@ -137,4 +168,4 @@ class OrganizationsAPI:
         if org_rel_id is None:  
             return self.create_organizations_relation(org_related=org_related, org_relating=org_relating)
         else:
-            return org_rel_id 
+            return org_rel_id

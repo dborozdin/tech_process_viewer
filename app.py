@@ -261,16 +261,34 @@ def fetch_processes(aircraft_id: int):
     END_SELECT"""
     proc_data = query_apl(query_processes, description="Get business processes by IDs")
 
+    # Get resource type for "Vreme rada"
+    res_type_id = API.resources_api.find_resource_type_by_name("Vreme rada")
+
     result = []
     for proc in proc_data.get("instances", []):
         attrs = proc.get("attributes", {})
         customized = attrs.get("customized", False)
         process_type = "Customized" if customized else "Typical"
+        bp_id = proc.get("id")
+        org_unit = ""
+        if res_type_id:
+            resource_id = API.resources_api.find_resource_by_bp_and_type(bp_id, res_type_id)
+            if resource_id:
+                resource_data = API.resources_api.find_resource_data_by_id(resource_id)
+                if resource_data and 'instances' in resource_data and resource_data['instances']:
+                    res_attrs = resource_data['instances'][0]['attributes']
+                    org_obj = res_attrs.get("object")
+                    if isinstance(org_obj, dict) and 'id' in org_obj:
+                        org_sys_id = org_obj['id']
+                        org_data = API.org_api.find_organization_data_by_sys_id(org_sys_id)
+                        if org_data and 'instances' in org_data and org_data['instances']:
+                            org_attrs = org_data['instances'][0]['attributes']
+                            org_unit = org_attrs.get("id", "")
         item = {
-            "process_id": proc.get("id"),
+            "process_id": bp_id,
             "aircraft_id": aircraft_id,
             "name": attrs.get("name"),
-            "org_unit": (attrs.get("object") or {}).get("id") if isinstance(attrs.get("object"), dict) else None,
+            "org_unit": org_unit,
             "process_type": process_type,
         }
         result.append(item)
@@ -330,16 +348,34 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
     END_SELECT"""
     proc_data = query_apl(query_processes, description="Get subprocesses (phases/technical processes) by IDs")
 
+    # Get resource type for "Vreme rada"
+    res_type_id = API.resources_api.find_resource_type_by_name("Vreme rada")
+
     result = []
     for proc in proc_data.get("instances", []):
         attrs = proc.get("attributes", {})
         customized = attrs.get("customized", False)
         process_type = "Customized" if customized else "Typical"
+        bp_id = proc.get("id")
+        org_unit = ""
+        if res_type_id:
+            resource_id = API.resources_api.find_resource_by_bp_and_type(bp_id, res_type_id)
+            if resource_id:
+                resource_data = API.resources_api.find_resource_data_by_id(resource_id)
+                if resource_data and 'instances' in resource_data and resource_data['instances']:
+                    res_attrs = resource_data['instances'][0]['attributes']
+                    org_obj = res_attrs.get("object")
+                    if isinstance(org_obj, dict) and 'id' in org_obj:
+                        org_sys_id = org_obj['id']
+                        org_data = API.org_api.find_organization_data_by_sys_id(org_sys_id)
+                        if org_data and 'instances' in org_data and org_data['instances']:
+                            org_attrs = org_data['instances'][0]['attributes']
+                            org_unit = org_attrs.get("id", "")
         item = {
             parent_element_type: process_id,
-            element_type: proc.get("id"),
+            element_type: bp_id,
             "name": attrs.get("name"),
-            "org_unit": (attrs.get("object") or {}).get("id") if isinstance(attrs.get("object"), dict) else None,
+            "org_unit": org_unit,
             "process_type": process_type,
         }
         result.append(item)
@@ -407,9 +443,26 @@ def get_technical_process_details(tech_proc_id):
     customized = tp_attrs.get("customized", False)
     process_type = "Customized" if customized else "Typical"
 
+    # Get org_unit from resource
+    org_unit = ""
+    res_type_id = API.resources_api.find_resource_type_by_name("Vreme rada")
+    if res_type_id:
+        resource_id = API.resources_api.find_resource_by_bp_and_type(tech_proc_id, res_type_id)
+        if resource_id:
+            resource_data = API.resources_api.find_resource_data_by_id(resource_id)
+            if resource_data and 'instances' in resource_data and resource_data['instances']:
+                res_attrs = resource_data['instances'][0]['attributes']
+                org_obj = res_attrs.get("object")
+                if isinstance(org_obj, dict) and 'id' in org_obj:
+                    org_sys_id = org_obj['id']
+                    org_data = API.org_api.find_organization_data_by_sys_id(org_sys_id)
+                    if org_data and 'instances' in org_data and org_data['instances']:
+                        org_attrs = org_data['instances'][0]['attributes']
+                        org_unit = org_attrs.get("id", "")
+
     tech_proc = {
         'name': tp_attrs.get('name'),
-        'org_unit': (tp_attrs.get("object") or {}).get("id") if isinstance(tp_attrs.get("object"), dict) else None,
+        'org_unit': org_unit,
         'process_type': process_type
     }
 
