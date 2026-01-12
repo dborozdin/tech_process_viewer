@@ -412,6 +412,7 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
             element_type: bp_id,
             "name": display_name,
             "original_name": attrs.get("name"),
+            "description": attrs.get("name"),  # Use name as description for now
             "org_unit": org_unit,
             "process_type": process_type,
         }
@@ -468,8 +469,7 @@ def get_technical_process_details(tech_proc_id):
     query_tp = f"""SELECT NO_CASE
     Ext_
     FROM
-    Ext_{{{tech_proc_id}}}
-    Ext_{{apl_business_process(.# in #Ext_)}}
+    Ext_{{apl_business_process(.# = #{tech_proc_id})}}
     END_SELECT"""
     tp_data = query_apl(query_tp, description="Get technical process details by ID")
 
@@ -503,32 +503,98 @@ def get_technical_process_details(tech_proc_id):
         'process_type': process_type
     }
 
-    # For operations, steps, documents, materials - still load from JSON files for now
-    # TODO: These should also be loaded from database in the future
-    operations = load_json(os.path.join(BASE_DIR, 'operations.json'))
-    steps = load_json(os.path.join(BASE_DIR, 'steps.json'))
-    documents = load_json(os.path.join(BASE_DIR, 'technical_process_documents.json')) # Junction table
-    all_docs = load_json(os.path.join(BASE_DIR, 'documents.json'))
-    materials = load_json(os.path.join(BASE_DIR, 'technical_process_materials.json'))  # Junction
-    all_mats = load_json(os.path.join(BASE_DIR, 'materials.json'))
+    # Fetch operations from DB (sub-business processes)
+    operations = fetch_phases_or_tp(tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id')
+    # For each operation, get man_hours from resource "Vreme rada"
+    for op in operations:
+        op['man_hours'] = ""
+        if res_type_id:
+            resource_id = API.resources_api.find_resource_by_bp_and_type(op['operation_id'], res_type_id)
+            if resource_id:
+                resource_data = API.resources_api.find_resource_data_by_id(resource_id)
+                if resource_data and 'instances' in resource_data and resource_data['instances']:
+                    res_attrs = resource_data['instances'][0]['attributes']
+                    value = res_attrs.get("value_component", "")
+                    op['man_hours'] = str(value) if value else ""
+        # For steps, load from JSON for now (assuming steps are not in DB)
+        op['steps'] = []  # TODO: implement steps from DB if needed
+    tech_proc['operations'] = operations
 
-    # Get operations for this tech proc
-    tech_proc_ops = [op for op in operations if str(op['tech_proc_id']) == str(tech_proc_id)]
+    # Fetch documents from document references
+    tech_proc['documents'] = []
+    query_docs = f"""SELECT NO_CASE
+    Ext_
+    FROM
+    Ext_{{apl_document_reference(.item = #{tech_proc_id})}}
+    END_SELECT"""
+    docs_data = query_apl(query_docs, description="Get document references for technical process")
+    for inst in docs_data.get("instances", []):
+        attrs = inst.get("attributes", {})
+        assigned_doc = attrs.get("assigned_document", {})
+        if isinstance(assigned_doc, dict) and 'id' in assigned_doc:
+            doc_id = assigned_doc['id']
+            # Get document details
+            query_doc = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{#{doc_id}}}
+            END_SELECT"""
+            doc_data = query_apl(query_doc, description="Get document details")
+            if doc_data.get("instances"):
+                doc_attrs = doc_data["instances"][0]["attributes"]
+                doc_item = {
+                    'name': doc_attrs.get('name', ''),
+                    'code': doc_attrs.get('id', ''),
+                    'type': ''  # TODO: get type if needed
+                }
+                tech_proc['documents'].append(doc_item)
 
-    # For each operation, get steps
-    for op in tech_proc_ops:
-        op['steps'] = [st for st in steps if str(st['operation_id']) == str(op['operation_id'])]
-    tech_proc['operations'] = tech_proc_ops
-
-    # Get documents
-    doc_ids = [d['document_id'] for d in documents if str(d['tech_proc_id']) == str(tech_proc_id)]
-    print(f'Doc ids for tp={tech_proc_id} are: {doc_ids}')
-    tech_proc['documents'] = [doc for doc in all_docs if doc['document_id'] in doc_ids]
-
-    # Get materials
-    mat_ids = [m['material_id'] for m in materials if str(m['tech_proc_id']) == str(tech_proc_id)]
-    print(f'Mat ids for tp={tech_proc_id} are: {mat_ids}')
-    tech_proc['materials'] = [mat for mat in all_mats if mat['material_id'] in mat_ids]
+    # Fetch materials from resources
+    tech_proc['materials'] = []
+    # Assume material resource type is "Materijal" or find all resources
+    mat_type_id = API.resources_api.find_resource_type_by_name("Materijal")
+    if mat_type_id:
+        query_mats = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_business_process_resource(.process = #{tech_proc_id} AND .type = #{mat_type_id})}}
+        END_SELECT"""
+        mats_data = query_apl(query_mats, description="Get material resources for technical process")
+        for inst in mats_data.get("instances", []):
+            attrs = inst.get("attributes", {})
+            obj = attrs.get("object", {})
+            if isinstance(obj, dict) and 'id' in obj:
+                mat_id = obj['id']
+                # Assume the object is a product or material entity
+                query_mat = f"""SELECT NO_CASE
+                Ext_
+                FROM
+                Ext_{{#{mat_id}}}
+                END_SELECT"""
+                mat_data = query_apl(query_mat, description="Get material details")
+                if mat_data.get("instances"):
+                    mat_attrs = mat_data["instances"][0]["attributes"]
+                    unit_obj = attrs.get("unit_component", {})
+                    unit_name = ""
+                    if isinstance(unit_obj, dict) and 'id' in unit_obj:
+                        unit_id = unit_obj['id']
+                        query_unit = f"""SELECT NO_CASE
+                        Ext_
+                        FROM
+                        Ext_{{#{unit_id}}}
+                        END_SELECT"""
+                        unit_data = query_apl(query_unit, description="Get unit details")
+                        if unit_data.get("instances"):
+                            unit_attrs = unit_data["instances"][0]["attributes"]
+                            unit_name = unit_attrs.get("name", "")
+                    mat_item = {
+                        'name': mat_attrs.get('name', ''),
+                        'code': mat_attrs.get('id', ''),
+                        'id': mat_attrs.get('id', ''),
+                        'standart': '',  # TODO: if applicable
+                        'uom': unit_name
+                    }
+                    tech_proc['materials'].append(mat_item)
 
     print(f'Technical process data={tech_proc}')
     return jsonify(tech_proc)
