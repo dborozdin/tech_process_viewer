@@ -19,9 +19,42 @@ $(document).ready(function() {
                     </tr>`;
                     tbody.append(row);
                 });
+                $('#products-section').show();
             },
             error: function(xhr, status, error) {
                 console.error('Error loading aircraft:', error);
+                // If connection is lost, clear stored connection info and hide products section
+                localStorage.removeItem('connected_db');
+                localStorage.removeItem('connected_user');
+                $('#products-section').hide();
+                $('#db-status').text('DB Status: Disconnected');
+            }
+        });
+    }
+
+    // Check if already connected on page load
+    function checkConnectionAndLoadAircrafts() {
+        $.ajax({
+            url: '/api/aircraft',
+            method: 'GET',
+            success: function(data) {
+                // If we can fetch aircrafts, connection is active
+                // Restore connection status from localStorage
+                const dbName = localStorage.getItem('connected_db');
+                const dbUser = localStorage.getItem('connected_user');
+                if (dbName && dbUser) {
+                    $('#db-status').text(`DB: ${dbName} User: ${dbUser}`);
+                } else {
+                    $('#db-status').text('DB Status: Connected');
+                }
+                loadAircraftList();
+            },
+            error: function(xhr, status, error) {
+                // Connection not active, clear stored connection info
+                localStorage.removeItem('connected_db');
+                localStorage.removeItem('connected_user');
+                $('#db-status').text('DB Status: Disconnected');
+                $('#products-section').hide();
             }
         });
     }
@@ -82,6 +115,9 @@ $(document).ready(function() {
             data: JSON.stringify(formData),
             success: function(data) {
                 if (data.connected) {
+                    // Store connection details in localStorage
+                    localStorage.setItem('connected_db', data.db);
+                    localStorage.setItem('connected_user', data.user);
                     $('#db-status').text(`DB: ${data.db} User: ${data.user}`);
                     $('#products-section').show();
                     $('#db-modal').hide();
@@ -108,6 +144,9 @@ $(document).ready(function() {
         window.location.href = newHref
 
     });
+
+    // Check connection status on page load
+    checkConnectionAndLoadAircrafts();
 
 
 });

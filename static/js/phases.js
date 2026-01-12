@@ -46,7 +46,7 @@ $(document).ready(function() {
                     let row = `<tr class="clickable" data-id="${item.phase_id}" data-name="${item.name}">
                         <td>${item.name}</td>
                         <td>${item.org_unit}</td>
-                        <td>${item.type || ''}</td>
+                        <td>${item.process_type || ''}</td>
                     </tr>`;
                     tbody.append(row);
                 });

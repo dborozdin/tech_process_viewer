@@ -264,12 +264,14 @@ def fetch_processes(aircraft_id: int):
     result = []
     for proc in proc_data.get("instances", []):
         attrs = proc.get("attributes", {})
+        customized = attrs.get("customized", False)
+        process_type = "Customized" if customized else "Typical"
         item = {
             "process_id": proc.get("id"),
             "aircraft_id": aircraft_id,
             "name": attrs.get("name"),
             "org_unit": (attrs.get("object") or {}).get("id") if isinstance(attrs.get("object"), dict) else None,
-            "process_type": (attrs.get("type") or {}).get("id") if isinstance(attrs.get("type"), dict) else None,
+            "process_type": process_type,
         }
         result.append(item)
 
@@ -331,12 +333,14 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
     result = []
     for proc in proc_data.get("instances", []):
         attrs = proc.get("attributes", {})
+        customized = attrs.get("customized", False)
+        process_type = "Customized" if customized else "Typical"
         item = {
             parent_element_type: process_id,
             element_type: proc.get("id"),
             "name": attrs.get("name"),
             "org_unit": (attrs.get("object") or {}).get("id") if isinstance(attrs.get("object"), dict) else None,
-            "type": "",
+            "process_type": process_type,
         }
         result.append(item)
 
@@ -362,6 +366,10 @@ def get_phases(process_id):
 
 @app.route('/api/technical_processes/<phase_id>')
 def get_technical_processes(phase_id):
+    global API
+    if API is None or API.connect_data is None:
+        return jsonify({'error': 'Not connected to DB'}), 400
+
     technical_processes = fetch_phases_or_tp(phase_id, element_type='tech_proc_id', parent_element_type='phase_id')
     print(json.dumps(technical_processes, indent=2, ensure_ascii=False))
     return jsonify(technical_processes)
@@ -376,45 +384,64 @@ def get_technical_processes(phase_id):
 
 @app.route('/api/technical_process_details/<tech_proc_id>', methods=['GET'])
 def get_technical_process_details(tech_proc_id):
-        print(f'get_technical_process_details')
-        print(f'tech_proc_id: {tech_proc_id}')
-        # For details, load multiple related tables
-        #tech_procs = load_json(os.path.join(BASE_DIR, 'technical_processes.json'))
-        #print(f'tech_procs: {print(json.dumps(tech_procs, indent=2, ensure_ascii=False))}')
-        operations = load_json(os.path.join(BASE_DIR, 'operations.json'))
-        print(f'tech_procs: {print(json.dumps(operations, indent=2, ensure_ascii=False))}')
-        steps = load_json(os.path.join(BASE_DIR, 'steps.json'))
-        print(f'tech_procs: {print(json.dumps(steps, indent=2, ensure_ascii=False))}')
-        documents = load_json(os.path.join(BASE_DIR, 'technical_process_documents.json')) # Junction table
-        all_docs = load_json(os.path.join(BASE_DIR, 'documents.json'))
-        materials = load_json(os.path.join(BASE_DIR, 'technical_process_materials.json'))  # Junction
-        all_mats = load_json(os.path.join(BASE_DIR, 'materials.json'))
+    global API
+    if API is None or API.connect_data is None:
+        return jsonify({'error': 'Not connected to DB'}), 400
 
-        #tech_proc = next((tp for tp in tech_procs if str(tp['tech_proc_id']) == str(tech_proc_id)), None)
-        #if not tech_proc:
-            #return jsonify({'error': 'Technical processes data not found'}), 404
+    print(f'get_technical_process_details')
+    print(f'tech_proc_id: {tech_proc_id}')
 
-        # Get operations for this tech proc
-        tech_proc_ops = [op for op in operations if str(op['tech_proc_id']) == str(tech_proc_id)]
+    # Query for the technical process details from database
+    query_tp = f"""SELECT NO_CASE
+    Ext_
+    FROM
+    Ext_{{{tech_proc_id}}}
+    Ext_{{apl_business_process(.# in #Ext_)}}
+    END_SELECT"""
+    tp_data = query_apl(query_tp, description="Get technical process details by ID")
 
-        # For each operation, get steps
-        for op in tech_proc_ops:
-            op['steps'] = [st for st in steps if str(st['operation_id']) == str(op['operation_id'])]
-        tech_proc={}
-        tech_proc['operations'] = tech_proc_ops
+    if not tp_data.get("instances"):
+        return jsonify({'error': 'Technical process not found'}), 404
 
-        # Get documents
-        doc_ids = [d['document_id'] for d in documents if str(d['tech_proc_id']) == str(tech_proc_id)]
-        print(f'Doc ids for tp={tech_proc_id} are: {doc_ids}')
-        tech_proc['documents'] = [doc for doc in all_docs if doc['document_id'] in doc_ids]
+    tp_attrs = tp_data["instances"][0]["attributes"]
+    customized = tp_attrs.get("customized", False)
+    process_type = "Customized" if customized else "Typical"
 
-        # Get materials
-        mat_ids = [m['material_id'] for m in materials if str(m['tech_proc_id']) == str(tech_proc_id)]
-        print(f'Mat ids for tp={tech_proc_id} are: {mat_ids}')
-        tech_proc['materials'] = [mat for mat in all_mats if mat['material_id'] in mat_ids]
+    tech_proc = {
+        'name': tp_attrs.get('name'),
+        'org_unit': (tp_attrs.get("object") or {}).get("id") if isinstance(tp_attrs.get("object"), dict) else None,
+        'process_type': process_type
+    }
 
-        print(f'Technical process data from files={tech_proc}')
-        return jsonify(tech_proc)
+    # For operations, steps, documents, materials - still load from JSON files for now
+    # TODO: These should also be loaded from database in the future
+    operations = load_json(os.path.join(BASE_DIR, 'operations.json'))
+    steps = load_json(os.path.join(BASE_DIR, 'steps.json'))
+    documents = load_json(os.path.join(BASE_DIR, 'technical_process_documents.json')) # Junction table
+    all_docs = load_json(os.path.join(BASE_DIR, 'documents.json'))
+    materials = load_json(os.path.join(BASE_DIR, 'technical_process_materials.json'))  # Junction
+    all_mats = load_json(os.path.join(BASE_DIR, 'materials.json'))
+
+    # Get operations for this tech proc
+    tech_proc_ops = [op for op in operations if str(op['tech_proc_id']) == str(tech_proc_id)]
+
+    # For each operation, get steps
+    for op in tech_proc_ops:
+        op['steps'] = [st for st in steps if str(st['operation_id']) == str(op['operation_id'])]
+    tech_proc['operations'] = tech_proc_ops
+
+    # Get documents
+    doc_ids = [d['document_id'] for d in documents if str(d['tech_proc_id']) == str(tech_proc_id)]
+    print(f'Doc ids for tp={tech_proc_id} are: {doc_ids}')
+    tech_proc['documents'] = [doc for doc in all_docs if doc['document_id'] in doc_ids]
+
+    # Get materials
+    mat_ids = [m['material_id'] for m in materials if str(m['tech_proc_id']) == str(tech_proc_id)]
+    print(f'Mat ids for tp={tech_proc_id} are: {mat_ids}')
+    tech_proc['materials'] = [mat for mat in all_mats if mat['material_id'] in mat_ids]
+
+    print(f'Technical process data={tech_proc}')
+    return jsonify(tech_proc)
 
 if __name__ == '__main__':
     app.run(debug=True)
