@@ -149,8 +149,8 @@ class EntityInstancesList(MethodView):
             'entity_name': entity_name,
             'instances': formatted_instances,
             'total': len(instances),
-            'page': page,
-            'per_page': per_page
+            'start': start_idx,
+            'size': per_page
         })
 
 

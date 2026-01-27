@@ -1,3 +1,6 @@
 __pycache__/app.cpython-312.pyc
 /__pycache__
 /api/__pycache__
+api/routes/__pycache__/entity_viewer.cpython-311.pyc
+api/routes/__pycache__/business_processes.cpython-311.pyc
+api/routes/__pycache__/documents.cpython-311.pyc

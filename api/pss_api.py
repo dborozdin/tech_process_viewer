@@ -15,7 +15,7 @@ class DatabaseAPI:
         self.URL_CONNECT = f'{url_db_api}/connect/{db_credentials}'
         self.URL_DISCONNECT = f'{url_db_api}/disconnect'
         self.URL_QUERY_SAVE = f'{url_db_api}/save'
-        self.URL_QUERY = f'{url_db_api}&size=100000/query&all_attrs=true'
+        self.URL_QUERY = f'{url_db_api}&size=50/query&all_attrs=true'
         self.URL_UPLOAD = f'{url_db_api}/upload'
         self.connect_data = None
         self.folders_api= FoldersAPI(self)
