@@ -164,8 +164,48 @@ class OrganizationsAPI:
 
     def find_or_create_organizations_relation(self, org_related, org_relating):
         """Find a organization relation by org_related, org_relating or create it if it doesn't exist."""
-        org_rel_id= self.find_organizations_relation(org_related=org_related , org_relating=org_relating) 
-        if org_rel_id is None:  
+        org_rel_id= self.find_organizations_relation(org_related=org_related , org_relating=org_relating)
+        if org_rel_id is None:
             return self.create_organizations_relation(org_related=org_related, org_relating=org_relating)
         else:
             return org_rel_id
+
+    # ========== New CRUD Methods for RESTful API ==========
+
+    def get_organization(self, org_sys_id):
+        """Get a single organization by system ID"""
+        print(f'get_organization with org_sys_id={org_sys_id}')
+        return self.db_api.get_instance(org_sys_id, entity_type='organization')
+
+    def list_organizations(self, filters=None, limit=100):
+        """List organizations with optional filtering"""
+        print(f'list_organizations with filters={filters}, limit={limit}')
+        return self.db_api.query_instances('organization', filters=filters, limit=limit)
+
+    def update_organization(self, org_sys_id, updates):
+        """
+        Update organization
+
+        Args:
+            org_sys_id: System ID of the organization
+            updates: Dictionary with fields to update (name, description)
+
+        Returns:
+            Updated organization instance or None on failure
+        """
+        print(f'update_organization with org_sys_id={org_sys_id}, updates={updates}')
+        return self.db_api.update_instance(org_sys_id, 'organization', updates)
+
+    def delete_organization(self, org_sys_id, soft_delete=True):
+        """
+        Delete an organization
+
+        Args:
+            org_sys_id: System ID of the organization
+            soft_delete: If True, marks as deleted; if False, performs hard delete
+
+        Returns:
+            True on success, False on failure
+        """
+        print(f'delete_organization with org_sys_id={org_sys_id}, soft_delete={soft_delete}')
+        return self.db_api.delete_instance(org_sys_id, 'organization', soft_delete=soft_delete)

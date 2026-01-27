@@ -406,8 +406,127 @@ class BusinessProcessAPI:
         #print(f'request_result={request_result}')
         if request_result.status_code == 200:
             return len(resources)
-        else: 
+        else:
             print(f'Business process elements save error')
             print(f'Error description: {request_result.json()}')
             print(f'Query: {query}')
             return None
+
+    def update_business_process(self, bp_sys_id, updates):
+        """Update an existing business process
+
+        Args:
+            bp_sys_id: Business process system ID
+            updates: Dict of attributes to update (name, description, customized, etc.)
+
+        Returns:
+            Updated business process instance or None on error
+        """
+        return self.db_api.update_instance(bp_sys_id, 'apl_business_process', updates)
+
+    def delete_business_process(self, bp_sys_id, soft_delete=True):
+        """Delete a business process
+
+        Args:
+            bp_sys_id: Business process system ID
+            soft_delete: If True, marks as inactive; if False, attempts hard delete
+
+        Returns:
+            True on success, False on failure
+        """
+        return self.db_api.delete_instance(bp_sys_id, 'apl_business_process', soft_delete)
+
+    def get_business_process(self, bp_sys_id):
+        """Get a single business process by system ID
+
+        Args:
+            bp_sys_id: Business process system ID
+
+        Returns:
+            Business process instance or None if not found
+        """
+        return self.db_api.get_instance(bp_sys_id, 'apl_business_process')
+
+    def list_business_processes(self, filters=None, limit=100):
+        """List business processes with optional filtering
+
+        Args:
+            filters: Dict of filters or APL query conditions
+            limit: Maximum number of results
+
+        Returns:
+            List of business process instances
+        """
+        return self.db_api.query_instances('apl_business_process', filters, limit)
+
+    def add_element_to_process(self, parent_bp_sys_id, child_bp_sys_id):
+        """Add a sub-process/element to a business process
+
+        Args:
+            parent_bp_sys_id: Parent business process system ID
+            child_bp_sys_id: Child business process system ID to add as element
+
+        Returns:
+            Updated parent process or None on error
+        """
+        # Get current elements
+        parent = self.get_business_process(parent_bp_sys_id)
+        if not parent:
+            print(f'Parent business process {parent_bp_sys_id} not found')
+            return None
+
+        elements = parent.get('attributes', {}).get('elements', [])
+
+        # Add new element
+        elements.append({
+            "id": child_bp_sys_id,
+            "type": "apl_business_process"
+        })
+
+        # Update using existing set_business_process_elements method
+        active_version = parent.get('attributes', {}).get('active_version', {})
+        active_version_id = active_version.get('id') if isinstance(active_version, dict) else None
+
+        if active_version_id:
+            element_ids = [elem['id'] if isinstance(elem, dict) else elem for elem in elements]
+            result = self.set_business_process_elements(parent_bp_sys_id, active_version_id, element_ids)
+            if result is not None:
+                return self.get_business_process(parent_bp_sys_id)
+
+        return None
+
+    def remove_element_from_process(self, parent_bp_sys_id, child_bp_sys_id):
+        """Remove a sub-process/element from a business process
+
+        Args:
+            parent_bp_sys_id: Parent business process system ID
+            child_bp_sys_id: Child business process system ID to remove
+
+        Returns:
+            Updated parent process or None on error
+        """
+        # Get current elements
+        parent = self.get_business_process(parent_bp_sys_id)
+        if not parent:
+            print(f'Parent business process {parent_bp_sys_id} not found')
+            return None
+
+        elements = parent.get('attributes', {}).get('elements', [])
+
+        # Remove element
+        element_ids = [
+            elem['id'] if isinstance(elem, dict) else elem
+            for elem in elements
+            if (elem['id'] if isinstance(elem, dict) else elem) != child_bp_sys_id
+        ]
+
+        # Update using existing set_business_process_elements method
+        active_version = parent.get('attributes', {}).get('active_version', {})
+        active_version_id = active_version.get('id') if isinstance(active_version, dict) else None
+
+        if active_version_id:
+            result = self.set_business_process_elements(parent_bp_sys_id, active_version_id, element_ids)
+            if result is not None:
+                return self.get_business_process(parent_bp_sys_id)
+
+        return None

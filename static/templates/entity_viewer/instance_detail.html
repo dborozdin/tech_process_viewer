@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экземпляр #{{ instance_id }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/jquery-3.7.1.min.js"></script>
+    <script src="/js/db-connection.js"></script>
+    <style>
+        .attribute-row {
+            border-bottom: 1px solid #e9ecef;
+            padding: 10px 0;
+        }
+        .attribute-row:last-child {
+            border-bottom: none;
+        }
+        .attribute-name {
+            font-weight: bold;
+            color: #495057;
+        }
+        .attribute-value {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        .reference-link {
+            cursor: pointer;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .reference-link:hover {
+            text-decoration: underline;
+        }
+        .reference-preview {
+            background-color: #e7f3ff;
+            border-left: 3px solid #0d6efd;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+        }
+        .edit-mode .attribute-value {
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            padding: 8px;
+        }
+        .breadcrumb-item a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/entity-viewer/">
+                <i class="fas fa-database"></i> Entity Viewer
+            </a>
+            <div class="navbar-text text-light">
+                Экземпляр #{{ instance_id }}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb" id="breadcrumb">
+                <li class="breadcrumb-item"><a href="/entity-viewer/">Типы объектов</a></li>
+                <li class="breadcrumb-item"><a href="#" id="entityLink">...</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Экземпляр #{{ instance_id }}</li>
+            </ol>
+        </nav>
+
+        <!-- Instance Header -->
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <h2><i class="fas fa-cube"></i> <span id="instanceTitle">Экземпляр #{{ instance_id }}</span></h2>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-primary" id="editBtn" onclick="toggleEditMode()">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button class="btn btn-success d-none" id="saveBtn" onclick="saveChanges()">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+                <button class="btn btn-secondary d-none" id="cancelBtn" onclick="cancelEdit()">
+                    <i class="fas fa-times"></i> Отмена
+                </button>
+            </div>
+        </div>
+
+        <!-- Instance Info -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle"></i> Основная информация
+                    </div>
+                    <div class="card-body">
+                        <div id="instanceInfo">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attributes -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list-ul"></i> Атрибуты
+                    </div>
+                    <div class="card-body" id="attributesContainer">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resolved References -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-link"></i> Связанные объекты (resolved references)
+                    </div>
+                    <div class="card-body" id="referencesContainer">
+                        <p class="text-muted">Загрузка...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for editing attribute -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать атрибут</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название атрибута</label>
+                        <input type="text" class="form-control" id="editAttrName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Тип данных</label>
+                        <input type="text" class="form-control" id="editAttrType" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Значение</label>
+                        <textarea class="form-control" id="editAttrValue" rows="3"></textarea>
+                        <small class="form-text text-muted">Для ссылок используйте JSON формат: {"id": 123, "type": "entity_type"}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="applyAttributeEdit()">Применить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const instanceId = {{ instance_id }};
+        let instanceData = null;
+        let originalData = null;
+        let editMode = false;
+        let currentEditAttr = null;
+
+        // Load instance details
+        async function loadInstance() {
+            try {
+                const response = await fetch(`/api/entity-viewer/instances/${instanceId}`);
+
+                if (response.status === 401) {
+                    document.getElementById('instanceInfo').innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Подключитесь к базе данных для просмотра экземпляра
+                        </div>
+                    `;
+                    document.getElementById('attributesContainer').innerHTML = '';
+                    document.getElementById('referencesContainer').innerHTML = '';
+                    return;
+                }
+
+                const data = await response.json();
+
+                instanceData = data.instance;
+                originalData = JSON.parse(JSON.stringify(instanceData));
+
+                renderInstanceInfo(data);
+                renderAttributes(data.instance, data.entity_info);
+                renderReferences(data.resolved_references);
+
+                // Update breadcrumb
+                if (data.entity_info) {
+                    const entityLink = document.getElementById('entityLink');
+                    entityLink.href = `/entity-viewer/entity/${data.entity_info.name}`;
+                    entityLink.textContent = data.entity_info.name;
+                }
+            } catch (error) {
+                console.error('Error loading instance:', error);
+                alert('Ошибка загрузки экземпляра: ' + error.message);
+            }
+        }
+
+        function renderInstanceInfo(data) {
+            const instance = data.instance;
+            const entity = data.entity_info;
+
+            document.getElementById('instanceTitle').textContent =
+                `${entity ? entity.name : instance.type} #${instance.id}`;
+
+            document.getElementById('instanceInfo').innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>System ID:</strong> ${instance.id}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Тип:</strong> ${instance.type}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Доступ:</strong> <span class="badge bg-info">${instance.access || 'N/A'}</span>
+                    </div>
+                    ${entity ? `
+                    <div class="col-md-3">
+                        <strong>Entity ID:</strong> ${entity.id}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderAttributes(instance, entityInfo) {
+            const attributes = instance.attributes || {};
+            const container = document.getElementById('attributesContainer');
+
+            if (Object.keys(attributes).length === 0) {
+                container.innerHTML = '<p class="text-muted">Нет атрибутов</p>';
+                return;
+            }
+
+            const rows = Object.entries(attributes).map(([key, value]) => {
+                const displayValue = formatAttributeValue(value);
+                const isEditable = !['id', 'type', 'access'].includes(key);
+
+                return `
+                    <div class="attribute-row">
+                        <div class="row">
+                            <div class="col-md-3 attribute-name">${key}</div>
+                            <div class="col-md-9">
+                                <div class="attribute-value" data-attr="${key}">
+                                    ${displayValue}
+                                    ${isEditable && editMode ? `
+                                        <button class="btn btn-sm btn-outline-primary float-end"
+                                                onclick="openEditModal('${key}', '${typeof value}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = rows;
+        }
+
+        function formatAttributeValue(value) {
+            if (value === null || value === undefined) {
+                return '<span class="text-muted">null</span>';
+            }
+
+            if (typeof value === 'object') {
+                // Check if it's a reference
+                if (value.id !== undefined) {
+                    const refId = value.id;
+                    const refType = value.type || 'unknown';
+                    return `<span class="reference-link" onclick="openInstance(${refId})">
+                        <i class="fas fa-link"></i> ${refType} #${refId}
+                    </span>`;
+                }
+
+                // Array
+                if (Array.isArray(value)) {
+                    return value.map(item => formatAttributeValue(item)).join(', ');
+                }
+
+                // Object
+                return `<pre>${JSON.stringify(value, null, 2)}</pre>`;
+            }
+
+            // Primitive value
+            return escapeHtml(String(value));
+        }
+
+        function renderReferences(references) {
+            const container = document.getElementById('referencesContainer');
+
+            if (!references || Object.keys(references).length === 0) {
+                container.innerHTML = '<p class="text-muted">Нет связанных объектов</p>';
+                return;
+            }
+
+            const content = Object.entries(references).map(([attrName, refData]) => {
+                if (Array.isArray(refData)) {
+                    // Multiple references
+                    return `
+                        <div class="mb-3">
+                            <strong>${attrName}:</strong>
+                            <div class="reference-preview">
+                                ${refData.map(ref => renderReferencePreview(ref)).join('<hr>')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Single reference
+                    return `
+                        <div class="mb-3">
+                            <strong>${attrName}:</strong>
+                            <div class="reference-preview">
+                                ${renderReferencePreview(refData)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            container.innerHTML = content;
+        }
+
+        function renderReferencePreview(ref) {
+            const attrs = ref.attributes || {};
+            const name = attrs.name || attrs.id || 'N/A';
+
+            return `
+                <div>
+                    <span class="reference-link" onclick="openInstance(${ref.id})">
+                        <i class="fas fa-external-link-alt"></i>
+                        ${ref.type} #${ref.id}: ${name}
+                    </span>
+                    <div class="mt-2">
+                        ${Object.entries(attrs).slice(0, 5).map(([k, v]) =>
+                            `<span class="badge bg-light text-dark me-1">${k}: ${
+                                typeof v === 'object' ? JSON.stringify(v).substring(0, 30) + '...' : v
+                            }</span>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleEditMode() {
+            editMode = !editMode;
+
+            if (editMode) {
+                document.getElementById('editBtn').classList.add('d-none');
+                document.getElementById('saveBtn').classList.remove('d-none');
+                document.getElementById('cancelBtn').classList.remove('d-none');
+                renderAttributes(instanceData, null);
+            } else {
+                document.getElementById('editBtn').classList.remove('d-none');
+                document.getElementById('saveBtn').classList.add('d-none');
+                document.getElementById('cancelBtn').classList.add('d-none');
+                renderAttributes(instanceData, null);
+            }
+        }
+
+        function cancelEdit() {
+            instanceData = JSON.parse(JSON.stringify(originalData));
+            toggleEditMode();
+        }
+
+        function openEditModal(attrName, attrType) {
+            currentEditAttr = attrName;
+            const value = instanceData.attributes[attrName];
+
+            document.getElementById('editAttrName').value = attrName;
+            document.getElementById('editAttrType').value = attrType;
+            document.getElementById('editAttrValue').value =
+                typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+
+        function applyAttributeEdit() {
+            const newValue = document.getElementById('editAttrValue').value;
+
+            try {
+                // Try to parse as JSON for objects
+                const parsedValue = tryParseJSON(newValue);
+                instanceData.attributes[currentEditAttr] = parsedValue;
+
+                // Re-render attributes
+                renderAttributes(instanceData, null);
+
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            } catch (error) {
+                alert('Ошибка парсинга значения: ' + error.message);
+            }
+        }
+
+        async function saveChanges() {
+            try {
+                const response = await fetch(`/api/entity-viewer/instances/${instanceId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        attributes: instanceData.attributes
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Изменения сохранены успешно!');
+                    originalData = JSON.parse(JSON.stringify(instanceData));
+                    toggleEditMode();
+                    // Reload to get fresh data
+                    loadInstance();
+                } else {
+                    throw new Error(result.message || 'Ошибка сохранения');
+                }
+            } catch (error) {
+                console.error('Error saving changes:', error);
+                alert('Ошибка сохранения: ' + error.message);
+            }
+        }
+
+        function openInstance(id) {
+            window.location.href = `/entity-viewer/instance/${id}`;
+        }
+
+        function tryParseJSON(str) {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                // Not JSON, return as string
+                return str;
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Load on page load
+        $(document).ready(function() {
+            dbConnection.initFromCookies();
+            loadInstance();
+        });
+    </script>
+</body>
+</html>

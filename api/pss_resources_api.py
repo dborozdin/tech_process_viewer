@@ -196,3 +196,67 @@ class ResourcesAPI:
             return self.create_resource_type(res_type_name=res_type_name)
         else:
             return res_type_sys_id
+
+    # ========== New CRUD Methods for RESTful API ==========
+
+    def get_resource(self, resource_sys_id):
+        """Get a single resource by system ID"""
+        print(f'get_resource with resource_sys_id={resource_sys_id}')
+        return self.db_api.get_instance(resource_sys_id, entity_type='apl_business_process_resource')
+
+    def list_resources(self, filters=None, limit=100):
+        """List resources with optional filtering"""
+        print(f'list_resources with filters={filters}, limit={limit}')
+        return self.db_api.query_instances('apl_business_process_resource', filters=filters, limit=limit)
+
+    def update_resource(self, resource_sys_id, updates):
+        """
+        Update resource
+
+        Args:
+            resource_sys_id: System ID of the resource
+            updates: Dictionary with fields to update (value_component, unit_id, object_id)
+
+        Returns:
+            Updated resource instance or None on failure
+        """
+        print(f'update_resource with resource_sys_id={resource_sys_id}, updates={updates}')
+
+        # Map unit_id and object_id to reference structures
+        if 'unit_id' in updates:
+            unit_id = updates.pop('unit_id')
+            if unit_id is not None:
+                updates['unit_component'] = {
+                    "id": unit_id,
+                    "type": "apl_unit"
+                }
+
+        if 'object_id' in updates:
+            object_id = updates.pop('object_id')
+            object_type = updates.pop('object_type', 'apl_product_definition_formation')  # Default type
+            if object_id is not None:
+                updates['object'] = {
+                    "id": object_id,
+                    "type": object_type
+                }
+
+        return self.db_api.update_instance(resource_sys_id, 'apl_business_process_resource', updates)
+
+    def delete_resource(self, resource_sys_id, soft_delete=True):
+        """
+        Delete a resource
+
+        Args:
+            resource_sys_id: System ID of the resource
+            soft_delete: If True, marks as deleted; if False, performs hard delete
+
+        Returns:
+            True on success, False on failure
+        """
+        print(f'delete_resource with resource_sys_id={resource_sys_id}, soft_delete={soft_delete}')
+        return self.db_api.delete_instance(resource_sys_id, 'apl_business_process_resource', soft_delete=soft_delete)
+
+    def list_resource_types(self, limit=100):
+        """List all resource types"""
+        print(f'list_resource_types with limit={limit}')
+        return self.db_api.query_instances('apl_business_process_resource_type', filters=None, limit=limit)

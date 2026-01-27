@@ -336,3 +336,87 @@ class DocumentsAPI:
             except requests.RequestException as e:
                 # Ошибка запроса (например, таймаут, DNS и т.п.)
                 return (None, str(e), None, None)
+
+    # ========== New CRUD Methods for RESTful API ==========
+
+    def get_document(self, doc_sys_id):
+        """Get a single document by system ID"""
+        print(f'get_document with doc_sys_id={doc_sys_id}')
+        return self.db_api.get_instance(doc_sys_id, entity_type='apl_document')
+
+    def list_documents(self, filters=None, limit=100):
+        """List documents with optional filtering"""
+        print(f'list_documents with filters={filters}, limit={limit}')
+        return self.db_api.query_instances('apl_document', filters=filters, limit=limit)
+
+    def update_document(self, doc_sys_id, updates):
+        """
+        Update document metadata
+
+        Args:
+            doc_sys_id: System ID of the document
+            updates: Dictionary with fields to update (name, description, kind_id, version_id, status)
+
+        Returns:
+            Updated document instance or None on failure
+        """
+        print(f'update_document with doc_sys_id={doc_sys_id}, updates={updates}')
+
+        # Map kind_id to reference structure if provided
+        if 'kind_id' in updates:
+            kind_id = updates.pop('kind_id')
+            if kind_id is not None:
+                updates['kind'] = {
+                    "id": kind_id,
+                    "type": "document_type"
+                }
+
+        return self.db_api.update_instance(doc_sys_id, 'apl_document', updates)
+
+    def delete_document(self, doc_sys_id, soft_delete=True):
+        """
+        Delete a document
+
+        Args:
+            doc_sys_id: System ID of the document
+            soft_delete: If True, marks as deleted; if False, performs hard delete
+
+        Returns:
+            True on success, False on failure
+        """
+        print(f'delete_document with doc_sys_id={doc_sys_id}, soft_delete={soft_delete}')
+        return self.db_api.delete_instance(doc_sys_id, 'apl_document', soft_delete=soft_delete)
+
+    def get_document_references(self, item_sys_id):
+        """
+        Get all document references for a specific item
+
+        Args:
+            item_sys_id: System ID of the item
+
+        Returns:
+            List of document reference instances
+        """
+        print(f'get_document_references for item_sys_id={item_sys_id}')
+
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_document_reference(.item=#{item_sys_id})}}
+        END_SELECT"""
+
+        return self.db_api.query_apl(query)
+
+    def delete_document_reference(self, doc_ref_sys_id, soft_delete=True):
+        """
+        Delete a document reference
+
+        Args:
+            doc_ref_sys_id: System ID of the document reference
+            soft_delete: If True, marks as deleted; if False, performs hard delete
+
+        Returns:
+            True on success, False on failure
+        """
+        print(f'delete_document_reference with doc_ref_sys_id={doc_ref_sys_id}, soft_delete={soft_delete}')
+        return self.db_api.delete_instance(doc_ref_sys_id, 'apl_document_reference', soft_delete=soft_delete)

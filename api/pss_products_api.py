@@ -1,5 +1,5 @@
 import requests
-from globals import logger
+from tech_process_viewer.globals import logger
 
 class ProductsAPI:
     def __init__(self, db_api):
@@ -225,3 +225,114 @@ class ProductsAPI:
                                                 UOM=UOM)
         else:
             return find_result
+
+    # New CRUD methods for Products API
+
+    def get_product(self, product_sys_id):
+        """Get a single product by system ID"""
+        return self.db_api.get_instance(product_sys_id, 'product')
+
+    def list_products(self, filters=None, limit=100):
+        """List products with optional filtering"""
+        return self.db_api.query_instances('product', filters, limit)
+
+    def update_product(self, product_sys_id, updates):
+        """Update an existing product"""
+        return self.db_api.update_instance(product_sys_id, 'product', updates)
+
+    def delete_product(self, product_sys_id, soft_delete=True):
+        """Delete a product"""
+        return self.db_api.delete_instance(product_sys_id, 'product', soft_delete)
+
+    # Product Definition (version) methods
+
+    def get_product_definition(self, pdf_sys_id):
+        """Get a single product definition by system ID"""
+        return self.db_api.get_instance(pdf_sys_id, 'apl_product_definition_formation')
+
+    def list_product_definitions(self, product_sys_id):
+        """List all definitions (versions) for a product"""
+        query = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_product_definition_formation(.of_product->product.# = #{product_sys_id})}}
+            END_SELECT"""
+
+        result = self.db_api.query_apl(query)
+        if result and 'instances' in result:
+            return result['instances']
+        return []
+
+    def create_product_definition(self, product_sys_id, definition_data):
+        """Create a new product definition/version"""
+        attributes = {
+            "of_product": {
+                "id": product_sys_id,
+                "type": "product"
+            },
+            **definition_data
+        }
+
+        return self.db_api.create_instance('apl_product_definition_formation', attributes)
+
+    def update_product_definition(self, pdf_sys_id, updates):
+        """Update a product definition"""
+        return self.db_api.update_instance(pdf_sys_id, 'apl_product_definition_formation', updates)
+
+    def delete_product_definition(self, pdf_sys_id, soft_delete=True):
+        """Delete a product definition"""
+        return self.db_api.delete_instance(pdf_sys_id, 'apl_product_definition_formation', soft_delete)
+
+    # BOM (Bill of Materials) methods
+
+    def get_bom_structure(self, pdf_sys_id):
+        """Get BOM structure (all components) for a product definition"""
+        query = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence(.relating_product_definition = #{pdf_sys_id})}}
+            END_SELECT"""
+
+        result = self.db_api.query_apl(query)
+        if result and 'instances' in result:
+            return result['instances']
+        return []
+
+    def get_bom_item(self, bom_item_sys_id):
+        """Get a single BOM item"""
+        return self.db_api.get_instance(
+            bom_item_sys_id,
+            'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence'
+        )
+
+    def update_bom_item(self, bom_item_sys_id, updates):
+        """Update a BOM item (quantity, unit, reference designator, etc.)"""
+        return self.db_api.update_instance(
+            bom_item_sys_id,
+            'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence',
+            updates
+        )
+
+    def delete_bom_item(self, bom_item_sys_id, soft_delete=True):
+        """Delete a BOM item"""
+        return self.db_api.delete_instance(
+            bom_item_sys_id,
+            'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence',
+            soft_delete
+        )
+
+    def add_component_to_bom(self, parent_pdf_id, component_pdf_id, quantity, unit_id=None, reference_designator=None):
+        """Add a component to product's BOM"""
+        # Check if already exists
+        existing = self.find_product_assembly_by_related(component_pdf_id, parent_pdf_id)
+        if existing:
+            logger.info(f"Component already exists in BOM: {existing[0]}")
+            return existing[0]
+
+        # Create new BOM item
+        return self.create_product_assembly(
+            pdf_related=component_pdf_id,
+            pdf_relating=parent_pdf_id,
+            quantity=quantity,
+            UOM=unit_id or 1  # Default unit
+        )

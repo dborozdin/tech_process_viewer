@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ entity_name }} - Экземпляры</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/js/jquery-3.7.1.min.js"></script>
+    <script src="/js/db-connection.js"></script>
+    <style>
+        .instance-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .instance-row:hover {
+            background-color: #f8f9fa;
+        }
+        .attribute-badge {
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        .breadcrumb-item a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/entity-viewer/">
+                <i class="fas fa-database"></i> Entity Viewer
+            </a>
+            <span class="navbar-text text-light">
+                {{ entity_name }}
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/entity-viewer/">Типы объектов</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ entity_name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <h2><i class="fas fa-cubes"></i> Экземпляры: {{ entity_name }}</h2>
+            </div>
+        </div>
+
+        <!-- Entity Info Card -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle"></i> Информация о типе
+                    </div>
+                    <div class="card-body">
+                        <div id="entityInfo">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instances Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list"></i> Список экземпляров</span>
+                        <span class="badge bg-primary" id="instanceCount">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="instancesTable">
+                                <thead>
+                                    <tr>
+                                        <th>System ID</th>
+                                        <th>Тип</th>
+                                        <th>Доступ</th>
+                                        <th>Атрибуты (preview)</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="instancesBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Загрузка...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <nav aria-label="Pagination">
+                            <ul class="pagination justify-content-center" id="pagination">
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const entityName = "{{ entity_name }}";
+        let currentPage = 1;
+        const perPage = 20;
+
+        // Load entity info
+        async function loadEntityInfo() {
+            try {
+                const response = await fetch(`/api/entity-viewer/entities/${entityName}`);
+                const data = await response.json();
+                const entity = data.entity;
+
+                document.getElementById('entityInfo').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>ID:</strong> ${entity.id}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Иерархия:</strong> ${entity.hierarchy.join(' → ')}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Атрибутов:</strong> ${entity.attributes.length}
+                        </div>
+                    </div>
+                    ${entity.subtypes.length > 0 ? `
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <strong>Подтипы:</strong>
+                                ${entity.subtypes.map(st => `<span class="badge bg-secondary">${st.name}</span>`).join(' ')}
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+            } catch (error) {
+                console.error('Error loading entity info:', error);
+            }
+        }
+
+        // Load instances
+        async function loadInstances(page = 1) {
+            try {
+                const response = await fetch(
+                    `/api/entity-viewer/entities/${entityName}/instances?page=${page}&per_page=${perPage}`
+                );
+
+                if (response.status === 401) {
+                    document.getElementById('instancesBody').innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center text-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Подключитесь к базе данных для просмотра экземпляров
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+
+                renderInstances(data.instances);
+                renderPagination(data.total, page);
+
+                document.getElementById('instanceCount').textContent =
+                    `Всего: ${data.total}`;
+            } catch (error) {
+                console.error('Error loading instances:', error);
+                document.getElementById('instancesBody').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Ошибка загрузки: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function renderInstances(instances) {
+            const tbody = document.getElementById('instancesBody');
+
+            if (instances.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            <i class="fas fa-inbox"></i> Экземпляры не найдены
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = instances.map(inst => {
+                // Get preview of attributes
+                const attrs = inst.attributes || {};
+                const attrKeys = Object.keys(attrs).slice(0, 3);
+                const attrPreview = attrKeys.map(key => {
+                    let value = attrs[key];
+                    if (typeof value === 'object' && value !== null) {
+                        value = JSON.stringify(value).substring(0, 30) + '...';
+                    }
+                    return `<span class="attribute-badge badge bg-light text-dark">${key}: ${value}</span>`;
+                }).join(' ');
+
+                return `
+                    <tr class="instance-row" onclick="openInstance(${inst.sys_id})">
+                        <td><strong>${inst.sys_id}</strong></td>
+                        <td>${inst.type}</td>
+                        <td><span class="badge bg-info">${inst.access || 'N/A'}</span></td>
+                        <td>${attrPreview}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openInstance(${inst.sys_id})">
+                                <i class="fas fa-eye"></i> Просмотр
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPagination(total, currentPage) {
+            const totalPages = Math.ceil(total / perPage);
+            const pagination = document.getElementById('pagination');
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let pages = [];
+
+            // Previous
+            pages.push(`
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadInstances(${currentPage - 1}); return false;">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+            `);
+
+            // Page numbers
+            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+                pages.push(`
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadInstances(${i}); return false;">${i}</a>
+                    </li>
+                `);
+            }
+
+            // Next
+            pages.push(`
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadInstances(${currentPage + 1}); return false;">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            `);
+
+            pagination.innerHTML = pages.join('');
+        }
+
+        function openInstance(instanceId) {
+            window.location.href = `/entity-viewer/instance/${instanceId}`;
+        }
+
+        // Load on page load
+        $(document).ready(function() {
+            dbConnection.initFromCookies();
+            loadEntityInfo();
+            loadInstances(1);
+        });
+    </script>
+</body>
+</html>

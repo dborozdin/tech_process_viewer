@@ -24,8 +24,7 @@ $(document).ready(function() {
             error: function(xhr, status, error) {
                 console.error('Error loading aircraft:', error);
                 // If connection is lost, clear stored connection info and hide products section
-                localStorage.removeItem('connected_db');
-                localStorage.removeItem('connected_user');
+                dbConnection.clearSession();
                 $('#products-section').hide();
                 $('#db-status').text('DB Status: Disconnected');
             }
@@ -34,58 +33,28 @@ $(document).ready(function() {
 
     // Check if already connected on page load
     function checkConnectionAndLoadAircrafts() {
+        // First try to restore session from cookies
+        dbConnection.initFromCookies();
+
         $.ajax({
             url: '/api/aircraft',
             method: 'GET',
             success: function(data) {
                 // If we can fetch aircrafts, connection is active
-                // Restore connection status from localStorage
-                const dbName = localStorage.getItem('connected_db');
-                const dbUser = localStorage.getItem('connected_user');
-                if (dbName && dbUser) {
-                    $('#db-status').text(`DB: ${dbName} User: ${dbUser}`);
-                } else {
-                    $('#db-status').text('DB Status: Connected');
-                }
+                $('#db-status').text(dbConnection.getStatusText());
                 loadAircraftList();
             },
             error: function(xhr, status, error) {
                 // Connection not active, clear stored connection info
-                localStorage.removeItem('connected_db');
-                localStorage.removeItem('connected_user');
+                dbConnection.clearSession();
                 $('#db-status').text('DB Status: Disconnected');
                 $('#products-section').hide();
             }
         });
     }
 
-    function loadDBList() {
-        $.ajax({
-            url: '/api/dblist',
-            method: 'GET',
-            success: function(data) {
-                let select = $('#db-select');
-                select.empty();
-                if (data && data.databases) {
-                    data.databases.forEach(db => {
-                        let option = `<option value="${db}">${db}</option>`;
-                        select.append(option);
-                    });
-                } else {
-                    // Fallback to default
-                    select.append('<option value="pss_moma_08_07_2025">pss_moma_08_07_2025</option>');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading DB list:', error);
-                // Fallback
-                $('#db-select').html('<option value="pss_moma_08_07_2025">pss_moma_08_07_2025</option>');
-            }
-        });
-    }
-
     $('#connect-btn').on('click', function() {
-        loadDBList();
+        dbConnection.populateDbSelect('#db-select');
         $('#db-modal').show();
     });
 
@@ -108,17 +77,10 @@ $(document).ready(function() {
             password: $('#password').val()
         };
 
-        $.ajax({
-            url: '/api/connect',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function(data) {
+        dbConnection.connect(formData)
+            .then(function(data) {
                 if (data.connected) {
-                    // Store connection details in localStorage
-                    localStorage.setItem('connected_db', data.db);
-                    localStorage.setItem('connected_user', data.user);
-                    $('#db-status').text(`DB: ${data.db} User: ${data.user}`);
+                    $('#db-status').text(dbConnection.getStatusText());
                     $('#products-section').show();
                     $('#db-modal').hide();
                     loadAircraftList();
@@ -126,13 +88,12 @@ $(document).ready(function() {
                     $('#db-status').text('DB Status: Connection Failed - ' + data.message);
                     $('#db-modal').hide();
                 }
-            },
-            error: function(xhr, status, error) {
+            })
+            .catch(function(error) {
                 $('#db-status').text('DB Status: Connection Failed');
                 console.error('Error connecting to DB:', error);
                 $('#db-modal').hide();
-            }
-        });
+            });
     });
 
     $('#aircraft-table').on('click', 'tr.clickable', function() {

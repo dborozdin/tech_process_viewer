@@ -1,12 +1,45 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 import os
 import json
 import requests
-from api.pss_api import DatabaseAPI
-from globals import logger, resource_path
+from flask_smorest import Api
+from tech_process_viewer.globals import logger, resource_path
+from tech_process_viewer.config import config
 import logging
 
+# Initialize Flask app
 app = Flask(__name__, static_folder='static', static_url_path='', template_folder='static/templates')
+
+# Load configuration
+env = os.environ.get('FLASK_ENV', 'development')
+app.config.from_object(config[env])
+
+# Validate production requirements
+if env == 'production':
+    if not app.config.get('SECRET_KEY'):
+        raise ValueError("SECRET_KEY environment variable must be set for production")
+    if app.config.get('SECRET_KEY') == 'dev-secret-key-change-in-production':
+        raise ValueError("Default SECRET_KEY cannot be used in production")
+
+# Initialize Flask-Smorest for OpenAPI documentation
+api = Api(app)
+
+# Register blueprints
+from tech_process_viewer.api.routes.auth import blp as auth_blp
+from tech_process_viewer.api.routes.business_processes import blp as business_processes_blp
+from tech_process_viewer.api.routes.entity_viewer import blp as entity_viewer_blp
+from tech_process_viewer.api.routes.products import blp as products_blp
+from tech_process_viewer.api.routes.documents import blp as documents_blp
+from tech_process_viewer.api.routes.resources import blp as resources_blp
+from tech_process_viewer.api.routes.organizations import blp as organizations_blp
+
+api.register_blueprint(auth_blp)  # Auth endpoints first
+api.register_blueprint(business_processes_blp)
+api.register_blueprint(entity_viewer_blp)
+api.register_blueprint(products_blp)
+api.register_blueprint(documents_blp)
+api.register_blueprint(resources_blp)
+api.register_blueprint(organizations_blp)
 
 BASE_DIR = os.path.dirname(__file__)
 API= None
@@ -39,6 +72,30 @@ def tech_processes():
 @app.route('/technical_process_details')
 def details():
     return render_template('technical_process_details.html')
+
+# Entity Viewer UI routes
+@app.route('/entity-viewer')
+@app.route('/entity-viewer/')
+def entity_viewer_ui():
+    """Main entity viewer UI"""
+    return render_template('entity_viewer/index.html')
+
+@app.route('/entity-viewer/entity/<entity_name>')
+def entity_instances_ui(entity_name):
+    """Entity instances list UI"""
+    from tech_process_viewer.dict_parser import get_dict_parser
+    parser = get_dict_parser()
+    entity = parser.get_entity_by_name(entity_name)
+
+    if not entity:
+        return "Entity type not found", 404
+
+    return render_template('entity_viewer/instances.html', entity_name=entity_name, entity=entity)
+
+@app.route('/entity-viewer/instance/<int:instance_id>')
+def instance_detail_ui(instance_id):
+    """Instance detail and edit UI"""
+    return render_template('entity_viewer/instance_detail.html', instance_id=instance_id)
 
 def query_apl(query: str, description: str=None) -> dict:
     global API
@@ -123,15 +180,6 @@ def fetch_aircrafts():
 
     return result
 
-@app.route('/api/dblist')
-def get_db_list():
-    try:
-        response = requests.get('http://localhost:7239/rest/dblist/')
-        response.raise_for_status()
-        return jsonify(response.json())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 def fetch_aircrafts_from_folder():
     global API
     print(f'----------------------- fetch_aircrafts_from_folder ------------------------')
@@ -201,29 +249,6 @@ def fetch_aircrafts_from_folder():
         result.append(item)
 
     return result
-
-@app.route('/api/connect', methods=['POST'])
-def connect_db():
-    global API
-    try:
-        data = request.get_json()
-        server_port = data.get('server_port', 'http://localhost:7239')
-        db = data.get('db', 'pss_moma_08_07_2025')
-        user = data.get('user', 'Administrator')
-        password = data.get('password', '')
-
-        # Assuming password is not used in credentials, as per original
-        credentials = f'user={user}&db={db}'
-        URL_DB_API = server_port + '/rest'
-        API = DatabaseAPI(URL_DB_API, credentials)
-
-        session_key = API.reconnect_db()
-        if session_key is None:
-            return jsonify({'connected': False, 'message': 'Failed to connect to DB'}), 500
-
-        return jsonify({'connected': True, 'session_key': session_key, 'db': db, 'user': user})
-    except Exception as e:
-        return jsonify({'connected': False, 'message': str(e)}), 500
 
 @app.route('/api/aircraft')
 def get_aircraft():
@@ -640,6 +665,36 @@ def get_technical_process_details(tech_proc_id):
 
     print(f'Technical process data={tech_proc}')
     return jsonify(tech_proc)
+
+@app.after_request
+def after_request(response):
+    """Add OpenAPI spec export after each request in development mode"""
+    if app.config.get('DEBUG') and hasattr(api, 'spec'):
+        try:
+            # Export OpenAPI spec to YAML and JSON
+            spec_dict = api.spec.to_dict()
+
+            openapi_dir = os.path.join(os.path.dirname(BASE_DIR), 'openapi')
+            os.makedirs(openapi_dir, exist_ok=True)
+
+            # Export to JSON
+            json_path = os.path.join(openapi_dir, 'openapi.json')
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(spec_dict, f, indent=2, ensure_ascii=False)
+
+            # Export to YAML (requires PyYAML)
+            try:
+                import yaml
+                yaml_path = os.path.join(openapi_dir, 'openapi.yaml')
+                with open(yaml_path, 'w', encoding='utf-8') as f:
+                    yaml.dump(spec_dict, f, default_flow_style=False, allow_unicode=True)
+            except ImportError:
+                pass  # PyYAML not installed, skip YAML export
+        except Exception as e:
+            logger.error(f"Error exporting OpenAPI spec: {e}")
+
+    return response
+
 
 if __name__ == '__main__':
     app.run(debug=True)
