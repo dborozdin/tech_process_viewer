@@ -89,7 +89,12 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-list"></i> Список экземпляров</span>
-                        <span class="badge bg-primary" id="instanceCount">Загрузка...</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-success" onclick="showCreateModal()">
+                                <i class="fas fa-plus"></i> Создать
+                            </button>
+                            <span class="badge bg-primary" id="instanceCount">Загрузка...</span>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -119,6 +124,31 @@
                         <div class="pagination-controls mt-3" id="pagination">
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Instance Modal -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> Создать экземпляр: <span id="createEntityName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="createFormContainer">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-success" id="createBtn" onclick="createInstance()">
+                        <i class="fas fa-plus"></i> Создать
+                    </button>
                 </div>
             </div>
         </div>
@@ -310,6 +340,124 @@
 
         function openInstance(instanceId) {
             window.location.href = `/entity-viewer/instance/${instanceId}`;
+        }
+
+        // ==================== Create Instance ====================
+
+        let entityAttributes = []; // Cached entity attributes
+
+        async function showCreateModal() {
+            document.getElementById('createEntityName').textContent = entityName;
+
+            // Load entity attributes if not cached
+            if (entityAttributes.length === 0) {
+                try {
+                    const response = await fetch(`/api/entity-viewer/entities/${entityName}`);
+                    const data = await response.json();
+                    entityAttributes = data.entity.attributes || [];
+                } catch (error) {
+                    console.error('Error loading entity attributes:', error);
+                    entityAttributes = [];
+                }
+            }
+
+            // Build form with attribute fields
+            const formContainer = document.getElementById('createFormContainer');
+
+            if (entityAttributes.length === 0) {
+                // Fallback: simple key-value form
+                formContainer.innerHTML = `
+                    <div class="mb-3">
+                        <label class="form-label">Атрибуты (JSON)</label>
+                        <textarea class="form-control" id="createAttrsJson" rows="5" placeholder='{"id": "...", "name": "..."}'>{}</textarea>
+                    </div>
+                `;
+            } else {
+                // Show fields for non-reference, non-aggregate attributes
+                const fields = entityAttributes
+                    .filter(attr => !attr.is_reference && !attr.is_aggregate)
+                    .slice(0, 20);
+
+                formContainer.innerHTML = fields.map(attr => `
+                    <div class="mb-2 row">
+                        <label class="col-sm-4 col-form-label col-form-label-sm">
+                            ${attr.name}
+                            ${attr.mandatory ? '<span class="text-danger">*</span>' : ''}
+                            <small class="text-muted">(${attr.python_type})</small>
+                        </label>
+                        <div class="col-sm-8">
+                            <input type="text" class="form-control form-control-sm"
+                                   data-attr-name="${attr.name}"
+                                   data-attr-type="${attr.python_type}"
+                                   placeholder="${attr.python_type}">
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            new bootstrap.Modal(document.getElementById('createModal')).show();
+        }
+
+        async function createInstance() {
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
+
+            try {
+                let attributes = {};
+
+                // Check if JSON mode
+                const jsonTextarea = document.getElementById('createAttrsJson');
+                if (jsonTextarea) {
+                    attributes = JSON.parse(jsonTextarea.value);
+                } else {
+                    // Collect from form fields
+                    const inputs = document.querySelectorAll('#createFormContainer input[data-attr-name]');
+                    inputs.forEach(input => {
+                        const value = input.value.trim();
+                        if (value !== '') {
+                            const attrType = input.dataset.attrType;
+                            if (attrType === 'int') {
+                                attributes[input.dataset.attrName] = parseInt(value, 10);
+                            } else if (attrType === 'float') {
+                                attributes[input.dataset.attrName] = parseFloat(value);
+                            } else if (attrType === 'bool') {
+                                attributes[input.dataset.attrName] = value.toLowerCase() === 'true';
+                            } else {
+                                attributes[input.dataset.attrName] = value;
+                            }
+                        }
+                    });
+                }
+
+                const response = await fetch(`/api/entity-viewer/entities/${entityName}/instances`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ attributes })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+
+                // Show success
+                alert(`Экземпляр создан успешно! System ID: ${data.instance.id}`);
+
+                // Reload instances list
+                loadInstances(currentStart);
+
+            } catch (error) {
+                alert('Ошибка создания: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Создать';
+            }
         }
 
         // Handle 401 errors - redirect to main page to reconnect

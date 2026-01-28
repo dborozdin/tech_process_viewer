@@ -181,6 +181,31 @@ class EntityInstancesList(MethodView):
             'size': size
         })
 
+    @blp.doc(description="Create a new instance of entity type")
+    @blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+    def post(self, entity_name):
+        """Create a new instance"""
+        db_api = get_db_api()
+        parser = get_dict_parser()
+
+        entity = parser.get_entity_by_name(entity_name)
+        if not entity:
+            abort(404, message=f"Entity type '{entity_name}' not found")
+
+        data = request.get_json()
+        if not data or 'attributes' not in data:
+            abort(400, message="Request must contain 'attributes' field")
+
+        result = db_api.create_instance(entity_name, data['attributes'])
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Instance created successfully',
+                'instance': result
+            }), 201
+        else:
+            abort(500, message="Failed to create instance")
+
 
 @blp.route('/instances/<int:instance_id>')
 class InstanceDetail(MethodView):
@@ -354,6 +379,28 @@ class InstanceDetail(MethodView):
         else:
             # Return as-is for unknown types
             return value
+
+    @blp.doc(description="Delete an instance (soft delete)")
+    @blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+    @blp.alt_response(404, schema=ErrorSchema, description="Instance not found")
+    def delete(self, instance_id):
+        """Delete an instance"""
+        db_api = get_db_api()
+
+        instance = db_api.get_instance(instance_id)
+        if not instance:
+            abort(404, message=f"Instance {instance_id} not found")
+
+        entity_type = instance.get('type')
+        success = db_api.delete_instance(instance_id, entity_type, soft_delete=True)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Instance {instance_id} deleted successfully'
+            })
+        else:
+            abort(500, message="Failed to delete instance")
 
 
 @blp.route('/resolve/<int:instance_id>')

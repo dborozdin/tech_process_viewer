@@ -204,6 +204,9 @@
                 <button class="btn btn-secondary d-none" id="cancelBtn" onclick="cancelEdit()">
                     <i class="fas fa-times"></i> Отмена
                 </button>
+                <button class="btn btn-danger" id="deleteBtn" onclick="showDeleteConfirm()">
+                    <i class="fas fa-trash"></i> Удалить
+                </button>
             </div>
         </div>
 
@@ -286,6 +289,28 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" class="btn btn-primary" onclick="applyAttributeEdit()">Применить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Подтверждение удаления</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите удалить экземпляр <strong id="deleteInstanceInfo"></strong>?</p>
+                    <p class="text-muted mb-0">Это действие нельзя отменить.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="deleteInstance()">
+                        <i class="fas fa-trash"></i> Удалить
+                    </button>
                 </div>
             </div>
         </div>
@@ -840,6 +865,48 @@
                 "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // ==================== Delete Instance ====================
+
+        function showDeleteConfirm() {
+            const info = instanceData ?
+                `#${instanceId} (${instanceData.instance.type})` :
+                `#${instanceId}`;
+            document.getElementById('deleteInstanceInfo').textContent = info;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+
+        async function deleteInstance() {
+            const btn = document.getElementById('confirmDeleteBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Удаление...';
+
+            try {
+                const response = await fetch(`/api/entity-viewer/instances/${instanceId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                alert('Экземпляр успешно удалён.');
+
+                // Redirect to instances list
+                const entityType = instanceData && instanceData.instance ? instanceData.instance.type : null;
+                if (entityType) {
+                    window.location.href = `/entity-viewer/entity/${entityType}`;
+                } else {
+                    window.location.href = '/entity-viewer/';
+                }
+            } catch (error) {
+                alert('Ошибка удаления: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Удалить';
+            }
         }
 
         // Handle 401 errors - redirect to main page to reconnect
