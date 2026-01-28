@@ -1,5 +1,6 @@
 import inspect
 import requests
+import time
 from .pss_products_api import ProductsAPI
 from .pss_folders_api import FoldersAPI
 from .pss_bp_api import BusinessProcessAPI
@@ -104,7 +105,22 @@ class DatabaseAPI:
         try:
             headers = self.get_headers()
             target_url = url if url else self.URL_QUERY
+            print(f'---------------DB QUERY---------------')
+
+            # 1. Запоминаем время начала
+            start_time = time.perf_counter()
+            print(f'target_url={target_url}')
+            print(f'headers={headers}')
+            print(f'query_string={query_string}')
+
+            requests.packages.urllib3.util.connection.HAS_IPV6 = False
             response = requests.post(target_url, headers=headers, data=query_string.encode("utf-8"))
+            # 2. Запоминаем время окончания
+            end_time = time.perf_counter()
+            # 3. Вычисляем разницу
+            execution_time = end_time - start_time
+            print(f"Время выполнения: {execution_time:.6f} секунд")
+            print(f'--------------------------------------')
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
