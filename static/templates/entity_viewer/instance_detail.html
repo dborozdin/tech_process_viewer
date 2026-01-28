@@ -842,9 +842,37 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
+        // Handle 401 errors - redirect to main page to reconnect
+        function handleSessionExpired() {
+            alert('Сессия истекла. Необходимо переподключиться к базе данных.');
+            window.location.href = '/entity-viewer/';
+        }
+
         // Load on page load
-        $(document).ready(function() {
+        $(document).ready(async function() {
             dbConnection.initFromCookies();
+
+            // Set up 401 callback
+            dbConnection.setOn401Callback(handleSessionExpired);
+
+            // Check actual server connection status first
+            try {
+                const statusResponse = await fetch('/api/status');
+                const status = await statusResponse.json();
+
+                if (!status.connected) {
+                    // Server is NOT connected - redirect to main page
+                    dbConnection.clearSession();
+                    window.location.href = '/entity-viewer/';
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking server status:', error);
+                dbConnection.clearSession();
+                window.location.href = '/entity-viewer/';
+                return;
+            }
+
             loadInstance();
         });
     </script>

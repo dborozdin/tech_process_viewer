@@ -592,13 +592,41 @@
             applySortAndRender();
         });
 
-        // Load on page load
-        $(document).ready(function() {
-            dbConnection.initFromCookies();
+        // Handle 401 errors - show connection modal
+        function showConnectionModal() {
             updateConnectionStatus();
+            dbConnection.populateDbSelect('#db-select');
+            $('#db-modal').show();
+        }
 
-            if (dbConnection.isConnected()) {
-                loadEntityTypes();
+        // Load on page load
+        $(document).ready(async function() {
+            dbConnection.initFromCookies();
+
+            // Set up 401 callback to show modal
+            dbConnection.setOn401Callback(showConnectionModal);
+
+            // Check actual server connection status (not just cookies)
+            try {
+                const statusResponse = await fetch('/api/status');
+                const status = await statusResponse.json();
+
+                if (status.connected) {
+                    // Server is connected - load data
+                    updateConnectionStatus();
+                    loadEntityTypes();
+                } else {
+                    // Server is NOT connected - clear stale cookies and show modal
+                    dbConnection.clearSession();
+                    updateConnectionStatus();
+                    showConnectionModal();
+                }
+            } catch (error) {
+                console.error('Error checking server status:', error);
+                // On error, clear session and show modal
+                dbConnection.clearSession();
+                updateConnectionStatus();
+                showConnectionModal();
             }
         });
     </script>

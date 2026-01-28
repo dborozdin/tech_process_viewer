@@ -121,7 +121,8 @@ class EntityInstanceCount(MethodView):
         if not entity:
             abort(404, message=f"Entity type '{entity_name}' not found")
 
-        count = db_api.get_instance_count(entity_name)
+        # Use optimized /load/ endpoint for faster count
+        count = db_api.get_instance_count(entity_name, use_load=True)
 
         return jsonify({
             'entity_name': entity_name,
@@ -148,13 +149,18 @@ class EntityInstancesList(MethodView):
         start = request.args.get('start', 0, type=int)
         size = request.args.get('size', 50, type=int)
 
-        # Server-side pagination
+        print(f'[entity_viewer] Request: entity={entity_name}, start={start}, size={size}')
+
+        # Server-side pagination using optimized /load/ endpoint
         result = db_api.query_instances_paginated(
             entity_type=entity_name,
             start=start,
             size=size,
-            all_attrs=True
+            all_attrs=True,
+            use_load=True
         )
+
+        print(f'[entity_viewer] Result: count_all={result.get("count_all")}, portion_from={result.get("portion_from")}, instances_count={len(result.get("instances", []))}')
 
         # Format instances for display
         formatted_instances = []

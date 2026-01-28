@@ -1,4 +1,5 @@
 import inspect
+import json
 import requests
 import time
 from .pss_products_api import ProductsAPI
@@ -122,12 +123,96 @@ class DatabaseAPI:
             print(f"Время выполнения: {execution_time:.6f} секунд")
             print(f'--------------------------------------')
             response.raise_for_status()
-            return response.json()
+            return json.loads(response.text, strict=False)
         except requests.RequestException as e:
             logger.error(f"Query error: {e}")
             return None
 
-    def query_instances_paginated(self, entity_type, start=0, size=50, all_attrs=True, filters=None):
+    def load_entity_instances(self, entity_type, start=0, size=50, all_attrs=True):
+        """Load instances of entity type using optimized GET /load/ endpoint
+
+        More efficient than POST /query for simple entity type queries.
+
+        Args:
+            entity_type: Entity type to load (e.g., 'organization', 'apl_product')
+            start: Starting index (0-based)
+            size: Number of instances to return
+            all_attrs: Whether to return all attributes
+
+        Returns:
+            {
+                'instances': [...],
+                'count_all': int,
+                'portion_from': int
+            }
+        """
+        try:
+            headers = self.get_headers()
+            attrs_param = "true" if all_attrs else "false"
+
+            # Build optimized GET URL
+            # Format: /rest&size=<size>&start=<start>/load/t=e&ent=<entity>&all_attrs=<true|false>
+            url = f"{self.URL_DB_API}&size={size}&start={start}/load/t=e&ent={entity_type}&all_attrs={attrs_param}"
+
+            print(f'---------------DB LOAD (GET)---------------')
+            start_time = time.perf_counter()
+            print(f'url={url}')
+
+            requests.packages.urllib3.util.connection.HAS_IPV6 = False
+            response = requests.get(url, headers=headers)
+
+            end_time = time.perf_counter()
+            execution_time = end_time - start_time
+            print(f"Время выполнения: {execution_time:.6f} секунд")
+            print(f'-------------------------------------------')
+
+            response.raise_for_status()
+            result = json.loads(response.text, strict=False)
+
+            instances = result.get('instances', [])
+            count_all = result.get('count_all', len(instances))
+            portion_from = result.get('portion_from', start)
+
+            print(f'PSS Response: count_all={count_all}, portion_from={portion_from}, received_instances={len(instances)}')
+            if instances:
+                print(f'First instance id: {instances[0].get("id")}, Last instance id: {instances[-1].get("id")}')
+
+            # Check if PSS respected the start parameter
+            # If portion_from is 0 but we requested start > 0, PSS might not support pagination
+            actual_portion_from = portion_from
+            if portion_from == 0 and start > 0:
+                if len(instances) > start:
+                    print(f'PSS ignored start parameter - applying client-side offset: skip first {start} instances')
+                    instances = instances[start:]
+                    actual_portion_from = start
+                else:
+                    # PSS didn't return enough instances to satisfy the offset
+                    print(f'PSS returned {len(instances)} instances but start={start}, returning empty list')
+                    print(f'NOTE: /load/ endpoint may not support pagination. Consider using POST /query instead.')
+                    instances = []
+
+            # Ensure we only return the requested size (PSS may return more)
+            if len(instances) > size:
+                print(f'Limiting instances from {len(instances)} to {size}')
+                instances = instances[:size]
+
+            if instances:
+                print(f'After pagination fix - First id: {instances[0].get("id")}, Last id: {instances[-1].get("id")}, count: {len(instances)}')
+
+            return {
+                'instances': instances,
+                'count_all': count_all,
+                'portion_from': actual_portion_from
+            }
+
+        except requests.RequestException as e:
+            logger.error(f"Load error for {entity_type}: {e}")
+            return {'instances': [], 'count_all': 0, 'portion_from': start}
+        except Exception as e:
+            logger.error(f"Unexpected error loading {entity_type}: {e}")
+            return {'instances': [], 'count_all': 0, 'portion_from': start}
+
+    def query_instances_paginated(self, entity_type, start=0, size=50, all_attrs=True, filters=None, use_load=False):
         """Query instances with server-side pagination
 
         Args:
@@ -136,6 +221,7 @@ class DatabaseAPI:
             size: Number of instances to return
             all_attrs: Whether to return all attributes (False for faster count)
             filters: Optional filter string or dict
+            use_load: If True, use optimized GET /load/ endpoint (faster for simple queries)
 
         Returns:
             {
@@ -144,6 +230,10 @@ class DatabaseAPI:
                 'portion_from': int    # starting index of this portion
             }
         """
+        # For simple queries without filters, use optimized /load/ endpoint
+        if use_load and not filters:
+            return self.load_entity_instances(entity_type, start, size, all_attrs)
+
         try:
             # Build URL with pagination parameters
             attrs_param = "true" if all_attrs else "false"
@@ -178,18 +268,19 @@ class DatabaseAPI:
             logger.error(f"Error querying paginated instances of {entity_type}: {e}")
             return {'instances': [], 'count_all': 0, 'portion_from': start}
 
-    def get_instance_count(self, entity_type, filters=None):
+    def get_instance_count(self, entity_type, filters=None, use_load=False):
         """Get count of instances for entity type (fast, uses all_attrs=false)
 
         Args:
             entity_type: Entity type to count
             filters: Optional filter string or dict
+            use_load: If True, use optimized GET /load/ endpoint
 
         Returns:
             int: Number of instances
         """
         # Request with size=1 and all_attrs=false - we only need count_all
-        result = self.query_instances_paginated(entity_type, start=0, size=1, all_attrs=False, filters=filters)
+        result = self.query_instances_paginated(entity_type, start=0, size=1, all_attrs=False, filters=filters, use_load=use_load)
         return result.get('count_all', 0)
 
     def get_instance(self, sys_id, entity_type=None):

@@ -169,8 +169,10 @@
             try {
                 currentStart = start;
 
+                // Add timestamp to prevent caching
+                const timestamp = Date.now();
                 const response = await fetch(
-                    `/api/entity-viewer/entities/${entityName}/instances?start=${start}&size=${PAGE_SIZE}`
+                    `/api/entity-viewer/entities/${entityName}/instances?start=${start}&size=${PAGE_SIZE}&_t=${timestamp}`
                 );
 
                 if (response.status === 401) {
@@ -191,13 +193,17 @@
 
                 // Explicitly convert to number to ensure comparison works correctly
                 totalCount = parseInt(data.count_all, 10) || 0;
+                const receivedCount = data.instances ? data.instances.length : 0;
 
-                console.log('Pagination debug:', {
-                    totalCount,
-                    currentStart,
-                    PAGE_SIZE,
-                    hasNext: currentStart + PAGE_SIZE < totalCount
-                });
+                console.log('=== Pagination debug ===');
+                console.log('Request: start=' + start + ', size=' + PAGE_SIZE);
+                console.log('Response: count_all=' + totalCount + ', portion_from=' + data.portion_from);
+                console.log('Received instances count:', receivedCount);
+                if (receivedCount > 0) {
+                    console.log('First instance sys_id:', data.instances[0].sys_id);
+                    console.log('Last instance sys_id:', data.instances[receivedCount - 1].sys_id);
+                }
+                console.log('========================');
 
                 renderInstances(data.instances);
                 renderPagination();
@@ -220,7 +226,7 @@
         function renderInstances(instances) {
             const tbody = document.getElementById('instancesBody');
 
-            if (instances.length === 0) {
+            if (!instances || instances.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="5" class="text-center text-muted">
@@ -231,7 +237,11 @@
                 return;
             }
 
-            tbody.innerHTML = instances.map(inst => {
+            // Limit to PAGE_SIZE instances (in case server returns more)
+            const displayInstances = instances.slice(0, PAGE_SIZE);
+            console.log(`Rendering ${displayInstances.length} instances (received ${instances.length})`);
+
+            tbody.innerHTML = displayInstances.map(inst => {
                 // Get preview of attributes
                 const attrs = inst.attributes || {};
                 const attrKeys = Object.keys(attrs).slice(0, 3);
@@ -302,9 +312,37 @@
             window.location.href = `/entity-viewer/instance/${instanceId}`;
         }
 
+        // Handle 401 errors - redirect to main page to reconnect
+        function handleSessionExpired() {
+            alert('Сессия истекла. Необходимо переподключиться к базе данных.');
+            window.location.href = '/entity-viewer/';
+        }
+
         // Load on page load
-        $(document).ready(function() {
+        $(document).ready(async function() {
             dbConnection.initFromCookies();
+
+            // Set up 401 callback
+            dbConnection.setOn401Callback(handleSessionExpired);
+
+            // Check actual server connection status first
+            try {
+                const statusResponse = await fetch('/api/status');
+                const status = await statusResponse.json();
+
+                if (!status.connected) {
+                    // Server is NOT connected - redirect to main page
+                    dbConnection.clearSession();
+                    window.location.href = '/entity-viewer/';
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking server status:', error);
+                dbConnection.clearSession();
+                window.location.href = '/entity-viewer/';
+                return;
+            }
+
             loadEntityInfo();
             loadInstances(0);
         });

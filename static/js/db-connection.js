@@ -86,7 +86,30 @@ if (typeof $ !== 'undefined') {
     });
 }
 
-// Intercept fetch API to add session key header
+// Callback for 401 errors (to show connection modal)
+let on401Callback = null;
+
+/**
+ * Set callback for 401 errors
+ * @param {Function} callback - Function to call on 401 error
+ */
+function setOn401Callback(callback) {
+    on401Callback = callback;
+}
+
+/**
+ * Handle session invalidation (401 error)
+ * Clears cookies and triggers callback
+ */
+function handleSessionInvalid() {
+    console.log('Session invalid - clearing cookies and triggering reconnect');
+    clearSessionCookies();
+    if (on401Callback) {
+        on401Callback();
+    }
+}
+
+// Intercept fetch API to add session key header and handle 401 responses
 const originalFetch = window.fetch;
 window.fetch = function(url, options = {}) {
     if (DB_SESSION.sessionKey) {
@@ -97,7 +120,24 @@ window.fetch = function(url, options = {}) {
             options.headers['X-APL-SessionKey'] = DB_SESSION.sessionKey;
         }
     }
-    return originalFetch.call(this, url, options);
+    return originalFetch.call(this, url, options).then(response => {
+        // Check for 401 with session error
+        if (response.status === 401) {
+            // Clone response to read body without consuming it
+            response.clone().json().then(data => {
+                if (data.error_description &&
+                    (data.error_description.includes('сессии не действителен') ||
+                     data.error_description.includes('session') ||
+                     data.error_description.includes('SessionKey'))) {
+                    handleSessionInvalid();
+                }
+            }).catch(() => {
+                // If can't parse JSON, still handle as potential session error
+                handleSessionInvalid();
+            });
+        }
+        return response;
+    });
 };
 
 // ==================== API Functions ====================
@@ -276,5 +316,7 @@ window.dbConnection = {
     populateDbSelect: populateDbSelect,
     prefillForm: prefillConnectionForm,
     initFromCookies: initFromCookies,
-    clearSession: clearSessionCookies
+    clearSession: clearSessionCookies,
+    setOn401Callback: setOn401Callback,
+    handleSessionInvalid: handleSessionInvalid
 };
