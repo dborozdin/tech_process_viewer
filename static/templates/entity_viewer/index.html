@@ -26,6 +26,10 @@
         .badge-has-subtypes {
             background-color: #0d6efd;
         }
+        .badge-count {
+            background-color: #198754;
+            font-size: 0.9em;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -35,14 +39,19 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.5);
+            overflow-y: auto;
         }
         .modal-content {
             background-color: #fefefe;
-            margin: 10% auto;
+            margin: 5% auto;
             padding: 20px;
             border: 1px solid #888;
             width: 400px;
             border-radius: 8px;
+        }
+        .modal-content.wide {
+            width: 80%;
+            max-width: 900px;
         }
         .modal-content .close {
             color: #aaa;
@@ -64,6 +73,37 @@
             background-color: #d4edda;
             color: #155724;
         }
+        /* Test UI styles */
+        .test-result {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .test-result.pass { border-left: 4px solid #28a745; }
+        .test-result.fail { border-left: 4px solid #dc3545; }
+        .test-result.error { border-left: 4px solid #ffc107; }
+        .test-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .test-status.pass { background: #28a745; color: white; }
+        .test-status.fail { background: #dc3545; color: white; }
+        .test-status.error { background: #ffc107; color: black; }
+        .test-result pre {
+            background: #f5f5f5;
+            padding: 10px;
+            max-height: 300px;
+            overflow: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .loading-counts {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -74,6 +114,9 @@
             </a>
             <div class="d-flex align-items-center">
                 <span class="db-status me-3" id="db-status">DB Status: Disconnected</span>
+                <button class="btn btn-outline-warning me-2" onclick="openTestsModal()" id="tests-btn" style="display:none;">
+                    <i class="fas fa-vial"></i> Тесты API
+                </button>
                 <button class="btn btn-outline-light" id="connect-btn">
                     <i class="fas fa-plug"></i> Connect to DB
                 </button>
@@ -84,7 +127,7 @@
     <!-- Modal Dialog for DB Connection -->
     <div id="db-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <span class="close" onclick="$('#db-modal').hide()">&times;</span>
             <h3><i class="fas fa-database"></i> Connect to Database</h3>
             <form id="db-form">
                 <div class="mb-3">
@@ -116,6 +159,29 @@
         </div>
     </div>
 
+    <!-- Tests Modal -->
+    <div id="tests-modal" class="modal">
+        <div class="modal-content wide">
+            <span class="close" onclick="$('#tests-modal').hide()">&times;</span>
+            <h3><i class="fas fa-vial"></i> Тесты Entity Viewer API</h3>
+
+            <div class="mb-3">
+                <label>Тип объекта для тестирования:</label>
+                <select id="test-entity-select" class="form-select">
+                    <option value="apl_product">apl_product (по умолчанию)</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary mb-3" onclick="runAllTests()">
+                <i class="fas fa-play"></i> Запустить все тесты
+            </button>
+
+            <div id="tests-results" class="tests-results">
+                <p class="text-muted">Нажмите "Запустить все тесты" для проверки API</p>
+            </div>
+        </div>
+    </div>
+
     <div class="container mt-4">
         <div class="row">
             <div class="col-12">
@@ -125,13 +191,23 @@
         </div>
 
         <div class="row search-box">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                     <input type="text" class="form-control" id="searchInput" placeholder="Поиск типа объекта...">
                 </div>
             </div>
-            <div class="col-md-6 text-end">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center">
+                    <label class="me-2">Сортировка:</label>
+                    <select id="sortType" class="form-select form-select-sm" onchange="onSortChange()">
+                        <option value="name" selected>По алфавиту</option>
+                        <option value="count_desc">По кол-ву (убыв.)</option>
+                        <option value="count_asc">По кол-ву (возр.)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
                 <span class="badge bg-secondary" id="entityCount">Загрузка...</span>
             </div>
         </div>
@@ -149,6 +225,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let allEntities = [];
+        let entityCounts = {};
+        let countsLoaded = false;
+        let countsLoading = false;
 
         // Load entity types
         async function loadEntityTypes() {
@@ -165,16 +244,17 @@
                         </div>
                     `;
                     document.getElementById('entityCount').textContent = 'Не подключено';
+                    document.getElementById('tests-btn').style.display = 'none';
                     return;
                 }
 
                 const data = await response.json();
 
                 allEntities = data.entity_types;
-                renderEntities(allEntities);
+                applySortAndRender();
 
-                document.getElementById('entityCount').textContent =
-                    `Всего типов: ${data.total}`;
+                document.getElementById('entityCount').textContent = `Всего типов: ${data.total}`;
+                document.getElementById('tests-btn').style.display = 'inline-block';
             } catch (error) {
                 console.error('Error loading entities:', error);
                 document.getElementById('entityContainer').innerHTML = `
@@ -186,6 +266,88 @@
                     </div>
                 `;
             }
+        }
+
+        async function onSortChange() {
+            const sortType = document.getElementById('sortType').value;
+
+            if ((sortType === 'count_desc' || sortType === 'count_asc') && !countsLoaded && !countsLoading) {
+                await loadAllCounts();
+            }
+
+            applySortAndRender();
+        }
+
+        async function loadAllCounts() {
+            if (countsLoading) return;
+            countsLoading = true;
+
+            // Show loading indicator
+            document.getElementById('entityContainer').classList.add('loading-counts');
+            document.getElementById('entityCount').textContent = 'Загрузка количеств...';
+
+            // Load counts in parallel (batched)
+            const batchSize = 10;
+            for (let i = 0; i < allEntities.length; i += batchSize) {
+                const batch = allEntities.slice(i, i + batchSize);
+                const promises = batch.map(entity =>
+                    fetch(`/api/entity-viewer/entities/${entity.name}/count`)
+                        .then(r => r.json())
+                        .then(data => {
+                            entityCounts[data.entity_name] = data.count;
+                            updateEntityCardCount(data.entity_name, data.count);
+                        })
+                        .catch(() => {
+                            entityCounts[entity.name] = 0;
+                        })
+                );
+                await Promise.all(promises);
+            }
+
+            countsLoaded = true;
+            countsLoading = false;
+            document.getElementById('entityContainer').classList.remove('loading-counts');
+            document.getElementById('entityCount').textContent = `Всего типов: ${allEntities.length}`;
+
+            // Re-sort and render with counts
+            applySortAndRender();
+        }
+
+        async function loadCountForEntity(entityName) {
+            if (entityCounts[entityName] !== undefined) return entityCounts[entityName];
+
+            try {
+                const response = await fetch(`/api/entity-viewer/entities/${entityName}/count`);
+                const data = await response.json();
+                entityCounts[entityName] = data.count;
+                updateEntityCardCount(entityName, data.count);
+                return data.count;
+            } catch (e) {
+                entityCounts[entityName] = 0;
+                return 0;
+            }
+        }
+
+        function applySortAndRender() {
+            const sortType = document.getElementById('sortType').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            // Filter first
+            let filtered = allEntities.filter(entity =>
+                entity.name.toLowerCase().includes(searchTerm) ||
+                entity.id.toString().includes(searchTerm)
+            );
+
+            // Then sort
+            if (sortType === 'name') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sortType === 'count_desc') {
+                filtered.sort((a, b) => (entityCounts[b.name] || 0) - (entityCounts[a.name] || 0));
+            } else if (sortType === 'count_asc') {
+                filtered.sort((a, b) => (entityCounts[a.name] || 0) - (entityCounts[b.name] || 0));
+            }
+
+            renderEntities(filtered);
         }
 
         function renderEntities(entities) {
@@ -203,14 +365,21 @@
                 return;
             }
 
-            container.innerHTML = entities.map(entity => `
+            container.innerHTML = entities.map(entity => {
+                const count = entityCounts[entity.name];
+                const countDisplay = count !== undefined ? count : '?';
+
+                return `
                 <div class="col-md-4 col-lg-3 mb-3">
-                    <div class="card entity-card" onclick="openEntity('${entity.name}')">
+                    <div class="card entity-card" onclick="onEntityClick('${entity.name}')">
                         <div class="card-body">
                             <h6 class="card-title">
                                 <i class="fas fa-cube"></i> ${entity.name}
                             </h6>
                             <p class="card-text">
+                                <span class="badge badge-count" id="count-${entity.name}">
+                                    <i class="fas fa-database"></i> ${countDisplay}
+                                </span><br>
                                 <small class="text-muted">ID: ${entity.id}</small><br>
                                 <small class="text-muted">Атрибутов: ${entity.attribute_count}</small>
                             </p>
@@ -221,7 +390,22 @@
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
+        }
+
+        function updateEntityCardCount(entityName, count) {
+            const el = document.getElementById(`count-${entityName}`);
+            if (el) {
+                el.innerHTML = `<i class="fas fa-database"></i> ${count}`;
+            }
+        }
+
+        async function onEntityClick(entityName) {
+            // Load count if not loaded (happens on click)
+            if (entityCounts[entityName] === undefined) {
+                await loadCountForEntity(entityName);
+            }
+            openEntity(entityName);
         }
 
         function openEntity(entityName) {
@@ -239,19 +423,142 @@
             }
         }
 
-        // Modal handlers
+        // ==================== Tests UI ====================
+
+        function openTestsModal() {
+            // Populate entity select
+            const select = document.getElementById('test-entity-select');
+            select.innerHTML = allEntities.map(e =>
+                `<option value="${e.name}" ${e.name === 'apl_product' ? 'selected' : ''}>${e.name}</option>`
+            ).join('');
+
+            $('#tests-modal').show();
+        }
+
+        async function runAllTests() {
+            const entityName = document.getElementById('test-entity-select').value;
+            const resultsDiv = document.getElementById('tests-results');
+            resultsDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Выполнение тестов...</p>';
+
+            const tests = [
+                {
+                    name: 'GET /api/entity-viewer/',
+                    description: 'Получение списка типов объектов',
+                    run: async () => {
+                        const resp = await fetch('/api/entity-viewer/');
+                        return { response: resp, data: await resp.json() };
+                    }
+                },
+                {
+                    name: `GET /api/entity-viewer/entities/${entityName}`,
+                    description: 'Получение схемы типа объекта',
+                    run: async () => {
+                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}`);
+                        return { response: resp, data: await resp.json() };
+                    }
+                },
+                {
+                    name: `GET /api/entity-viewer/entities/${entityName}/count`,
+                    description: 'Получение количества экземпляров',
+                    run: async () => {
+                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}/count`);
+                        return { response: resp, data: await resp.json() };
+                    }
+                },
+                {
+                    name: `GET /api/entity-viewer/entities/${entityName}/instances?start=0&size=10`,
+                    description: 'Получение первых 10 экземпляров (пагинация)',
+                    run: async () => {
+                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}/instances?start=0&size=10`);
+                        return { response: resp, data: await resp.json() };
+                    }
+                },
+                {
+                    name: `GET /api/entity-viewer/resolve/{instance_id}`,
+                    description: 'Разрешение ссылки (первый экземпляр)',
+                    run: async () => {
+                        // First get an instance
+                        const listResp = await fetch(`/api/entity-viewer/entities/${entityName}/instances?start=0&size=1`);
+                        const listData = await listResp.json();
+                        if (listData.instances && listData.instances.length > 0) {
+                            const instanceId = listData.instances[0].sys_id;
+                            const resp = await fetch(`/api/entity-viewer/resolve/${instanceId}`);
+                            return { response: resp, data: await resp.json(), actualEndpoint: `/api/entity-viewer/resolve/${instanceId}` };
+                        }
+                        return { response: { status: 404, ok: false }, data: { error: 'No instances found for this entity type' } };
+                    }
+                }
+            ];
+
+            let results = [];
+            for (const test of tests) {
+                const startTime = Date.now();
+                try {
+                    const result = await test.run();
+                    const elapsed = Date.now() - startTime;
+                    results.push({
+                        name: result.actualEndpoint || test.name,
+                        description: test.description,
+                        status: result.response.ok ? 'PASS' : 'FAIL',
+                        statusCode: result.response.status,
+                        elapsed: elapsed,
+                        response: result.data
+                    });
+                } catch (error) {
+                    results.push({
+                        name: test.name,
+                        description: test.description,
+                        status: 'ERROR',
+                        statusCode: 0,
+                        elapsed: Date.now() - startTime,
+                        response: { error: error.message }
+                    });
+                }
+            }
+
+            renderTestResults(results);
+        }
+
+        function renderTestResults(results) {
+            const resultsDiv = document.getElementById('tests-results');
+
+            const passed = results.filter(r => r.status === 'PASS').length;
+            const total = results.length;
+
+            resultsDiv.innerHTML = `
+                <div class="alert ${passed === total ? 'alert-success' : 'alert-warning'} mb-3">
+                    Пройдено: ${passed}/${total} тестов
+                </div>
+            ` + results.map(r => `
+                <div class="test-result ${r.status.toLowerCase()}">
+                    <div class="test-header">
+                        <span class="test-status ${r.status.toLowerCase()}">${r.status}</span>
+                        <strong>${r.name}</strong>
+                        <span class="text-muted">(${r.elapsed}ms, HTTP ${r.statusCode})</span>
+                    </div>
+                    <div class="test-description text-muted">${r.description}</div>
+                    <details>
+                        <summary>Ответ (JSON)</summary>
+                        <pre>${JSON.stringify(r.response, null, 2)}</pre>
+                    </details>
+                </div>
+            `).join('');
+        }
+
+        // ==================== Modal handlers ====================
+
         $('#connect-btn').on('click', function() {
             dbConnection.populateDbSelect('#db-select');
             $('#db-modal').show();
         });
 
         $('.close').on('click', function() {
-            $('#db-modal').hide();
+            $(this).closest('.modal').hide();
         });
 
         $(window).on('click', function(event) {
-            if (event.target == $('#db-modal')[0]) {
-                $('#db-modal').hide();
+            if ($(event.target).hasClass('modal')) {
+                $(event.target).hide();
             }
         });
 
@@ -282,12 +589,7 @@
 
         // Search functionality
         document.getElementById('searchInput').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filtered = allEntities.filter(entity =>
-                entity.name.toLowerCase().includes(searchTerm) ||
-                entity.id.toString().includes(searchTerm)
-            );
-            renderEntities(filtered);
+            applySortAndRender();
         });
 
         // Load on page load

@@ -94,16 +94,87 @@ class DatabaseAPI:
             "Content-Type": "application/json"
         }
 
-    def query_apl(self, query_string):
-        """Execute APL query and return JSON response"""
+    def query_apl(self, query_string, url=None):
+        """Execute APL query and return JSON response
+
+        Args:
+            query_string: APL query to execute
+            url: Optional custom URL (for pagination). If None, uses self.URL_QUERY
+        """
         try:
             headers = self.get_headers()
-            response = requests.post(self.URL_QUERY, headers=headers, data=query_string.encode("utf-8"))
+            target_url = url if url else self.URL_QUERY
+            response = requests.post(target_url, headers=headers, data=query_string.encode("utf-8"))
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
             logger.error(f"Query error: {e}")
             return None
+
+    def query_instances_paginated(self, entity_type, start=0, size=50, all_attrs=True, filters=None):
+        """Query instances with server-side pagination
+
+        Args:
+            entity_type: Entity type to query
+            start: Starting index (0-based)
+            size: Number of instances to return
+            all_attrs: Whether to return all attributes (False for faster count)
+            filters: Optional filter string or dict
+
+        Returns:
+            {
+                'instances': [...],
+                'count_all': int,      # total number of matching instances
+                'portion_from': int    # starting index of this portion
+            }
+        """
+        try:
+            # Build URL with pagination parameters
+            attrs_param = "true" if all_attrs else "false"
+            url = f"{self.URL_DB_API}&start={start}&size={size}/query&all_attrs={attrs_param}"
+
+            # Build query
+            if isinstance(filters, str) and filters:
+                query = f"SELECT NO_CASE Ext_ FROM Ext_{{{entity_type}({filters})}} END_SELECT"
+            elif isinstance(filters, dict) and filters:
+                conditions = []
+                for field, value in filters.items():
+                    if isinstance(value, str):
+                        conditions.append(f".{field} LIKE '{value}'")
+                    else:
+                        conditions.append(f".{field} = {value}")
+                filter_clause = " AND ".join(conditions)
+                query = f"SELECT NO_CASE Ext_ FROM Ext_{{{entity_type}({filter_clause})}} END_SELECT"
+            else:
+                query = f"SELECT NO_CASE Ext_ FROM Ext_{{{entity_type}}} END_SELECT"
+
+            result = self.query_apl(query, url=url)
+
+            if result:
+                return {
+                    'instances': result.get('instances', []),
+                    'count_all': result.get('count_all', len(result.get('instances', []))),
+                    'portion_from': result.get('portion_from', start)
+                }
+            return {'instances': [], 'count_all': 0, 'portion_from': start}
+
+        except Exception as e:
+            logger.error(f"Error querying paginated instances of {entity_type}: {e}")
+            return {'instances': [], 'count_all': 0, 'portion_from': start}
+
+    def get_instance_count(self, entity_type, filters=None):
+        """Get count of instances for entity type (fast, uses all_attrs=false)
+
+        Args:
+            entity_type: Entity type to count
+            filters: Optional filter string or dict
+
+        Returns:
+            int: Number of instances
+        """
+        # Request with size=1 and all_attrs=false - we only need count_all
+        result = self.query_instances_paginated(entity_type, start=0, size=1, all_attrs=False, filters=filters)
+        return result.get('count_all', 0)
 
     def get_instance(self, sys_id, entity_type=None):
         """Get a single instance by system ID

@@ -23,6 +23,20 @@
         .breadcrumb-item a {
             text-decoration: none;
         }
+        .pagination-info {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pagination-controls button {
+            min-width: 150px;
+        }
     </style>
 </head>
 <body>
@@ -75,7 +89,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-list"></i> Список экземпляров</span>
-                        <span class="badge bg-primary" id="instanceCount">0</span>
+                        <span class="badge bg-primary" id="instanceCount">Загрузка...</span>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -102,10 +116,8 @@
                         </div>
 
                         <!-- Pagination -->
-                        <nav aria-label="Pagination">
-                            <ul class="pagination justify-content-center" id="pagination">
-                            </ul>
-                        </nav>
+                        <div class="pagination-controls mt-3" id="pagination">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -115,8 +127,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const entityName = "{{ entity_name }}";
-        let currentPage = 1;
-        const perPage = 20;
+        const PAGE_SIZE = 50;
+        let currentStart = 0;
+        let totalCount = 0;
 
         // Load entity info
         async function loadEntityInfo() {
@@ -151,11 +164,13 @@
             }
         }
 
-        // Load instances
-        async function loadInstances(page = 1) {
+        // Load instances with server-side pagination
+        async function loadInstances(start = 0) {
             try {
+                currentStart = start;
+
                 const response = await fetch(
-                    `/api/entity-viewer/entities/${entityName}/instances?page=${page}&per_page=${perPage}`
+                    `/api/entity-viewer/entities/${entityName}/instances?start=${start}&size=${PAGE_SIZE}`
                 );
 
                 if (response.status === 401) {
@@ -167,16 +182,27 @@
                             </td>
                         </tr>
                     `;
+                    document.getElementById('pagination').innerHTML = '';
+                    document.getElementById('instanceCount').textContent = 'Нет подключения';
                     return;
                 }
 
                 const data = await response.json();
 
-                renderInstances(data.instances);
-                renderPagination(data.total, page);
+                // Explicitly convert to number to ensure comparison works correctly
+                totalCount = parseInt(data.count_all, 10) || 0;
 
-                document.getElementById('instanceCount').textContent =
-                    `Всего: ${data.total}`;
+                console.log('Pagination debug:', {
+                    totalCount,
+                    currentStart,
+                    PAGE_SIZE,
+                    hasNext: currentStart + PAGE_SIZE < totalCount
+                });
+
+                renderInstances(data.instances);
+                renderPagination();
+
+                document.getElementById('instanceCount').textContent = `Всего: ${totalCount}`;
             } catch (error) {
                 console.error('Error loading instances:', error);
                 document.getElementById('instancesBody').innerHTML = `
@@ -187,6 +213,7 @@
                         </td>
                     </tr>
                 `;
+                document.getElementById('pagination').innerHTML = '';
             }
         }
 
@@ -232,45 +259,43 @@
             }).join('');
         }
 
-        function renderPagination(total, currentPage) {
-            const totalPages = Math.ceil(total / perPage);
+        function renderPagination() {
             const pagination = document.getElementById('pagination');
 
-            if (totalPages <= 1) {
-                pagination.innerHTML = '';
+            if (totalCount <= PAGE_SIZE) {
+                // No pagination needed - show only info
+                if (totalCount > 0) {
+                    pagination.innerHTML = `
+                        <span class="pagination-info">
+                            Показано 1-${totalCount} из ${totalCount}
+                        </span>
+                    `;
+                } else {
+                    pagination.innerHTML = '';
+                }
                 return;
             }
 
-            let pages = [];
+            const showStart = currentStart + 1;
+            const showEnd = Math.min(currentStart + PAGE_SIZE, totalCount);
+            const hasPrev = currentStart > 0;
+            const hasNext = currentStart + PAGE_SIZE < totalCount;
 
-            // Previous
-            pages.push(`
-                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="loadInstances(${currentPage - 1}); return false;">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                </li>
-            `);
-
-            // Page numbers
-            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-                pages.push(`
-                    <li class="page-item ${i === currentPage ? 'active' : ''}">
-                        <a class="page-link" href="#" onclick="loadInstances(${i}); return false;">${i}</a>
-                    </li>
-                `);
-            }
-
-            // Next
-            pages.push(`
-                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="loadInstances(${currentPage + 1}); return false;">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-            `);
-
-            pagination.innerHTML = pages.join('');
+            pagination.innerHTML = `
+                <button class="btn btn-outline-primary"
+                        ${!hasPrev ? 'disabled' : ''}
+                        onclick="loadInstances(${currentStart - PAGE_SIZE})">
+                    <i class="fas fa-chevron-left"></i> Предыдущие ${PAGE_SIZE}
+                </button>
+                <span class="pagination-info">
+                    Показано ${showStart}-${showEnd} из ${totalCount}
+                </span>
+                <button class="btn btn-outline-primary"
+                        ${!hasNext ? 'disabled' : ''}
+                        onclick="loadInstances(${currentStart + PAGE_SIZE})">
+                    Следующие ${PAGE_SIZE} <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
         }
 
         function openInstance(instanceId) {
@@ -281,7 +306,7 @@
         $(document).ready(function() {
             dbConnection.initFromCookies();
             loadEntityInfo();
-            loadInstances(1);
+            loadInstances(0);
         });
     </script>
 </body>

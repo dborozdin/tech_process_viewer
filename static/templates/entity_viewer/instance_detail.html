@@ -50,6 +50,122 @@
         .breadcrumb-item a {
             text-decoration: none;
         }
+
+        /* Inline reference expansion styles */
+        .ref-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .expand-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 1px solid #0d6efd;
+            border-radius: 4px;
+            background: #e7f1ff;
+            color: #0d6efd;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .expand-btn:hover {
+            background: #0d6efd;
+            color: white;
+        }
+        .expand-btn.expanded {
+            background: #0d6efd;
+            color: white;
+        }
+        .expand-btn .expand-icon {
+            font-size: 14px;
+            transition: transform 0.2s ease;
+        }
+        .expand-btn.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+        .ref-link {
+            color: #0d6efd;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .ref-link:hover {
+            text-decoration: underline;
+        }
+        .nested-reference {
+            margin-left: 20px;
+            border-left: 2px solid #0d6efd;
+            padding-left: 15px;
+            margin-top: 10px;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .inline-instance-card {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #dee2e6;
+        }
+        .inline-instance-card .inline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .inline-instance-card .inline-header strong {
+            color: #495057;
+        }
+        .inline-attributes {
+            font-size: 0.9em;
+        }
+        .inline-attributes .attr-row {
+            padding: 4px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            border-bottom: 1px solid #eee;
+        }
+        .inline-attributes .attr-row:last-child {
+            border-bottom: none;
+        }
+        .inline-attributes .attr-row > .attr-name {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .inline-attributes .attr-row > .attr-value {
+            word-break: break-word;
+            padding-left: 10px;
+        }
+        .ref-list-item {
+            display: inline-block;
+            margin: 2px;
+            padding: 2px 8px;
+            background: #e9ecef;
+            border-radius: 3px;
+        }
+        .loading-ref {
+            color: #6c757d;
+            font-style: italic;
+        }
+        .inline-nested-container {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .inline-attributes .attr-row {
+            padding: 3px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -113,8 +229,12 @@
         <div class="row mb-3">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-list-ul"></i> Атрибуты
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list-ul"></i> Атрибуты</span>
+                        <small class="text-muted">
+                            <span class="expand-btn" style="width:20px;height:20px;font-size:10px;pointer-events:none;"><i class="fas fa-chevron-right"></i></span>
+                            — развернуть ссылку
+                        </small>
                     </div>
                     <div class="card-body" id="attributesContainer">
                         <div class="spinner-border" role="status">
@@ -125,12 +245,12 @@
             </div>
         </div>
 
-        <!-- Resolved References -->
+        <!-- Resolved References (pre-loaded) -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <i class="fas fa-link"></i> Связанные объекты (resolved references)
+                        <i class="fas fa-link"></i> Связанные объекты (pre-loaded references)
                     </div>
                     <div class="card-body" id="referencesContainer">
                         <p class="text-muted">Загрузка...</p>
@@ -176,8 +296,14 @@
         const instanceId = {{ instance_id }};
         let instanceData = null;
         let originalData = null;
+        let entityInfo = null;
+        let referenceAttrs = []; // List of reference attribute names
         let editMode = false;
         let currentEditAttr = null;
+
+        // Cache for expanded references
+        const expandedRefs = new Map();
+        const resolvedCache = new Map();
 
         // Load instance details
         async function loadInstance() {
@@ -200,6 +326,10 @@
 
                 instanceData = data.instance;
                 originalData = JSON.parse(JSON.stringify(instanceData));
+                entityInfo = data.entity_info;
+
+                // Also load reference info for inline expansion
+                await loadReferenceInfo();
 
                 renderInstanceInfo(data);
                 renderAttributes(data.instance, data.entity_info);
@@ -214,6 +344,19 @@
             } catch (error) {
                 console.error('Error loading instance:', error);
                 alert('Ошибка загрузки экземпляра: ' + error.message);
+            }
+        }
+
+        // Load reference attribute info for inline expansion
+        async function loadReferenceInfo() {
+            try {
+                const response = await fetch(`/api/entity-viewer/resolve/${instanceId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    referenceAttrs = data.reference_attributes || [];
+                }
+            } catch (error) {
+                console.error('Error loading reference info:', error);
             }
         }
 
@@ -254,13 +397,17 @@
             }
 
             const rows = Object.entries(attributes).map(([key, value]) => {
-                const displayValue = formatAttributeValue(value);
+                const isReference = isReferenceAttr(key);
+                const displayValue = formatAttributeValue(key, value, isReference);
                 const isEditable = !['id', 'type', 'access'].includes(key);
 
                 return `
-                    <div class="attribute-row">
+                    <div class="attribute-row" data-attr-name="${key}">
                         <div class="row">
-                            <div class="col-md-3 attribute-name">${key}</div>
+                            <div class="col-md-3 attribute-name">
+                                ${key}
+                                ${isReference ? '<i class="fas fa-link text-primary" title="Ссылка"></i>' : ''}
+                            </div>
                             <div class="col-md-9">
                                 <div class="attribute-value" data-attr="${key}">
                                     ${displayValue}
@@ -271,6 +418,7 @@
                                         </button>
                                     ` : ''}
                                 </div>
+                                <div class="nested-container" id="nested-${key}"></div>
                             </div>
                         </div>
                     </div>
@@ -280,39 +428,262 @@
             container.innerHTML = rows;
         }
 
-        function formatAttributeValue(value) {
+        function isReferenceAttr(attrName) {
+            return referenceAttrs.some(r => r.name === attrName);
+        }
+
+        function formatAttributeValue(attrName, value, isReference) {
             if (value === null || value === undefined) {
                 return '<span class="text-muted">null</span>';
             }
 
             if (typeof value === 'object') {
-                // Check if it's a reference
-                if (value.id !== undefined) {
-                    const refId = value.id;
-                    const refType = value.type || 'unknown';
-                    return `<span class="reference-link" onclick="openInstance(${refId})">
-                        <i class="fas fa-link"></i> ${refType} #${refId}
-                    </span>`;
+                // HEURISTIC: object with id and type fields is a reference (even if API didn't mark it)
+                const looksLikeRef = value.id !== undefined && value.type !== undefined;
+
+                // Check if it's a reference object
+                if (looksLikeRef || (value.id !== undefined && isReference)) {
+                    return renderExpandableRef(attrName, value);
                 }
 
-                // Array
+                // Array of references or values
                 if (Array.isArray(value)) {
-                    return value.map(item => formatAttributeValue(item)).join(', ');
+                    if (value.length === 0) {
+                        return '<span class="text-muted">[]</span>';
+                    }
+
+                    // Check if it's an array of references (heuristic: first item has id and type)
+                    const firstItemLooksLikeRef = value[0] && value[0].id !== undefined && value[0].type !== undefined;
+                    if (firstItemLooksLikeRef || (value[0] && value[0].id !== undefined && isReference)) {
+                        return value.map((item, idx) =>
+                            `<div class="ref-list-item">${renderExpandableRef(attrName + '_' + idx, item)}</div>`
+                        ).join('');
+                    }
+
+                    return value.map(item => formatSimpleValue(item)).join(', ');
                 }
 
-                // Object
-                return `<pre>${JSON.stringify(value, null, 2)}</pre>`;
+                // Regular object (not a reference)
+                return `<pre style="margin:0">${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
             }
 
             // Primitive value
+            return formatSimpleValue(value);
+        }
+
+        function formatSimpleValue(value) {
+            if (value === null || value === undefined) {
+                return '<span class="text-muted">null</span>';
+            }
+            if (typeof value === 'object') {
+                return escapeHtml(JSON.stringify(value));
+            }
             return escapeHtml(String(value));
+        }
+
+        function renderExpandableRef(attrKey, ref, forInline = false) {
+            if (!ref || ref.id === undefined) {
+                return '<span class="text-muted">null</span>';
+            }
+
+            const refId = ref.id;
+            const refType = ref.type || 'Object';
+            const uniqueKey = `${attrKey}-${refId}`;
+
+            return `
+                <span class="ref-container" data-ref-id="${refId}" data-attr-key="${attrKey}" data-unique-key="${uniqueKey}">
+                    <button class="expand-btn" id="btn-${uniqueKey}"
+                            onclick="toggleResolveReference(${refId}, '${attrKey}', event)"
+                            title="Развернуть/свернуть">
+                        <i class="fas fa-chevron-right expand-icon"></i>
+                    </button>
+                    <span class="ref-link" onclick="openInstance(${refId})"
+                          title="Клик для перехода к объекту">
+                        ${refType} #${refId}
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openInstance(${refId})"
+                            title="Открыть в новой странице">
+                        <i class="fas fa-external-link-alt" style="font-size: 0.75em;"></i>
+                    </button>
+                </span>
+            `;
+        }
+
+        async function toggleResolveReference(refId, attrKey, event) {
+            event.stopPropagation();
+
+            const key = `${attrKey}-${refId}`;
+            const expandBtn = document.getElementById(`btn-${key}`);
+
+            // Find the correct container for nested content
+            // First try to find existing nested-ref div
+            let nestedDiv = document.getElementById(`nested-ref-${key}`);
+
+            if (expandedRefs.has(key)) {
+                // Collapse
+                if (nestedDiv) {
+                    nestedDiv.remove();
+                }
+                expandedRefs.delete(key);
+                if (expandBtn) expandBtn.classList.remove('expanded');
+                return;
+            }
+
+            // Find container to append to
+            // Strategy: find the ref-container with this unique key, then find/create sibling container
+            const refContainer = document.querySelector(`[data-unique-key="${key}"]`);
+            if (!refContainer) {
+                console.error('Ref container not found for', key);
+                return;
+            }
+
+            // Find the parent that should contain the nested div
+            // It could be a top-level attribute-row or an inline attr-row
+            let parentContainer = refContainer.closest('.attribute-row');
+            let nestedContainer = null;
+
+            if (parentContainer) {
+                // Top level - use the existing nested-container
+                nestedContainer = parentContainer.querySelector('.nested-container');
+            } else {
+                // Inside an inline instance - find or create inline-nested-container
+                parentContainer = refContainer.closest('.attr-row') || refContainer.parentElement;
+                nestedContainer = parentContainer.querySelector('.inline-nested-container');
+                if (!nestedContainer) {
+                    // Create container after the ref-container
+                    nestedContainer = document.createElement('div');
+                    nestedContainer.className = 'inline-nested-container';
+                    // Insert after the attribute value span or at the end of attr-row
+                    parentContainer.appendChild(nestedContainer);
+                }
+            }
+
+            if (!nestedContainer) {
+                console.error('Could not find or create nested container for', key);
+                return;
+            }
+
+            // Expand - show loading
+            if (expandBtn) expandBtn.classList.add('expanded');
+
+            nestedDiv = document.createElement('div');
+            nestedDiv.id = `nested-ref-${key}`;
+            nestedDiv.className = 'nested-reference';
+            nestedDiv.innerHTML = '<span class="loading-ref"><i class="fas fa-spinner fa-spin"></i> Загрузка...</span>';
+            nestedContainer.appendChild(nestedDiv);
+            expandedRefs.set(key, nestedDiv);
+
+            // Load reference data
+            try {
+                let data;
+                if (resolvedCache.has(refId)) {
+                    data = resolvedCache.get(refId);
+                } else {
+                    const response = await fetch(`/api/entity-viewer/resolve/${refId}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    data = await response.json();
+                    resolvedCache.set(refId, data);
+                }
+
+                nestedDiv.innerHTML = renderInlineInstance(data, key);
+            } catch (error) {
+                nestedDiv.innerHTML = `
+                    <div class="alert alert-danger py-1 px-2 mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Ошибка загрузки: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderInlineInstance(data, parentKey = '') {
+            const inst = data.instance;
+            const attrs = inst.attributes || {};
+            const refAttrs = data.reference_attributes || [];
+
+            // Limit display to first 15 attributes for inline view
+            const attrEntries = Object.entries(attrs).slice(0, 15);
+            const hasMore = Object.keys(attrs).length > 15;
+
+            // Create a unique prefix for this inline instance
+            const instancePrefix = parentKey ? `${parentKey}_${inst.id}` : `inline_${inst.id}`;
+
+            return `
+                <div class="inline-instance-card">
+                    <div class="inline-header">
+                        <strong><i class="fas fa-cube"></i> ${inst.type} #${inst.id}</strong>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openInstance(${inst.id})">
+                            <i class="fas fa-external-link-alt"></i> Открыть
+                        </button>
+                    </div>
+                    <div class="inline-attributes">
+                        ${attrEntries.map(([key, value]) => {
+                            const isRef = refAttrs.some(r => r.name === key);
+                            // Check heuristically if it looks like a reference
+                            const looksLikeRef = value && typeof value === 'object' && value.id !== undefined && value.type !== undefined;
+                            const shouldShowAsRef = isRef || looksLikeRef;
+                            return `
+                                <div class="attr-row">
+                                    <span class="attr-name">${key}${shouldShowAsRef ? ' <i class="fas fa-link text-primary" style="font-size:0.8em"></i>' : ''}:</span>
+                                    <span class="attr-value">${formatInlineValue(key, value, shouldShowAsRef, instancePrefix)}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                        ${hasMore ? `<div class="attr-row text-muted"><em>... и ещё ${Object.keys(attrs).length - 15} атрибутов</em></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatInlineValue(attrName, value, isRef, parentPrefix) {
+            if (value === null || value === undefined) {
+                return '<span class="text-muted">null</span>';
+            }
+
+            if (typeof value === 'object') {
+                // HEURISTIC: object with id and type fields is a reference
+                const looksLikeRef = value.id !== undefined && value.type !== undefined;
+
+                if (looksLikeRef || (value.id !== undefined && isRef)) {
+                    // Nested reference - use the unified renderExpandableRef
+                    const attrKey = `${parentPrefix}_${attrName}`;
+                    return renderExpandableRef(attrKey, value, true);
+                }
+
+                if (Array.isArray(value)) {
+                    if (value.length === 0) return '[]';
+                    // Check if array of references (heuristic)
+                    const firstItemLooksLikeRef = value[0] && value[0].id !== undefined && value[0].type !== undefined;
+                    if (firstItemLooksLikeRef) {
+                        const items = value.slice(0, 5).map((v, idx) => {
+                            const attrKey = `${parentPrefix}_${attrName}_${idx}`;
+                            return renderExpandableRef(attrKey, v, true);
+                        });
+                        if (value.length > 5) {
+                            return items.join(' ') + `<span class="text-muted ms-1">... +${value.length - 5}</span>`;
+                        }
+                        return items.join(' ');
+                    }
+                    if (value.length > 3) {
+                        return `[${value.slice(0, 3).map(v => formatSimpleValue(v)).join(', ')}... +${value.length - 3}]`;
+                    }
+                    return `[${value.map(v => formatSimpleValue(v)).join(', ')}]`;
+                }
+
+                const str = JSON.stringify(value);
+                return str.length > 50 ? escapeHtml(str.substring(0, 50)) + '...' : escapeHtml(str);
+            }
+
+            const str = String(value);
+            return str.length > 100 ? escapeHtml(str.substring(0, 100)) + '...' : escapeHtml(str);
         }
 
         function renderReferences(references) {
             const container = document.getElementById('referencesContainer');
 
             if (!references || Object.keys(references).length === 0) {
-                container.innerHTML = '<p class="text-muted">Нет связанных объектов</p>';
+                container.innerHTML = '<p class="text-muted">Нет связанных объектов (либо они не были предзагружены)</p>';
                 return;
             }
 
@@ -321,7 +692,7 @@
                     // Multiple references
                     return `
                         <div class="mb-3">
-                            <strong>${attrName}:</strong>
+                            <strong>${attrName}:</strong> <span class="badge bg-secondary">${refData.length} объектов</span>
                             <div class="reference-preview">
                                 ${refData.map(ref => renderReferencePreview(ref)).join('<hr>')}
                             </div>
@@ -371,12 +742,12 @@
                 document.getElementById('editBtn').classList.add('d-none');
                 document.getElementById('saveBtn').classList.remove('d-none');
                 document.getElementById('cancelBtn').classList.remove('d-none');
-                renderAttributes(instanceData, null);
+                renderAttributes(instanceData, entityInfo);
             } else {
                 document.getElementById('editBtn').classList.remove('d-none');
                 document.getElementById('saveBtn').classList.add('d-none');
                 document.getElementById('cancelBtn').classList.add('d-none');
-                renderAttributes(instanceData, null);
+                renderAttributes(instanceData, entityInfo);
             }
         }
 
@@ -406,7 +777,7 @@
                 instanceData.attributes[currentEditAttr] = parsedValue;
 
                 // Re-render attributes
-                renderAttributes(instanceData, null);
+                renderAttributes(instanceData, entityInfo);
 
                 bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
             } catch (error) {

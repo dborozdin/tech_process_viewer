@@ -2,8 +2,17 @@ import logging
 import os
 import sys
 
+# Get log level from environment or default to DEBUG
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG').upper()
+LOG_LEVEL_MAP = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR
+}
+
 logger = logging.getLogger("viewer")
-logger.setLevel(logging.INFO)
+logger.setLevel(LOG_LEVEL_MAP.get(LOG_LEVEL, logging.DEBUG))
 
 # Папка для логов
 logs_dir = os.path.join(os.path.abspath("."), "logs")
@@ -17,7 +26,7 @@ mapping_names_table=None
 if not logger.handlers:
     # Общий хэндлер для всех сообщений
     fh = logging.FileHandler(_log_path, encoding="utf-8", mode="w")
-    fh.setLevel(logging.INFO)
+    fh.setLevel(LOG_LEVEL_MAP.get(LOG_LEVEL, logging.DEBUG))
 
     # Хэндлер только для ошибок
     eh = logging.FileHandler(_err_path, encoding="utf-8", mode="w")
@@ -25,7 +34,7 @@ if not logger.handlers:
 
     # Консольный вывод (не обязателен, но удобно)
     ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
+    ch.setLevel(LOG_LEVEL_MAP.get(LOG_LEVEL, logging.DEBUG))
 
     # Формат
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")

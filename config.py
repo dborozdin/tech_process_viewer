@@ -61,6 +61,11 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     DEBUG = True
 
+    # Logging configuration
+    # Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR'
+    LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'DEBUG'
+    LOG_API_REQUESTS = True  # Log all API requests to PSS backend
+
     # File upload configuration
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size
 

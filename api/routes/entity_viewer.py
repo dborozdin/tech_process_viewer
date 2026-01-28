@@ -106,11 +106,34 @@ class EntityTypeDetail(MethodView):
         })
 
 
+@blp.route('/entities/<entity_name>/count')
+class EntityInstanceCount(MethodView):
+    """Get instance count for a specific entity type"""
+
+    @blp.doc(description="Get count of instances for entity type (fast query)")
+    @blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+    def get(self, entity_name):
+        """Get instance count"""
+        db_api = get_db_api()
+        parser = get_dict_parser()
+
+        entity = parser.get_entity_by_name(entity_name)
+        if not entity:
+            abort(404, message=f"Entity type '{entity_name}' not found")
+
+        count = db_api.get_instance_count(entity_name)
+
+        return jsonify({
+            'entity_name': entity_name,
+            'count': count
+        })
+
+
 @blp.route('/entities/<entity_name>/instances')
 class EntityInstancesList(MethodView):
-    """List instances of a specific entity type"""
+    """List instances of a specific entity type with server-side pagination"""
 
-    @blp.doc(description="Get all instances of a specific entity type")
+    @blp.doc(description="Get instances of entity type with pagination (start/size)")
     @blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
     def get(self, entity_name):
         """List instances of entity type"""
@@ -121,22 +144,21 @@ class EntityInstancesList(MethodView):
         if not entity:
             abort(404, message=f"Entity type '{entity_name}' not found")
 
-        # Get query parameters
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)
-        limit = per_page * page
+        # Get pagination parameters (size default = 50 for entity-viewer)
+        start = request.args.get('start', 0, type=int)
+        size = request.args.get('size', 50, type=int)
 
-        # Query instances
-        instances = db_api.query_instances(entity_name, filters=None, limit=limit)
-
-        # Paginate
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        paginated = instances[start_idx:end_idx]
+        # Server-side pagination
+        result = db_api.query_instances_paginated(
+            entity_type=entity_name,
+            start=start,
+            size=size,
+            all_attrs=True
+        )
 
         # Format instances for display
         formatted_instances = []
-        for inst in paginated:
+        for inst in result['instances']:
             formatted = {
                 'sys_id': inst.get('id'),
                 'type': inst.get('type'),
@@ -148,9 +170,9 @@ class EntityInstancesList(MethodView):
         return jsonify({
             'entity_name': entity_name,
             'instances': formatted_instances,
-            'total': len(instances),
-            'start': start_idx,
-            'size': per_page
+            'count_all': result['count_all'],
+            'portion_from': result['portion_from'],
+            'size': size
         })
 
 
@@ -326,3 +348,43 @@ class InstanceDetail(MethodView):
         else:
             # Return as-is for unknown types
             return value
+
+
+@blp.route('/resolve/<int:instance_id>')
+class ResolveReference(MethodView):
+    """Resolve a single reference for inline display"""
+
+    @blp.doc(description="Get instance details with reference attribute info for inline expansion")
+    @blp.alt_response(401, schema=ErrorSchema, description="Not authenticated")
+    @blp.alt_response(404, schema=ErrorSchema, description="Instance not found")
+    def get(self, instance_id):
+        """Resolve a reference for inline display"""
+        db_api = get_db_api()
+        parser = get_dict_parser()
+
+        instance = db_api.get_instance(instance_id)
+        if not instance:
+            abort(404, message=f"Instance {instance_id} not found")
+
+        entity_type = instance.get('type')
+        entity = parser.get_entity_by_name(entity_type)
+
+        # Identify which attributes are references (for UI to know what can be expanded)
+        reference_attrs = []
+        if entity:
+            all_attributes = entity.get_all_attributes(parser.entities)
+            for attr in all_attributes:
+                if attr.is_reference():
+                    attr_value = instance.get('attributes', {}).get(attr.name)
+                    if attr_value:
+                        reference_attrs.append({
+                            'name': attr.name,
+                            'value': attr_value,
+                            'is_list': isinstance(attr_value, list)
+                        })
+
+        return jsonify({
+            'instance': instance,
+            'entity_type': entity_type,
+            'reference_attributes': reference_attrs
+        })
