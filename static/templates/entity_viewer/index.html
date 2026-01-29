@@ -173,12 +173,38 @@
                 </select>
             </div>
 
-            <button class="btn btn-primary mb-3" onclick="runAllTests()">
-                <i class="fas fa-play"></i> Запустить все тесты
+            <div class="mb-3">
+                <label><strong>Выберите тесты:</strong></label>
+                <div class="d-flex gap-2 mb-1">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleAllTestCheckboxes(true)">Выбрать все</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleAllTestCheckboxes(false)">Снять все</button>
+                </div>
+                <div id="test-checkboxes">
+                    <div class="text-muted small mb-1">READ:</div>
+                    <label><input type="checkbox" class="test-cb" value="0" checked> Список типов</label><br>
+                    <label><input type="checkbox" class="test-cb" value="1" checked> Схема</label><br>
+                    <label><input type="checkbox" class="test-cb" value="2" checked> Подсчет</label><br>
+                    <label><input type="checkbox" class="test-cb" value="3" checked> Первые 10 экз.</label><br>
+                    <label><input type="checkbox" class="test-cb" value="4" checked> Пагинация</label><br>
+                    <div class="text-muted small mb-1 mt-2">CRUD:</div>
+                    <label><input type="checkbox" class="test-cb" value="5" checked> Создание</label><br>
+                    <label><input type="checkbox" class="test-cb" value="6" checked> Обновление + верификация</label><br>
+                    <label><input type="checkbox" class="test-cb" value="7" checked> Удаление</label><br>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label>Instance ID (опционально):</label>
+                <input type="text" id="test-instance-id" class="form-control" placeholder="sys_id существующего объекта для update/delete">
+                <small class="text-muted">Если указан — update/delete будут работать с этим объектом (без создания нового)</small>
+            </div>
+
+            <button class="btn btn-primary mb-3" onclick="runSelectedTests()">
+                <i class="fas fa-play"></i> Запустить выбранные тесты
             </button>
 
             <div id="tests-results" class="tests-results">
-                <p class="text-muted">Нажмите "Запустить все тесты" для проверки API</p>
+                <p class="text-muted">Нажмите "Запустить выбранные тесты" для проверки API</p>
             </div>
         </div>
     </div>
@@ -456,10 +482,24 @@
             populateTestEntitySelect(searchVal);
         }
 
-        async function runAllTests() {
+        function toggleAllTestCheckboxes(checked) {
+            document.querySelectorAll('.test-cb').forEach(cb => cb.checked = checked);
+        }
+
+        async function runSelectedTests() {
             const entityName = document.getElementById('test-entity-select').value;
             const resultsDiv = document.getElementById('tests-results');
-            window._testCreatedInstanceId = null;
+
+            // Get selected test indices
+            const selectedIndices = [...document.querySelectorAll('.test-cb:checked')].map(cb => parseInt(cb.value));
+            if (selectedIndices.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-warning">Выберите хотя бы один тест для запуска</p>';
+                return;
+            }
+
+            // Custom Instance ID for update/delete without create
+            const customInstanceId = document.getElementById('test-instance-id').value.trim();
+            window._testCreatedInstanceId = customInstanceId || null;
 
             // Helper: log a line to the live output
             function logLine(text) {
@@ -674,8 +714,11 @@
                 }
             ];
 
+            // === Filter selected tests ===
+            const selectedTests = selectedIndices.map(i => ({ ...tests[i], originalIndex: i }));
+
             // === Build UI: cards + log ===
-            const cardsHtml = tests.map((t, i) => `
+            const cardsHtml = selectedTests.map((t, i) => `
                 <div id="test-card-${i}" class="test-result" style="opacity:0.5">
                     <span class="test-status" id="test-status-${i}">&#x23f3;</span>
                     <strong>${t.name}</strong>
@@ -693,15 +736,19 @@
             `;
 
             logLine(`=== Запуск тестов для типа объекта: ${entityName} ===`);
+            if (customInstanceId) {
+                logLine(`    Instance ID (ручной): ${customInstanceId}`);
+            }
+            logLine(`    Выбрано тестов: ${selectedTests.length} из ${tests.length}`);
             logLine('');
 
-            // === Run tests sequentially ===
+            // === Run selected tests sequentially ===
             let results = [];
-            for (let i = 0; i < tests.length; i++) {
-                const test = tests[i];
+            for (let i = 0; i < selectedTests.length; i++) {
+                const test = selectedTests[i];
                 const testNum = i + 1;
                 updateCard(i, 'running');
-                logLine(`--- Тест ${testNum}/${tests.length}: ${test.description} ---`);
+                logLine(`--- Тест ${testNum}/${selectedTests.length}: ${test.description} ---`);
 
                 const startTime = Date.now();
                 try {
