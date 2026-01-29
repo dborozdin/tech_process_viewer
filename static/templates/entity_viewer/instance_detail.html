@@ -871,7 +871,7 @@
 
         function showDeleteConfirm() {
             const info = instanceData ?
-                `#${instanceId} (${instanceData.instance.type})` :
+                `#${instanceId} (${instanceData.type})` :
                 `#${instanceId}`;
             document.getElementById('deleteInstanceInfo').textContent = info;
             new bootstrap.Modal(document.getElementById('deleteModal')).show();
@@ -883,7 +883,8 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Удаление...';
 
             try {
-                const response = await fetch(`/api/entity-viewer/instances/${instanceId}`, {
+                const entityType = instanceData ? instanceData.type : '';
+                const response = await fetch(`/api/entity-viewer/instances/${instanceId}?type=${entityType}`, {
                     method: 'DELETE'
                 });
 
@@ -896,7 +897,6 @@
                 alert('Экземпляр успешно удалён.');
 
                 // Redirect to instances list
-                const entityType = instanceData && instanceData.instance ? instanceData.instance.type : null;
                 if (entityType) {
                     window.location.href = `/entity-viewer/entity/${entityType}`;
                 } else {
