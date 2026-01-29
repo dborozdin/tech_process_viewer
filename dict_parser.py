@@ -142,13 +142,13 @@ class DictParser:
         entity_id = int(parts[3])
         mandatory = parts[4] == 'F'
         offset = int(parts[5])
-        datatype = parts[6] if len(parts) > 6 else 'unknown'
+        raw_datatype = parts[6] if len(parts) > 6 else 'unknown'
+
+        # Extract attribute name (first word) and actual datatype (rest)
+        attr_name, datatype = self._extract_attribute_name(raw_datatype, attr_id)
 
         # Find entity and add attribute
         if entity_id in self.entities:
-            # Extract attribute name from datatype or use generic name
-            attr_name = self._extract_attribute_name(datatype, attr_id)
-
             attr = AttributeInfo(
                 id=attr_id,
                 entity_id=entity_id,
@@ -160,10 +160,22 @@ class DictParser:
 
             self.entities[entity_id].attributes.append(attr)
 
-    def _extract_attribute_name(self, datatype: str, attr_id: int) -> str:
-        """Extract attribute name from datatype string or generate one"""
-        # For now, generate generic name - will be improved with schema metadata
-        return f"attr_{attr_id}"
+    KNOWN_TYPE_KEYWORDS = {'string', 'integer', 'real', 'float', 'boolean',
+                           'enumeration', 'number', 'instance', 'aggr', 'select',
+                           'aggregate', 'list', 'set', 'bag'}
+
+    def _extract_attribute_name(self, raw_datatype: str, attr_id: int) -> tuple:
+        """Extract (attribute_name, datatype) from raw datatype string.
+
+        Example: "formation_type enumeration" -> ("formation_type", "enumeration")
+        Example: "frame_of_reference aggr instance 23" -> ("frame_of_reference", "aggr instance 23")
+        Example: "string" -> ("attr_123", "string")  (no name prefix)
+        """
+        words = raw_datatype.split()
+        if len(words) >= 2 and words[0].lower() not in self.KNOWN_TYPE_KEYWORDS:
+            return words[0], ' '.join(words[1:])
+        # Fallback: no name prefix, entire string is datatype
+        return f"attr_{attr_id}", raw_datatype
 
     def get_entity_by_name(self, name: str) -> Optional[EntityInfo]:
         """Get entity by name"""

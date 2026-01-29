@@ -122,10 +122,14 @@ class DatabaseAPI:
             execution_time = end_time - start_time
             print(f"Время выполнения: {execution_time:.6f} секунд")
             print(f'--------------------------------------')
+            if not response.ok:
+                logger.error(f"Query error: HTTP {response.status_code}, body: {response.text[:1000]}")
             response.raise_for_status()
             return json.loads(response.text, strict=False)
         except requests.RequestException as e:
             logger.error(f"Query error: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status: {e.response.status_code}, body: {e.response.text[:1000]}")
             return None
 
     def load_entity_instances(self, entity_type, start=0, size=50, all_attrs=True):
@@ -166,6 +170,8 @@ class DatabaseAPI:
             print(f"Время выполнения: {execution_time:.6f} секунд")
             print(f'-------------------------------------------')
 
+            if not response.ok:
+                logger.error(f"Load error: HTTP {response.status_code}, body: {response.text[:1000]}")
             response.raise_for_status()
             result = json.loads(response.text, strict=False)
 
@@ -443,7 +449,7 @@ class DatabaseAPI:
             logger.error(f"Unexpected error deleting instance {sys_id}: {e}")
             return False
 
-    def create_instance(self, entity_type, attributes, index=1):
+    def create_instance(self, entity_type, attributes, index=0):
         """Create a new instance
 
         Args:
@@ -468,6 +474,8 @@ class DatabaseAPI:
 
             headers = self.get_headers()
             response = requests.post(self.URL_QUERY_SAVE, json=payload, headers=headers)
+            if not response.ok:
+                logger.error(f"Create error: HTTP {response.status_code}, body: {response.text[:1000]}")
             response.raise_for_status()
 
             result = response.json()
@@ -481,6 +489,8 @@ class DatabaseAPI:
 
         except requests.RequestException as e:
             logger.error(f"Error creating instance of {entity_type}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status: {e.response.status_code}, body: {e.response.text[:1000]}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error creating instance of {entity_type}: {e}")

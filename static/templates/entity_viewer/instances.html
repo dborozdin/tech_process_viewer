@@ -378,7 +378,17 @@
                     .filter(attr => !attr.is_reference && !attr.is_aggregate)
                     .slice(0, 20);
 
-                formContainer.innerHTML = fields.map(attr => `
+                formContainer.innerHTML = fields.map(attr => {
+                    // Default values for mandatory fields
+                    let defaultValue = '';
+                    if (attr.mandatory) {
+                        if (attr.python_type === 'int' || attr.python_type === 'float') {
+                            defaultValue = '0';
+                        } else if (attr.python_type === 'bool') {
+                            defaultValue = 'false';
+                        }
+                    }
+                    return `
                     <div class="mb-2 row">
                         <label class="col-sm-4 col-form-label col-form-label-sm">
                             ${attr.name}
@@ -389,10 +399,11 @@
                             <input type="text" class="form-control form-control-sm"
                                    data-attr-name="${attr.name}"
                                    data-attr-type="${attr.python_type}"
-                                   placeholder="${attr.python_type}">
+                                   placeholder="${attr.python_type}"
+                                   value="${defaultValue}">
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             new bootstrap.Modal(document.getElementById('createModal')).show();
