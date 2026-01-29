@@ -167,8 +167,9 @@
 
             <div class="mb-3">
                 <label>Тип объекта для тестирования:</label>
-                <select id="test-entity-select" class="form-select">
-                    <option value="apl_product">apl_product (по умолчанию)</option>
+                <input type="text" id="test-entity-search" class="form-control mb-1" placeholder="Поиск типа объекта..." oninput="filterTestEntitySelect()">
+                <select id="test-entity-select" class="form-select" size="8">
+                    <option value="organization" selected>organization</option>
                 </select>
             </div>
 
@@ -426,123 +427,324 @@
         // ==================== Tests UI ====================
 
         function openTestsModal() {
-            // Populate entity select
+            populateTestEntitySelect();
+            document.getElementById('test-entity-search').value = '';
+            $('#tests-modal').show();
+        }
+
+        function populateTestEntitySelect(filter = '') {
             const select = document.getElementById('test-entity-select');
-            select.innerHTML = allEntities.map(e =>
-                `<option value="${e.name}" ${e.name === 'apl_product' ? 'selected' : ''}>${e.name}</option>`
+            const sorted = [...allEntities].sort((a, b) => a.name.localeCompare(b.name));
+            const filterLower = filter.toLowerCase();
+            const filtered = filterLower
+                ? sorted.filter(e => e.name.toLowerCase().includes(filterLower))
+                : sorted;
+
+            const currentValue = select.value || 'organization';
+            select.innerHTML = filtered.map(e =>
+                `<option value="${e.name}" ${e.name === currentValue ? 'selected' : ''}>${e.name}</option>`
             ).join('');
 
-            $('#tests-modal').show();
+            // If current value not in filtered list, select first
+            if (filtered.length > 0 && !filtered.some(e => e.name === currentValue)) {
+                select.selectedIndex = 0;
+            }
+        }
+
+        function filterTestEntitySelect() {
+            const searchVal = document.getElementById('test-entity-search').value;
+            populateTestEntitySelect(searchVal);
         }
 
         async function runAllTests() {
             const entityName = document.getElementById('test-entity-select').value;
             const resultsDiv = document.getElementById('tests-results');
-            resultsDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Выполнение тестов...</p>';
+            window._testCreatedInstanceId = null;
 
+            // Helper: log a line to the live output
+            function logLine(text) {
+                const logEl = document.getElementById('test-live-log');
+                if (logEl) {
+                    logEl.textContent += text + '\n';
+                    logEl.scrollTop = logEl.scrollHeight;
+                }
+                console.log('[TEST]', text);
+            }
+
+            // Helper: update test card status in real-time
+            function updateCard(idx, status, elapsed) {
+                const card = document.getElementById(`test-card-${idx}`);
+                const statusEl = document.getElementById(`test-status-${idx}`);
+                const timeEl = document.getElementById(`test-time-${idx}`);
+                if (!card) return;
+
+                card.style.opacity = '1';
+                const classMap = { PASS: 'pass', FAIL: 'fail', ERROR: 'error', running: '' };
+                card.className = 'test-result ' + (classMap[status] || '');
+
+                const icons = { running: '&#x1f504;', PASS: '&#x2705;', FAIL: '&#x274c;', ERROR: '&#x26a0;&#xfe0f;' };
+                statusEl.innerHTML = icons[status] || '&#x23f3;';
+
+                if (elapsed !== undefined) {
+                    timeEl.textContent = `(${elapsed}ms)`;
+                }
+            }
+
+            // === Define tests ===
             const tests = [
+                // --- Group 1: READ (GET /load/) ---
                 {
                     name: 'GET /api/entity-viewer/',
-                    description: 'Получение списка типов объектов',
-                    run: async () => {
+                    description: 'Список типов объектов',
+                    run: async (log) => {
+                        log('>>> GET /api/entity-viewer/');
                         const resp = await fetch('/api/entity-viewer/');
-                        return { response: resp, data: await resp.json() };
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}, типов: ${data.total || '?'}`);
+                        return { response: resp, data };
                     }
                 },
                 {
-                    name: `GET /api/entity-viewer/entities/${entityName}`,
-                    description: 'Получение схемы типа объекта',
-                    run: async () => {
-                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}`);
-                        return { response: resp, data: await resp.json() };
+                    name: `GET /entities/${entityName}`,
+                    description: 'Схема типа объекта (атрибуты)',
+                    run: async (log) => {
+                        const url = `/api/entity-viewer/entities/${entityName}`;
+                        log(`>>> GET ${url}`);
+                        const resp = await fetch(url);
+                        const data = await resp.json();
+                        const attrCount = data.entity?.attributes?.length || '?';
+                        log(`<<< HTTP ${resp.status}, атрибутов: ${attrCount}`);
+                        return { response: resp, data };
                     }
                 },
                 {
-                    name: `GET /api/entity-viewer/entities/${entityName}/count`,
-                    description: 'Получение количества экземпляров',
-                    run: async () => {
-                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}/count`);
-                        return { response: resp, data: await resp.json() };
+                    name: `GET /entities/${entityName}/count`,
+                    description: 'Подсчет количества (через /load/ size=1)',
+                    run: async (log) => {
+                        const url = `/api/entity-viewer/entities/${entityName}/count`;
+                        log(`>>> GET ${url}`);
+                        const resp = await fetch(url);
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}, count: ${data.count}`);
+                        return { response: resp, data };
                     }
                 },
                 {
-                    name: `GET /api/entity-viewer/entities/${entityName}/instances?start=0&size=10`,
-                    description: 'Получение первых 10 экземпляров (пагинация)',
-                    run: async () => {
-                        const resp = await fetch(`/api/entity-viewer/entities/${entityName}/instances?start=0&size=10`);
-                        return { response: resp, data: await resp.json() };
-                    }
-                },
-                {
-                    name: `GET /api/entity-viewer/resolve/{instance_id}`,
-                    description: 'Разрешение ссылки (первый экземпляр)',
-                    run: async () => {
-                        // First get an instance
-                        const listResp = await fetch(`/api/entity-viewer/entities/${entityName}/instances?start=0&size=1`);
-                        const listData = await listResp.json();
-                        if (listData.instances && listData.instances.length > 0) {
-                            const instanceId = listData.instances[0].sys_id;
-                            const resp = await fetch(`/api/entity-viewer/resolve/${instanceId}`);
-                            return { response: resp, data: await resp.json(), actualEndpoint: `/api/entity-viewer/resolve/${instanceId}` };
+                    name: `GET /entities/${entityName}/instances?start=0&size=10`,
+                    description: 'Первая порция 10 экземпляров (GET /load/)',
+                    run: async (log) => {
+                        const url = `/api/entity-viewer/entities/${entityName}/instances?start=0&size=10`;
+                        log(`>>> GET ${url}`);
+                        const resp = await fetch(url);
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}, получено: ${data.instances?.length || 0}, всего: ${data.count_all || '?'}`);
+                        if (data.instances && data.instances.length > 0) {
+                            log(`    Первый sys_id: ${data.instances[0].sys_id}`);
                         }
-                        return { response: { status: 404, ok: false }, data: { error: 'No instances found for this entity type' } };
+                        return { response: resp, data };
+                    }
+                },
+                {
+                    name: `GET /entities/${entityName}/instances (pagination)`,
+                    description: 'Пагинация: 2 порции, проверка разных данных',
+                    run: async (log) => {
+                        // Portion 1
+                        const url1 = `/api/entity-viewer/entities/${entityName}/instances?start=0&size=10`;
+                        log(`>>> GET ${url1}  (порция 1)`);
+                        const resp1 = await fetch(url1);
+                        const data1 = await resp1.json();
+                        log(`<<< HTTP ${resp1.status}, порция 1: ${data1.instances?.length || 0} экз., всего: ${data1.count_all || '?'}`);
+
+                        if (!data1.instances || data1.instances.length === 0) {
+                            log('    Нет экземпляров для проверки пагинации');
+                            return { response: resp1, data: data1 };
+                        }
+
+                        const firstId1 = data1.instances[0].sys_id;
+                        log(`    Первый sys_id порции 1: ${firstId1}`);
+
+                        // Portion 2
+                        const url2 = `/api/entity-viewer/entities/${entityName}/instances?start=10&size=10`;
+                        log(`>>> GET ${url2}  (порция 2)`);
+                        const resp2 = await fetch(url2);
+                        const data2 = await resp2.json();
+                        log(`<<< HTTP ${resp2.status}, порция 2: ${data2.instances?.length || 0} экз.`);
+
+                        if (data2.instances && data2.instances.length > 0) {
+                            const firstId2 = data2.instances[0].sys_id;
+                            log(`    Первый sys_id порции 2: ${firstId2}`);
+                            const paginationWorks = firstId1 !== firstId2;
+                            log(`    Пагинация ${paginationWorks ? 'РАБОТАЕТ' : 'НЕ РАБОТАЕТ'} (ID ${paginationWorks ? 'различаются' : 'совпадают'})`);
+                        } else {
+                            log('    Порция 2 пуста (менее 11 экземпляров в БД)');
+                        }
+
+                        return { response: resp1, data: { portion1: data1, portion2: data2 } };
+                    }
+                },
+                // --- Group 2: CRUD (POST /save/) ---
+                {
+                    name: `POST /entities/${entityName}/instances`,
+                    description: `Создание экземпляра (id="TEST", name="TEST")`,
+                    run: async (log) => {
+                        const url = `/api/entity-viewer/entities/${entityName}/instances`;
+                        const body = { attributes: { id: 'TEST', name: 'TEST' } };
+                        log(`>>> POST ${url}`);
+                        log(`    Body: ${JSON.stringify(body)}`);
+                        const resp = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}`);
+                        if (data.instance && data.instance.id) {
+                            window._testCreatedInstanceId = data.instance.id;
+                            log(`    Создан экземпляр sys_id=${data.instance.id}`);
+                        } else {
+                            log(`    Ответ: ${JSON.stringify(data).substring(0, 300)}`);
+                        }
+                        return { response: resp, data };
+                    }
+                },
+                {
+                    name: `PUT /instances/{id} + verify`,
+                    description: 'Обновление (id="TEST1", name="TEST1") + верификация чтением',
+                    run: async (log) => {
+                        const instanceId = window._testCreatedInstanceId;
+                        if (!instanceId) {
+                            log('    ПРОПУСК: нет созданного экземпляра (предыдущий тест не прошел)');
+                            return { response: { status: 400, ok: false }, data: { error: 'No instance created in previous test' } };
+                        }
+                        log('    Пауза 1с (ожидание коммита после создания)...');
+                        await new Promise(r => setTimeout(r, 1000));
+                        const url = `/api/entity-viewer/instances/${instanceId}`;
+                        const body = { entity_type: entityName, attributes: { id: 'TEST1', name: 'TEST1' } };
+                        log(`>>> PUT ${url}`);
+                        log(`    Body: ${JSON.stringify(body)}`);
+                        const resp = await fetch(url, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}`);
+                        log(`    Ответ: ${JSON.stringify(data).substring(0, 300)}`);
+
+                        // Wait for PSS server to commit data before reading back
+                        log('    Пауза 1с (ожидание коммита PSS)...');
+                        await new Promise(r => setTimeout(r, 1000));
+
+                        // Verify by reading back (pass entity type for correct APL query)
+                        const verifyUrl = `/api/entity-viewer/instances/${instanceId}?type=${entityName}`;
+                        log(`>>> GET ${verifyUrl}  (верификация)`);
+                        const verifyResp = await fetch(verifyUrl);
+                        const verifyData = await verifyResp.json();
+                        log(`<<< HTTP ${verifyResp.status}`);
+                        const attrs = verifyData.instance?.attributes || {};
+                        const verified = attrs.id === 'TEST1' && attrs.name === 'TEST1';
+                        log(`    verified=${verified}, id="${attrs.id}", name="${attrs.name}"`);
+                        return {
+                            response: resp,
+                            data: { update_result: data, verification: { verified, attrs } }
+                        };
+                    }
+                },
+                {
+                    name: `DELETE /instances/{id}`,
+                    description: 'Удаление экземпляра (POST /save/ type=null)',
+                    run: async (log) => {
+                        const instanceId = window._testCreatedInstanceId;
+                        if (!instanceId) {
+                            log('    ПРОПУСК: нет созданного экземпляра');
+                            return { response: { status: 400, ok: false }, data: { error: 'No instance created in previous test' } };
+                        }
+                        log('    Пауза 1с (ожидание коммита после обновления)...');
+                        await new Promise(r => setTimeout(r, 1000));
+                        const url = `/api/entity-viewer/instances/${instanceId}?type=${entityName}`;
+                        log(`>>> DELETE ${url}`);
+                        log(`    (Backend: POST /rest/save/ {"id": ${instanceId}, "type": null})`);
+                        const resp = await fetch(url, { method: 'DELETE' });
+                        const data = await resp.json();
+                        log(`<<< HTTP ${resp.status}`);
+                        log(`    Ответ: ${JSON.stringify(data).substring(0, 300)}`);
+                        window._testCreatedInstanceId = null;
+                        return { response: resp, data };
                     }
                 }
             ];
 
+            // === Build UI: cards + log ===
+            const cardsHtml = tests.map((t, i) => `
+                <div id="test-card-${i}" class="test-result" style="opacity:0.5">
+                    <span class="test-status" id="test-status-${i}">&#x23f3;</span>
+                    <strong>${t.name}</strong>
+                    <span class="text-muted" id="test-time-${i}"></span>
+                    <div class="text-muted small">${t.description}</div>
+                </div>
+            `).join('');
+
+            resultsDiv.innerHTML = `
+                <div id="test-cards" class="mb-3">${cardsHtml}</div>
+                <details open>
+                    <summary><strong>Лог выполнения</strong></summary>
+                    <pre id="test-live-log" style="background:#f5f5f5;padding:10px;max-height:400px;overflow:auto;font-size:12px;white-space:pre-wrap;"></pre>
+                </details>
+            `;
+
+            logLine(`=== Запуск тестов для типа объекта: ${entityName} ===`);
+            logLine('');
+
+            // === Run tests sequentially ===
             let results = [];
-            for (const test of tests) {
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                const testNum = i + 1;
+                updateCard(i, 'running');
+                logLine(`--- Тест ${testNum}/${tests.length}: ${test.description} ---`);
+
                 const startTime = Date.now();
                 try {
-                    const result = await test.run();
+                    const result = await test.run(logLine);
                     const elapsed = Date.now() - startTime;
+                    const status = result.response.ok ? 'PASS' : 'FAIL';
+                    logLine(`    Результат: ${status} (${elapsed}ms)`);
+                    updateCard(i, status, elapsed);
                     results.push({
                         name: result.actualEndpoint || test.name,
                         description: test.description,
-                        status: result.response.ok ? 'PASS' : 'FAIL',
+                        status,
                         statusCode: result.response.status,
-                        elapsed: elapsed,
+                        elapsed,
                         response: result.data
                     });
                 } catch (error) {
+                    const elapsed = Date.now() - startTime;
+                    logLine(`    ОШИБКА: ${error.message} (${elapsed}ms)`);
+                    updateCard(i, 'ERROR', elapsed);
                     results.push({
                         name: test.name,
                         description: test.description,
                         status: 'ERROR',
                         statusCode: 0,
-                        elapsed: Date.now() - startTime,
+                        elapsed,
                         response: { error: error.message }
                     });
                 }
+                logLine('');
             }
 
-            renderTestResults(results);
-        }
-
-        function renderTestResults(results) {
-            const resultsDiv = document.getElementById('tests-results');
-
+            // === Summary ===
             const passed = results.filter(r => r.status === 'PASS').length;
             const total = results.length;
+            logLine(`=== Итого: ${passed}/${total} тестов пройдено ===`);
 
-            resultsDiv.innerHTML = `
-                <div class="alert ${passed === total ? 'alert-success' : 'alert-warning'} mb-3">
-                    Пройдено: ${passed}/${total} тестов
-                </div>
-            ` + results.map(r => `
-                <div class="test-result ${r.status.toLowerCase()}">
-                    <div class="test-header">
-                        <span class="test-status ${r.status.toLowerCase()}">${r.status}</span>
-                        <strong>${r.name}</strong>
-                        <span class="text-muted">(${r.elapsed}ms, HTTP ${r.statusCode})</span>
-                    </div>
-                    <div class="test-description text-muted">${r.description}</div>
-                    <details>
-                        <summary>Ответ (JSON)</summary>
-                        <pre>${JSON.stringify(r.response, null, 2)}</pre>
-                    </details>
-                </div>
-            `).join('');
+            const summaryClass = passed === total ? 'alert-success' : 'alert-warning';
+            const summaryIcon = passed === total ? '&#x2705;' : '&#x26a0;&#xfe0f;';
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = `alert ${summaryClass} mt-3`;
+            summaryDiv.innerHTML = `${summaryIcon} Пройдено: ${passed}/${total} тестов`;
+            document.getElementById('test-cards').prepend(summaryDiv);
         }
 
         // ==================== Modal handlers ====================

@@ -60,7 +60,7 @@ def test_update_organization(api, sys_id):
         'name': 'TEST1'
     })
 
-    assert result is not None, 'update_instance returned None'
+    assert result is True, 'update_instance returned False'
     print(f'Updated instance {sys_id}')
 
     # Verify by reading

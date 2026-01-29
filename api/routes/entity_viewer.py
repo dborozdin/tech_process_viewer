@@ -2,12 +2,16 @@
 Generic Entity Viewer routes for browsing and editing any entity type from the database.
 """
 
+import logging
+
 from flask import request, jsonify, render_template
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 
 from tech_process_viewer.dict_parser import get_dict_parser
 from ..schemas.common_schemas import ErrorSchema
+
+logger = logging.getLogger("viewer")
 
 
 blp = Blueprint(
@@ -219,8 +223,11 @@ class InstanceDetail(MethodView):
         db_api = get_db_api()
         parser = get_dict_parser()
 
+        # Accept optional entity type from query param for optimized lookup
+        entity_type = request.args.get('type', None)
+
         # Get the instance
-        instance = db_api.get_instance(instance_id)
+        instance = db_api.get_instance(instance_id, entity_type=entity_type)
         if not instance:
             abort(404, message=f"Instance {instance_id} not found")
 
@@ -278,21 +285,31 @@ class InstanceDetail(MethodView):
     @blp.alt_response(404, schema=ErrorSchema, description="Instance not found")
     def put(self, instance_id):
         """Update instance attributes"""
+        logger.info(f"PUT /instances/{instance_id} - update request")
         db_api = get_db_api()
         parser = get_dict_parser()
 
-        # Get the instance to determine type
-        instance = db_api.get_instance(instance_id)
-        if not instance:
-            abort(404, message=f"Instance {instance_id} not found")
-
-        entity_type = instance.get('type')
-        entity = parser.get_entity_by_name(entity_type)
-
         # Get update data from request
         update_data = request.get_json()
+        logger.info(f"PUT /instances/{instance_id} - request body: {update_data}")
         if not update_data or 'attributes' not in update_data:
             abort(400, message="Request must contain 'attributes' field")
+
+        # Get entity_type from request body (preferred) or query param
+        entity_type = update_data.get('entity_type') or request.args.get('type', None)
+
+        if entity_type:
+            logger.info(f"PUT /instances/{instance_id} - entity_type from request: {entity_type}")
+            entity = parser.get_entity_by_name(entity_type)
+        else:
+            # Fallback: try to get instance to determine type
+            instance = db_api.get_instance(instance_id)
+            if not instance:
+                logger.error(f"PUT /instances/{instance_id} - instance not found")
+                abort(404, message=f"Instance {instance_id} not found")
+            entity_type = instance.get('type')
+            logger.info(f"PUT /instances/{instance_id} - entity_type from instance: {entity_type}")
+            entity = parser.get_entity_by_name(entity_type)
 
         attributes_to_update = update_data['attributes']
 
@@ -322,16 +339,19 @@ class InstanceDetail(MethodView):
 
             attributes_to_update = validated_updates
 
+        logger.info(f"PUT /instances/{instance_id} - validated attributes: {attributes_to_update}")
+
         # Update instance
         result = db_api.update_instance(instance_id, entity_type, attributes_to_update)
 
         if result:
+            logger.info(f"PUT /instances/{instance_id} - update successful")
             return jsonify({
                 'success': True,
-                'message': 'Instance updated successfully',
-                'instance': result
+                'message': 'Instance updated successfully'
             })
         else:
+            logger.error(f"PUT /instances/{instance_id} - update_instance returned False")
             abort(500, message="Failed to update instance")
 
     def _validate_and_convert(self, value, attr_def, parser):
@@ -387,12 +407,16 @@ class InstanceDetail(MethodView):
         """Delete an instance"""
         db_api = get_db_api()
 
-        instance = db_api.get_instance(instance_id)
-        if not instance:
-            abort(404, message=f"Instance {instance_id} not found")
+        # Accept entity_type from query param to avoid needing to fetch instance first
+        entity_type = request.args.get('type', None)
 
-        entity_type = instance.get('type')
-        success = db_api.delete_instance(instance_id, entity_type, soft_delete=True)
+        if not entity_type:
+            instance = db_api.get_instance(instance_id)
+            if not instance:
+                abort(404, message=f"Instance {instance_id} not found")
+            entity_type = instance.get('type')
+
+        success = db_api.delete_instance(instance_id, entity_type)
 
         if success:
             return jsonify({

@@ -17,7 +17,7 @@ class DatabaseAPI:
         self.URL_CONNECT = f'{url_db_api}/connect/{db_credentials}'
         self.URL_DISCONNECT = f'{url_db_api}/disconnect'
         self.URL_QUERY_SAVE = f'{url_db_api}/save'
-        self.URL_QUERY = f'{url_db_api}&size=50/query&all_attrs=true'
+        self.URL_QUERY = f'{url_db_api}/query'
         self.URL_UPLOAD = f'{url_db_api}/upload'
         self.connect_data = None
         self.folders_api= FoldersAPI(self)
@@ -351,90 +351,99 @@ class DatabaseAPI:
             return []
 
     def update_instance(self, sys_id, entity_type, updates):
-        """Update an existing instance
+        """Update an existing instance via POST /rest/save/
+
+        Per PSS REST API docs:
+        - id: existing instance numeric ID (index NOT needed for existing instances)
+        - type: entity type name
+        - attributes: only the attributes to update
+        - Server returns HTTP 200 on success (no body with instances expected)
 
         Args:
             sys_id: System ID of instance to update
-            entity_type: Entity type (e.g., 'apl_business_process')
+            entity_type: Entity type (e.g., 'organization')
             updates: Dict of attribute updates
-
-        Returns:
-            Updated instance data or None on error
-        """
-        try:
-            # 1. Fetch existing instance
-            existing = self.get_instance(sys_id, entity_type)
-            if not existing:
-                logger.error(f"Instance {sys_id} not found for update")
-                return None
-
-            # 2. Merge updates into attributes
-            if 'attributes' not in existing:
-                existing['attributes'] = {}
-            existing['attributes'].update(updates)
-
-            # 3. Prepare payload for save
-            payload = {
-                "format": "apl_json_1",
-                "dictionary": "apl_pss_a",
-                "instances": [existing]
-            }
-
-            # 4. POST to save endpoint
-            headers = self.get_headers()
-            response = requests.post(self.URL_QUERY_SAVE, json=payload, headers=headers)
-            response.raise_for_status()
-
-            result = response.json()
-
-            if result and 'instances' in result and len(result['instances']) > 0:
-                logger.info(f"Successfully updated instance {sys_id}")
-                return result['instances'][0]
-            else:
-                logger.error(f"Update failed for instance {sys_id}")
-                return None
-
-        except requests.RequestException as e:
-            logger.error(f"Error updating instance {sys_id}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error updating instance {sys_id}: {e}")
-            return None
-
-    def delete_instance(self, sys_id, entity_type, soft_delete=True):
-        """Delete an instance (soft delete by default)
-
-        Args:
-            sys_id: System ID of instance to delete
-            entity_type: Entity type
-            soft_delete: If True, set status to deleted/inactive; if False, attempt hard delete
 
         Returns:
             True on success, False on failure
         """
         try:
-            if soft_delete:
-                # Soft delete: update status field
-                # Try common status field names
-                status_updates = {
-                    'active': False,
-                    'deleted': True,
-                    'status': 'deleted'
-                }
+            logger.info(f"update_instance: sys_id={sys_id}, entity_type={entity_type}, updates={updates}")
 
-                result = self.update_instance(sys_id, entity_type, status_updates)
-                return result is not None
-            else:
-                # Hard delete: attempt to delete via backend API
-                # Note: Backend may not support hard delete - check documentation
-                logger.warning(f"Hard delete not implemented for {entity_type}. Using soft delete.")
-                return self.delete_instance(sys_id, entity_type, soft_delete=True)
+            save_instance = {
+                "id": int(sys_id),
+                "type": entity_type,
+                "attributes": updates
+            }
 
+            payload = {
+                "format": "apl_json_1",
+                "dictionary": "apl_pss_a",
+                "instances": [save_instance]
+            }
+
+            logger.info(f"update_instance: POST {self.URL_QUERY_SAVE} payload={json.dumps(payload, ensure_ascii=False)}")
+
+            headers = self.get_headers()
+            response = requests.post(self.URL_QUERY_SAVE, json=payload, headers=headers)
+
+            logger.info(f"update_instance: response status={response.status_code}, body={response.text[:500]}")
+            response.raise_for_status()
+
+            logger.info(f"Successfully updated instance {sys_id}")
+            return True
+
+        except requests.RequestException as e:
+            logger.error(f"Error updating instance {sys_id}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status: {e.response.status_code}, body: {e.response.text[:500]}")
+            return False
         except Exception as e:
-            logger.error(f"Error deleting instance {sys_id}: {e}")
+            logger.error(f"Unexpected error updating instance {sys_id}: {e}")
             return False
 
-    def create_instance(self, entity_type, attributes, index=0):
+    def delete_instance(self, sys_id, entity_type, **kwargs):
+        """Delete an instance via POST /rest/save/ with type=null (PSS convention)
+
+        Per PSS REST API docs, deletion is done by saving with "type": null.
+
+        Args:
+            sys_id: System ID of instance to delete
+            entity_type: Entity type (logged for debugging)
+
+        Returns:
+            True on success, False on failure
+        """
+        try:
+            logger.info(f"delete_instance: sys_id={sys_id}, entity_type={entity_type}")
+
+            payload = {
+                "format": "apl_json_1",
+                "dictionary": "apl_pss_a",
+                "instances": [
+                    {"id": int(sys_id), "type": None}
+                ]
+            }
+
+            logger.info(f"delete_instance: POST {self.URL_QUERY_SAVE} payload={json.dumps(payload)}")
+
+            headers = self.get_headers()
+            response = requests.post(self.URL_QUERY_SAVE, json=payload, headers=headers)
+
+            logger.info(f"delete_instance: response status={response.status_code}, body={response.text[:500]}")
+            response.raise_for_status()
+            return True
+
+        except requests.RequestException as e:
+            logger.error(f"Error deleting instance {sys_id}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response: {e.response.status_code}, {e.response.text[:500]}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting instance {sys_id}: {e}")
+            return False
+
+    def create_instance(self, entity_type, attributes, index=1):
         """Create a new instance
 
         Args:
