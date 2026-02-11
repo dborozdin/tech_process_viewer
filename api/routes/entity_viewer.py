@@ -25,9 +25,10 @@ blp = Blueprint(
 def get_db_api():
     """Get DatabaseAPI instance from Flask app context"""
     from tech_process_viewer import app as flask_app
-    if flask_app.API is None or flask_app.API.connect_data is None:
-        abort(401, message="Not connected to database. Please connect first via /api/connect")
-    return flask_app.API
+    api = flask_app.get_api()
+    if api is None or api.connect_data is None:
+        abort(400, message="Not connected to database. Please connect first via /api/connect")
+    return api
 
 
 @blp.route('/')

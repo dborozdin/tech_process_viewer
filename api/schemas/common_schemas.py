@@ -2,7 +2,19 @@
 Common schemas used across all API endpoints.
 """
 
-from marshmallow import Schema, fields, EXCLUDE
+from marshmallow import Schema, EXCLUDE
+from .fields_wrapper import Str, Int, Bool, Float, Dict, List, Nested, Raw
+
+# Используем псевдоним fields для совместимости
+class fields:
+    Str = Str
+    Int = Int
+    Bool = Bool
+    Float = Float
+    Dict = Dict
+    List = List
+    Nested = Nested
+    Raw = Raw
 
 
 class ErrorSchema(Schema):

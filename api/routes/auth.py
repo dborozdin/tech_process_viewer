@@ -65,7 +65,7 @@ class DatabaseListItemSchema(Schema):
 
 
 def get_app_api():
-    """Get or set the global API instance from Flask app"""
+    """Get the Flask app module"""
     from tech_process_viewer import app as flask_app
     return flask_app
 
@@ -107,8 +107,12 @@ class Connect(MethodView):
             url_db_api = server_port + '/rest'
 
             # Create DatabaseAPI instance and connect
-            flask_app.API = DatabaseAPI(url_db_api, credentials)
-            session_key = flask_app.API.reconnect_db()
+            api_instance = DatabaseAPI(url_db_api, credentials)
+            session_key = api_instance.reconnect_db()
+
+            if session_key:
+                # Use the set_api function to store API in Flask app.extensions
+                flask_app.set_api(api_instance)
 
             if session_key is None:
                 return jsonify({
@@ -141,9 +145,10 @@ class Disconnect(MethodView):
         flask_app = get_app_api()
 
         try:
-            if flask_app.API is not None and flask_app.API.connect_data is not None:
-                flask_app.API.disconnect_db()
-                flask_app.API = None
+            api_instance = flask_app.get_api()
+            if api_instance is not None and api_instance.connect_data is not None:
+                api_instance.disconnect_db()
+                flask_app.set_api(None)
                 return jsonify({
                     'disconnected': True,
                     'message': 'Successfully disconnected from database'
@@ -190,11 +195,12 @@ class ConnectionStatus(MethodView):
     def get(self):
         """Check connection status"""
         flask_app = get_app_api()
+        api_instance = flask_app.get_api()
 
-        if flask_app.API is not None and flask_app.API.connect_data is not None:
+        if api_instance is not None and api_instance.connect_data is not None:
             return jsonify({
                 'connected': True,
-                'session_key': flask_app.API.connect_data.get('session_key', '')[:8] + '...',  # Partial key for security
+                'session_key': api_instance.connect_data.get('session_key', '')[:8] + '...',  # Partial key for security
                 'message': 'Connected to database'
             })
         else:

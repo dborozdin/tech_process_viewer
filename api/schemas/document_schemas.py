@@ -2,8 +2,20 @@
 Document API schemas using Marshmallow.
 """
 
-from marshmallow import Schema, fields
+from marshmallow import Schema
+from .fields_wrapper import Str, Int, Bool, Float, Dict, List, Nested, Raw
 from .common_schemas import ReferenceSchema, SuccessResponseSchema
+
+# Используем псевдоним fields для совместимости
+class fields:
+    Str = Str
+    Int = Int
+    Bool = Bool
+    Float = Float
+    Dict = Dict
+    List = List
+    Nested = Nested
+    Raw = Raw
 
 
 # Base Document Schema

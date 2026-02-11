@@ -42,7 +42,19 @@ api.register_blueprint(resources_blp)
 api.register_blueprint(organizations_blp)
 
 BASE_DIR = os.path.dirname(__file__)
-API= None
+
+# Store API instance in app.extensions to ensure it persists across imports
+# This is the Flask-recommended way to store global state
+if 'pss_api' not in app.extensions:
+    app.extensions['pss_api'] = None
+
+def get_api():
+    """Get the current API instance"""
+    return app.extensions.get('pss_api')
+
+def set_api(api_instance):
+    """Set the API instance"""
+    app.extensions['pss_api'] = api_instance
 
 # Helper functions to load data from JSON files
 def load_json(file_name):
@@ -98,8 +110,8 @@ def instance_detail_ui(instance_id):
     return render_template('entity_viewer/instance_detail.html', instance_id=instance_id)
 
 def query_apl(query: str, description: str=None) -> dict:
-    global API
     """Выполняет запрос к APL и возвращает JSON."""
+    API = get_api()
     print(f'----------------------- query_apl ({description}) ------------------------')
     print(f'Executing DB query: {query}')
     HEADERS = {
@@ -116,7 +128,7 @@ def query_apl(query: str, description: str=None) -> dict:
 
 
 def fetch_aircrafts():
-    global API
+    API = get_api()
     # 1) Получаем версии aircrafts
     query_versions = """SELECT NO_CASE
     Ext2
@@ -181,7 +193,7 @@ def fetch_aircrafts():
     return result
 
 def fetch_aircrafts_from_folder():
-    global API
+    API = get_api()
     print(f'----------------------- fetch_aircrafts_from_folder ------------------------')
     # Find the "Aircrafts" folder
     folder_data = API.folders_api.find_folder("Aircrafts")
@@ -252,7 +264,7 @@ def fetch_aircrafts_from_folder():
 
 @app.route('/api/aircraft')
 def get_aircraft():
-    global API
+    API = get_api()
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 
@@ -263,7 +275,7 @@ def get_aircraft():
 
 
 def fetch_processes(aircraft_id: int):
-    global API
+    API = get_api()
     # 1) Получаем id процессов, связанных с aircraft
     query_refs = f"""SELECT NO_CASE
     Ext_
@@ -322,7 +334,7 @@ def fetch_processes(aircraft_id: int):
 
 @app.route('/api/processes/<aircraft_id>')
 def get_processes(aircraft_id):
-    global API
+    API = get_api()
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 
@@ -341,7 +353,7 @@ def get_processes(aircraft_id):
         #return jsonify(result_data)
 
 def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_type='process_id'):
-    global API
+    API = get_api()
     # 1) Получаем id процессов, связанных с вышестоящим
     query_refs = f"""SELECT NO_CASE
     Ext2
@@ -452,7 +464,7 @@ def fetch_phases_or_tp(process_id: int, element_type='phase_id', parent_element_
 
 @app.route('/api/phases/<process_id>')
 def get_phases(process_id):
-    global API
+    API = get_api()
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 
@@ -470,7 +482,7 @@ def get_phases(process_id):
 
 @app.route('/api/technical_processes/<phase_id>')
 def get_technical_processes(phase_id):
-    global API
+    API = get_api()
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 
@@ -488,7 +500,7 @@ def get_technical_processes(phase_id):
 
 @app.route('/api/technical_process_details/<tech_proc_id>', methods=['GET'])
 def get_technical_process_details(tech_proc_id):
-    global API
+    API = get_api()
     if API is None or API.connect_data is None:
         return jsonify({'error': 'Not connected to DB'}), 400
 

@@ -2,8 +2,20 @@
 Resources and Organizations API schemas using Marshmallow.
 """
 
-from marshmallow import Schema, fields
+from marshmallow import Schema
+from .fields_wrapper import Str, Int, Bool, Dict, List, Nested, Raw, Float
 from .common_schemas import ReferenceSchema, SuccessResponseSchema
+
+# Используем псевдоним fields для совместимости
+class fields:
+    Str = Str
+    Int = Int
+    Bool = Bool
+    Dict = Dict
+    List = List
+    Nested = Nested
+    Raw = Raw
+    Float = Float
 
 
 # ========== Resource Schemas ==========
