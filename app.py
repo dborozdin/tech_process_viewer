@@ -686,7 +686,7 @@ def after_request(response):
             # Export OpenAPI spec to YAML and JSON
             spec_dict = api.spec.to_dict()
 
-            openapi_dir = os.path.join(os.path.dirname(BASE_DIR), 'openapi')
+            openapi_dir = os.path.join(BASE_DIR, 'openapi')
             os.makedirs(openapi_dir, exist_ok=True)
 
             # Export to JSON

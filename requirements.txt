@@ -1,0 +1,5 @@
+Flask==3.1.2
+flask-smorest==0.46.2
+marshmallow==4.2.2
+webargs==8.7.1
+requests==2.32.5
