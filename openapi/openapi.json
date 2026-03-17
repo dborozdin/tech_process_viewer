@@ -1,0 +1,4548 @@
+{
+  "info": {
+    "description": "REST API for managing technical processes, products, documents, and resources in the PSS application",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "Proprietary"
+    },
+    "title": "Tech Process Viewer API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    },
+    {
+      "url": "http://localhost:7239",
+      "description": "Backend PSS REST API server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "SessionKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-APL-SessionKey",
+        "description": "Session key obtained from /api/connect endpoint"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Error code"
+          },
+          "status": {
+            "type": "string",
+            "description": "Error name"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "errors": {
+            "type": "object",
+            "description": "Errors",
+            "additionalProperties": {}
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          },
+          "first_page": {
+            "type": "integer"
+          },
+          "last_page": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "previous_page": {
+            "type": "integer"
+          },
+          "next_page": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectRequest": {
+        "type": "object",
+        "properties": {
+          "server_port": {
+            "type": "string",
+            "default": "http://localhost:7239",
+            "description": "PSS server URL (e.g., http://localhost:7239)"
+          },
+          "db": {
+            "type": "string",
+            "default": "pss_moma_08_07_2025",
+            "description": "Database name to connect to"
+          },
+          "user": {
+            "type": "string",
+            "default": "Administrator",
+            "description": "Username for authentication"
+          },
+          "password": {
+            "type": "string",
+            "default": "",
+            "description": "Password (optional, not used in current implementation)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "description": "Connection status (false)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectResponse": {
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "description": "Connection status"
+          },
+          "session_key": {
+            "type": "string",
+            "description": "Session key for X-APL-SessionKey header"
+          },
+          "db": {
+            "type": "string",
+            "description": "Connected database name"
+          },
+          "user": {
+            "type": "string",
+            "description": "Connected user"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DisconnectResponse": {
+        "type": "object",
+        "properties": {
+          "disconnected": {
+            "type": "boolean",
+            "description": "Disconnection status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Status message"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error1": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed error description"
+          },
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "BusinessProcessListItem": {
+        "type": "object",
+        "properties": {
+          "process_id": {
+            "type": "integer",
+            "description": "Process system ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Process name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Process description"
+          },
+          "process_type": {
+            "type": "string",
+            "description": "Process type (Typical/Customized)"
+          },
+          "org_unit": {
+            "type": "string",
+            "description": "Organizational unit"
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether process is customized"
+          }
+        },
+        "required": [
+          "name",
+          "process_id"
+        ]
+      },
+      "BusinessProcessListResponse": {
+        "type": "object",
+        "properties": {
+          "processes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessProcessListItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of processes"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page"
+          }
+        },
+        "required": [
+          "processes"
+        ]
+      },
+      "BusinessProcessCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Business process ID (optional, will be generated if not provided)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Process name"
+          },
+          "description": {
+            "type": "string",
+            "default": "",
+            "description": "Process description"
+          },
+          "customized": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether process is customized"
+          },
+          "type_id": {
+            "type": "integer",
+            "description": "Process type system ID"
+          },
+          "parent_id": {
+            "type": "integer",
+            "description": "Parent process ID (if this is a sub-process)"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "BusinessProcessType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Process type ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Process type name"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BusinessProcessElement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Element system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Element type"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BusinessProcessResourceReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Resource system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Resource type"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BusinessProcessAttributes": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Business process ID (business key)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Process name"
+          },
+          "description": {
+            "type": "string",
+            "default": "",
+            "description": "Process description"
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether process is customized"
+          },
+          "type": {
+            "description": "Process type reference",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessProcessType"
+              }
+            ]
+          },
+          "elements": {
+            "type": "array",
+            "description": "Sub-processes/phases",
+            "items": {
+              "$ref": "#/components/schemas/BusinessProcessElement"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "description": "Process resources",
+            "items": {
+              "$ref": "#/components/schemas/BusinessProcessResourceReference"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "BusinessProcess": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "System ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "access": {
+            "type": "string",
+            "description": "Access level"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/BusinessProcessAttributes"
+          }
+        },
+        "required": [
+          "attributes",
+          "id",
+          "type"
+        ]
+      },
+      "BusinessProcessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message"
+          },
+          "data": {
+            "description": "Business process data",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessProcess"
+              }
+            ]
+          },
+          "process_id": {
+            "type": "integer",
+            "description": "Created/updated process ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "BusinessProcessDetail": {
+        "type": "object",
+        "properties": {
+          "process_id": {
+            "type": "integer",
+            "description": "Process system ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Process name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Process description"
+          },
+          "process_type": {
+            "type": "string",
+            "description": "Process type (Typical/Customized)"
+          },
+          "org_unit": {
+            "type": "string",
+            "description": "Organizational unit"
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether process is customized"
+          },
+          "elements": {
+            "type": "array",
+            "description": "Sub-processes",
+            "items": {
+              "$ref": "#/components/schemas/BusinessProcessListItem"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "description": "Process resources",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "documents": {
+            "type": "array",
+            "description": "Related documents",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          }
+        },
+        "required": [
+          "name",
+          "process_id"
+        ]
+      },
+      "BusinessProcessUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Process name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Process description"
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether process is customized"
+          },
+          "type_id": {
+            "type": "integer",
+            "description": "Process type system ID"
+          }
+        }
+      },
+      "BusinessProcessElementCreate": {
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "integer",
+            "description": "ID of existing process to add as sub-element"
+          }
+        },
+        "required": [
+          "element_id"
+        ]
+      },
+      "BusinessProcessResourceCreate": {
+        "type": "object",
+        "properties": {
+          "type_id": {
+            "type": "integer",
+            "description": "Resource type ID"
+          },
+          "object_id": {
+            "type": "integer",
+            "description": "Object ID (organization, product, etc.)"
+          },
+          "value_component": {
+            "type": "number",
+            "description": "Resource value (e.g., time in hours)"
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit of measurement ID"
+          }
+        },
+        "required": [
+          "type_id"
+        ]
+      },
+      "BusinessProcessResourceUpdate": {
+        "type": "object",
+        "properties": {
+          "value_component": {
+            "type": "number",
+            "description": "Resource value"
+          },
+          "object_id": {
+            "type": "integer",
+            "description": "Object ID"
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit ID"
+          }
+        }
+      },
+      "ProductListItem": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "description": "Product system ID"
+          },
+          "id": {
+            "type": "string",
+            "description": "Product business ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Product description"
+          },
+          "code": {
+            "type": "string",
+            "description": "Product code"
+          },
+          "has_versions": {
+            "type": "boolean",
+            "description": "Whether product has versions"
+          }
+        },
+        "required": [
+          "name",
+          "product_id"
+        ]
+      },
+      "ProductListResponse": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductListItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of products"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page"
+          }
+        },
+        "required": [
+          "products"
+        ]
+      },
+      "ProductCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Product ID (optional, will be generated if not provided)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "description": {
+            "type": "string",
+            "default": "",
+            "description": "Product description"
+          },
+          "code": {
+            "type": "string",
+            "description": "Product code"
+          },
+          "guid": {
+            "type": "string",
+            "description": "Global unique identifier"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ProductAttributes": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Product ID (business key)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "description": {
+            "type": "string",
+            "default": "",
+            "description": "Product description"
+          },
+          "code": {
+            "type": "string",
+            "description": "Product code"
+          },
+          "guid": {
+            "type": "string",
+            "description": "Global unique identifier"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "System ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "access": {
+            "type": "string",
+            "description": "Access level"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/ProductAttributes"
+          }
+        },
+        "required": [
+          "attributes",
+          "id",
+          "type"
+        ]
+      },
+      "ProductResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message"
+          },
+          "data": {
+            "description": "Product data",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Product"
+              }
+            ]
+          },
+          "product_id": {
+            "type": "integer",
+            "description": "Created/updated product ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "ProductReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Product system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ProductDefinitionAttributes": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Definition ID"
+          },
+          "description": {
+            "type": "string",
+            "description": "Definition description"
+          },
+          "code1": {
+            "type": "string",
+            "description": "Code 1"
+          },
+          "code2": {
+            "type": "string",
+            "description": "Code 2"
+          },
+          "of_product": {
+            "description": "Reference to product",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductReference"
+              }
+            ]
+          }
+        }
+      },
+      "ProductDefinitionFormation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Formation system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/ProductDefinitionAttributes"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ProductDetail": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          },
+          "definitions": {
+            "type": "array",
+            "description": "Product versions",
+            "items": {
+              "$ref": "#/components/schemas/ProductDefinitionFormation"
+            }
+          },
+          "definition_count": {
+            "type": "integer",
+            "description": "Number of versions"
+          }
+        },
+        "required": [
+          "product"
+        ]
+      },
+      "ProductUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Product description"
+          },
+          "code": {
+            "type": "string",
+            "description": "Product code"
+          }
+        }
+      },
+      "ProductDefinitionListResponse": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "description": "Product system ID"
+          },
+          "definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductDefinitionFormation"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of versions"
+          }
+        },
+        "required": [
+          "definitions",
+          "product_id"
+        ]
+      },
+      "ProductDefinitionCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Definition ID"
+          },
+          "description": {
+            "type": "string",
+            "description": "Version description"
+          },
+          "code1": {
+            "type": "string",
+            "description": "Code 1"
+          },
+          "code2": {
+            "type": "string",
+            "description": "Code 2"
+          }
+        },
+        "required": [
+          "description"
+        ]
+      },
+      "ProductDefinitionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message"
+          },
+          "data": {
+            "description": "Product definition data",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProductDefinitionFormation"
+              }
+            ]
+          },
+          "definition_id": {
+            "type": "integer",
+            "description": "Created/updated definition ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "ProductDefinitionUpdate": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Version description"
+          },
+          "code1": {
+            "type": "string",
+            "description": "Code 1"
+          },
+          "code2": {
+            "type": "string",
+            "description": "Code 2"
+          }
+        }
+      },
+      "BOMItemAttributes": {
+        "type": "object",
+        "properties": {
+          "reference_designator": {
+            "type": "string",
+            "description": "Component designation (e.g., R1, C2)"
+          },
+          "value_component": {
+            "type": "number",
+            "description": "Quantity"
+          },
+          "unit_component": {
+            "type": "object",
+            "description": "Unit of measurement",
+            "additionalProperties": {}
+          },
+          "relating_product_definition": {
+            "type": "object",
+            "description": "Parent product definition",
+            "additionalProperties": {}
+          },
+          "related_product_definition": {
+            "type": "object",
+            "description": "Child product definition (component)",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "BOMItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "BOM item system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/BOMItemAttributes"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BOMStructure": {
+        "type": "object",
+        "properties": {
+          "product_definition_id": {
+            "type": "integer",
+            "description": "Product definition ID"
+          },
+          "product_name": {
+            "type": "string",
+            "description": "Product name"
+          },
+          "components": {
+            "type": "array",
+            "description": "List of components",
+            "items": {
+              "$ref": "#/components/schemas/BOMItem"
+            }
+          },
+          "total_components": {
+            "type": "integer",
+            "description": "Total number of components"
+          }
+        },
+        "required": [
+          "product_definition_id"
+        ]
+      },
+      "BOMItemCreate": {
+        "type": "object",
+        "properties": {
+          "component_id": {
+            "type": "integer",
+            "description": "Component product definition ID"
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Quantity"
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit of measurement ID"
+          },
+          "reference_designator": {
+            "type": "string",
+            "description": "Reference designator (e.g., R1, C2)"
+          }
+        },
+        "required": [
+          "component_id",
+          "quantity"
+        ]
+      },
+      "BOMResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message"
+          },
+          "data": {
+            "description": "BOM item data",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BOMItem"
+              }
+            ]
+          },
+          "bom_item_id": {
+            "type": "integer",
+            "description": "BOM item ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "BOMItemUpdate": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "description": "Quantity"
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit of measurement ID"
+          },
+          "reference_designator": {
+            "type": "string",
+            "description": "Reference designator"
+          }
+        }
+      },
+      "DocumentListItem": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "integer",
+            "description": "Document system ID"
+          },
+          "id": {
+            "type": "string",
+            "description": "Document ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Document name"
+          },
+          "kind_name": {
+            "type": "string",
+            "description": "Document kind name",
+            "nullable": true
+          },
+          "version_id": {
+            "type": "string",
+            "description": "Version ID",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Status",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "type": "array",
+            "description": "List of documents",
+            "items": {
+              "$ref": "#/components/schemas/DocumentListItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of documents"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Document ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Document name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Document description",
+            "nullable": true
+          },
+          "kind_id": {
+            "type": "integer",
+            "description": "Document kind/type sys_id",
+            "nullable": true
+          },
+          "version_id": {
+            "type": "string",
+            "description": "Version identifier",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Document status",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Document data",
+            "additionalProperties": {}
+          },
+          "document_id": {
+            "type": "integer",
+            "description": "Document system ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "Reference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Object system ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Object type"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Document ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Document name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Document description",
+            "nullable": true
+          },
+          "kind": {
+            "description": "Document kind/type reference",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "version_id": {
+            "type": "string",
+            "description": "Version identifier",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Document status",
+            "nullable": true
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether document is customized",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentDetail": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "System ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "access": {
+            "type": "string",
+            "description": "Access level"
+          },
+          "attributes": {
+            "description": "Document attributes",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Document"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Document name",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Document description",
+            "nullable": true
+          },
+          "kind_id": {
+            "type": "integer",
+            "description": "Document kind/type sys_id",
+            "nullable": true
+          },
+          "version_id": {
+            "type": "string",
+            "description": "Version identifier",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Document status",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FileUploadResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data",
+            "additionalProperties": {}
+          },
+          "document_id": {
+            "type": "integer",
+            "description": "Document system ID"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Uploaded filename"
+          },
+          "size": {
+            "type": "integer",
+            "description": "File size in bytes"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "DocumentReference": {
+        "type": "object",
+        "properties": {
+          "reference_id": {
+            "type": "integer",
+            "description": "Document reference system ID"
+          },
+          "item_id": {
+            "type": "integer",
+            "description": "Item system ID"
+          },
+          "document_id": {
+            "type": "integer",
+            "description": "Document system ID"
+          },
+          "document_name": {
+            "type": "string",
+            "description": "Document name"
+          },
+          "document_code": {
+            "type": "string",
+            "description": "Document code/ID"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentReferenceListResponse": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "description": "Item system ID"
+          },
+          "references": {
+            "type": "array",
+            "description": "Document references",
+            "items": {
+              "$ref": "#/components/schemas/DocumentReference"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of references"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DocumentReferenceCreate": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "description": "System ID of item to link document to"
+          },
+          "document_id": {
+            "type": "integer",
+            "description": "System ID of document to link"
+          },
+          "reference_type": {
+            "type": "string",
+            "description": "Type of reference",
+            "nullable": true
+          }
+        },
+        "required": [
+          "document_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceListItem": {
+        "type": "object",
+        "properties": {
+          "resource_id": {
+            "type": "integer",
+            "description": "Resource system ID"
+          },
+          "process_id": {
+            "type": "integer",
+            "description": "Business process ID",
+            "nullable": true
+          },
+          "type_name": {
+            "type": "string",
+            "description": "Resource type name",
+            "nullable": true
+          },
+          "value_component": {
+            "type": "number",
+            "description": "Quantity/value",
+            "nullable": true
+          },
+          "unit_name": {
+            "type": "string",
+            "description": "Unit name",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceListResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "description": "List of resources",
+            "items": {
+              "$ref": "#/components/schemas/ResourceListItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of resources"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceCreate": {
+        "type": "object",
+        "properties": {
+          "process_id": {
+            "type": "integer",
+            "description": "Business process system ID"
+          },
+          "type_id": {
+            "type": "integer",
+            "description": "Resource type system ID"
+          },
+          "object_id": {
+            "type": "integer",
+            "description": "Resource object system ID",
+            "nullable": true
+          },
+          "value_component": {
+            "type": "number",
+            "description": "Resource quantity/value",
+            "nullable": true
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit system ID",
+            "nullable": true
+          }
+        },
+        "required": [
+          "process_id",
+          "type_id"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Resource data",
+            "additionalProperties": {}
+          },
+          "resource_id": {
+            "type": "integer",
+            "description": "Resource system ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "Resource": {
+        "type": "object",
+        "properties": {
+          "value_component": {
+            "type": "number",
+            "description": "Resource quantity/value",
+            "nullable": true
+          },
+          "unit_component": {
+            "description": "Unit reference",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "object": {
+            "description": "Resource object reference",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "type": {
+            "description": "Resource type reference",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          },
+          "process": {
+            "description": "Business process reference",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "object",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceDetail": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "System ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "access": {
+            "type": "string",
+            "description": "Access level"
+          },
+          "attributes": {
+            "description": "Resource attributes",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Resource"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceUpdate": {
+        "type": "object",
+        "properties": {
+          "value_component": {
+            "type": "number",
+            "description": "Resource quantity/value",
+            "nullable": true
+          },
+          "unit_id": {
+            "type": "integer",
+            "description": "Unit system ID",
+            "nullable": true
+          },
+          "object_id": {
+            "type": "integer",
+            "description": "Resource object system ID",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Resource type ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Resource type name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceTypeListResponse": {
+        "type": "object",
+        "properties": {
+          "resource_types": {
+            "type": "array",
+            "description": "List of resource types",
+            "items": {
+              "$ref": "#/components/schemas/ResourceType"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of types"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrganizationListItem": {
+        "type": "object",
+        "properties": {
+          "organization_id": {
+            "type": "integer",
+            "description": "Organization system ID"
+          },
+          "id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Organization name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrganizationListResponse": {
+        "type": "object",
+        "properties": {
+          "organizations": {
+            "type": "array",
+            "description": "List of organizations",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationListItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of organizations"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrganizationCreate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Organization name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Organization data",
+            "additionalProperties": {}
+          },
+          "organization_id": {
+            "type": "integer",
+            "description": "Organization system ID"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Organization name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "nullable": true
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "Whether organization is customized",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrganizationDetail": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "System ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type"
+          },
+          "access": {
+            "type": "string",
+            "description": "Access level"
+          },
+          "attributes": {
+            "description": "Organization attributes",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Organization"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "OrganizationUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Organization name",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "UNPROCESSABLE_ENTITY": {
+        "description": "Unprocessable Entity",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "DEFAULT_ERROR": {
+        "description": "Default error response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "SessionKey": []
+    }
+  ],
+  "paths": {
+    "/api/connect": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "500": {
+            "description": "Connection failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectRequest"
+              }
+            }
+          }
+        },
+        "summary": "Connect to PSS database",
+        "description": "Connect to PSS database and obtain a session key.\n\n**Usage:**\n1. Call this endpoint with connection parameters\n2. Copy the `session_key` from the response\n3. Click \"Authorize\" button in Swagger UI\n4. Paste the session_key into the value field\n5. All subsequent API calls will use this session key\n\n**Default values** will connect to local development database.",
+        "tags": [
+          "auth"
+        ],
+        "security": []
+      }
+    },
+    "/api/disconnect": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisconnectResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Disconnect from PSS database",
+        "tags": [
+          "auth"
+        ],
+        "description": "Disconnect from PSS database and invalidate the session key."
+      }
+    },
+    "/api/dblist": {
+      "get": {
+        "responses": {
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get list of available databases",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "description": "Get list of available databases from PSS server. No authentication required."
+      }
+    },
+    "/api/status": {
+      "get": {
+        "responses": {
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Check connection status",
+        "tags": [
+          "auth"
+        ],
+        "security": [],
+        "description": "Check if currently connected to a database."
+      }
+    },
+    "/api/v1/business-processes/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all business processes",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Get list of business processes with optional filtering"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProcessCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create a new business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Create a new business process"
+      }
+    },
+    "/api/v1/business-processes/{process_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get business process by ID",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Get business process details by ID"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProcessUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Update business process"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Delete business process"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/business-processes/{process_id}/elements": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProcessElementCreate"
+              }
+            }
+          }
+        },
+        "summary": "Add element to business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Add a sub-process element to a business process"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/business-processes/{process_id}/elements/{element_id}": {
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Remove element from business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Remove an element from a business process"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "element_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/business-processes/{process_id}/resources": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business process not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProcessResourceCreate"
+              }
+            }
+          }
+        },
+        "summary": "Add resource to business process",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Add a resource to a business process"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/business-processes/{process_id}/resources/{resource_id}": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProcessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProcessResourceUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update business process resource",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Update a business process resource"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete business process resource",
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Delete a business process resource"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "resource_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/entity-viewer/": {
+      "get": {
+        "responses": {
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all entity types",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get list of all entity types defined in the dictionary"
+      }
+    },
+    "/api/entity-viewer/entities/{entity_name}": {
+      "get": {
+        "responses": {
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get entity type details",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get entity type schema and metadata"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "entity_name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/api/entity-viewer/entities/{entity_name}/count": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get instance count",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get count of instances for entity type (fast query)"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "entity_name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/api/entity-viewer/entities/{entity_name}/instances": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List instances of entity type",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get instances of entity type with pagination (start/size)"
+      },
+      "post": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Create a new instance",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Create a new instance of entity type"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "entity_name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "/api/entity-viewer/instances/{instance_id}": {
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get instance with resolved references",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get instance details with resolved references"
+      },
+      "put": {
+        "responses": {
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Update instance attributes",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Update instance attributes"
+      },
+      "delete": {
+        "responses": {
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete an instance",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Delete an instance (soft delete)"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "instance_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/entity-viewer/resolve/{instance_id}": {
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Resolve a reference for inline display",
+        "tags": [
+          "entity_viewer"
+        ],
+        "description": "Get instance details with reference attribute info for inline expansion"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "instance_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all products",
+        "tags": [
+          "products"
+        ],
+        "description": "Get list of products with optional filtering"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create a new product",
+        "tags": [
+          "products"
+        ],
+        "description": "Create a new product"
+      }
+    },
+    "/api/v1/products/{product_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get product by ID",
+        "tags": [
+          "products"
+        ],
+        "description": "Get product details by ID"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update product",
+        "tags": [
+          "products"
+        ],
+        "description": "Update product"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete product",
+        "tags": [
+          "products"
+        ],
+        "description": "Delete product"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/{product_id}/versions": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDefinitionListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List product versions",
+        "tags": [
+          "products"
+        ],
+        "description": "Get all versions of a product"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDefinitionResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductDefinitionCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create product version",
+        "tags": [
+          "products"
+        ],
+        "description": "Create a new product version"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/{product_id}/versions/{version_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDefinitionFormation"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get product version",
+        "tags": [
+          "products"
+        ],
+        "description": "Get product version details"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductDefinitionResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductDefinitionUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update product version",
+        "tags": [
+          "products"
+        ],
+        "description": "Update product version"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete product version",
+        "tags": [
+          "products"
+        ],
+        "description": "Delete product version"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "version_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/{product_id}/bom": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOMStructure"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get product BOM structure",
+        "tags": [
+          "products"
+        ],
+        "description": "Get BOM structure for a product"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/{product_id}/bom/items": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOMResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BOMItemCreate"
+              }
+            }
+          }
+        },
+        "summary": "Add component to BOM",
+        "tags": [
+          "products"
+        ],
+        "description": "Add a component to product BOM"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/products/{product_id}/bom/items/{bom_item_id}": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOM item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BOMResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BOMItemUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update BOM item",
+        "tags": [
+          "products"
+        ],
+        "description": "Update BOM item"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BOM item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete BOM item",
+        "tags": [
+          "products"
+        ],
+        "description": "Delete BOM item"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "product_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "bom_item_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/documents/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all documents",
+        "tags": [
+          "documents"
+        ],
+        "description": "Get list of documents with optional filtering"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create a new document",
+        "tags": [
+          "documents"
+        ],
+        "description": "Create a new document (metadata only)"
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get document by ID",
+        "tags": [
+          "documents"
+        ],
+        "description": "Get document details by ID"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update document",
+        "tags": [
+          "documents"
+        ],
+        "description": "Update document metadata"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete document",
+        "tags": [
+          "documents"
+        ],
+        "description": "Delete document"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "document_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/documents/{document_id}/upload": {
+      "post": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file provided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Upload file to document",
+        "tags": [
+          "documents"
+        ],
+        "description": "Upload file content to document"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "document_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/documents/{document_id}/download": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document or file not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Download file from document",
+        "tags": [
+          "documents"
+        ],
+        "description": "Download file content from document"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "document_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/documents/items/{item_id}/documents": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReferenceListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List documents for an item",
+        "tags": [
+          "documents"
+        ],
+        "description": "Get all documents linked to an item"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReferenceCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create document reference",
+        "tags": [
+          "documents"
+        ],
+        "description": "Link a document to an item"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "item_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/documents/items/{item_id}/documents/{document_id}": {
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete document reference",
+        "tags": [
+          "documents"
+        ],
+        "description": "Unlink document from item"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "item_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "in": "path",
+          "name": "document_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/resources/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all resources",
+        "tags": [
+          "resources"
+        ],
+        "description": "Get list of resources with optional filtering"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create a new resource",
+        "tags": [
+          "resources"
+        ],
+        "description": "Create a new resource"
+      }
+    },
+    "/api/v1/resources/{resource_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get resource by ID",
+        "tags": [
+          "resources"
+        ],
+        "description": "Get resource details by ID"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update resource",
+        "tags": [
+          "resources"
+        ],
+        "description": "Update resource"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete resource",
+        "tags": [
+          "resources"
+        ],
+        "description": "Delete resource"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "resource_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/resources/types": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceTypeListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all resource types",
+        "tags": [
+          "resources"
+        ],
+        "description": "Get list of resource types"
+      }
+    },
+    "/api/v1/organizations/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List all organizations",
+        "tags": [
+          "organizations"
+        ],
+        "description": "Get list of organizations with optional filtering"
+      },
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate"
+              }
+            }
+          }
+        },
+        "summary": "Create a new organization",
+        "tags": [
+          "organizations"
+        ],
+        "description": "Create a new organization"
+      }
+    },
+    "/api/v1/organizations/{organization_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get organization by ID",
+        "tags": [
+          "organizations"
+        ],
+        "description": "Get organization details by ID"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationUpdate"
+              }
+            }
+          }
+        },
+        "summary": "Update organization",
+        "tags": [
+          "organizations"
+        ],
+        "description": "Update organization"
+      },
+      "delete": {
+        "responses": {
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organization not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Delete organization",
+        "tags": [
+          "organizations"
+        ],
+        "description": "Delete organization"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "organization_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    }
+  },
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Database authentication and session management"
+    },
+    {
+      "name": "business_processes",
+      "description": "Business process management endpoints"
+    },
+    {
+      "name": "entity_viewer",
+      "description": "Generic entity browser and editor"
+    },
+    {
+      "name": "products",
+      "description": "Product management endpoints"
+    },
+    {
+      "name": "documents",
+      "description": "Document management endpoints"
+    },
+    {
+      "name": "resources",
+      "description": "Resource management endpoints"
+    },
+    {
+      "name": "organizations",
+      "description": "Organization management endpoints"
+    }
+  ],
+  "openapi": "3.0.3"
+}

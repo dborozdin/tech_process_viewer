@@ -708,5 +708,11 @@ def after_request(response):
     return response
 
 
+with app.app_context():
+    print(" * Просмотр техпроцессов: http://localhost:5000/")
+    print(" * Entity Viewer:         http://localhost:5000/entity-viewer")
+    print(" * API документация:      http://localhost:5000/api/docs")
+
+
 if __name__ == '__main__':
     app.run(debug=True)

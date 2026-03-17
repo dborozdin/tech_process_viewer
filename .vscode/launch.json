@@ -1,0 +1,40 @@
+{
+    // После запуска приложения доступны:
+    //   Просмотр техпроцессов: http://localhost:5000
+    //   Entity Viewer:         http://localhost:5000/entity-viewer
+    //   API документация:      http://localhost:5000/api/docs
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flask App (Debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flask",
+            "args": [
+                "--app", "app:app",
+                "run",
+                "--debug",
+                "--port", "5000"
+            ],
+            "env": {
+                "FLASK_ENV": "development"
+            },
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "jinja": true,
+            "autoStartBrowser": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: app.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app.py",
+            "env": {
+                "FLASK_ENV": "development"
+            },
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "jinja": true,
+            "console": "integratedTerminal"
+        }
+    ]
+}

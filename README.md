@@ -49,7 +49,7 @@ Web-приложение на Flask для работы с данными PSS (P
    ```bash
    flask --app app:app run
    ```
-   Или через VS Code — конфигурация отладки **"Python Debugger: Flask App"**.
+   Или через VS Code — конфигурация отладки **"Flask App (Debug)"** (F5).
 
 6. Открыть в браузере: [http://localhost:5000/](http://localhost:5000/)
 
