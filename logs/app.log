@@ -1,1 +1,24 @@
-2026-03-17 18:01:58,058 - INFO - Connected to DB. Session_key: EDGCDBFBBDHGKGLCLHGFFDGGEFFAEAFADDBFBAAFNBOEJEMFKBNHHDEGDHJDOHIDDCNEJAOEAACHLCLA
+2026-03-17 18:17:18,863 - INFO - Connected to DB. Session_key: EDGCDBFBBDHGKGLCDALFIDLGIFPAOALHFDDFDACFPBMELEOFIBPHFDGGBHLDMHKDBCPELAMECAAHJCJA
+2026-03-17 18:17:24,773 - INFO - Successfully created instance of type organization
+2026-03-17 18:17:25,801 - INFO - PUT /instances/816870 - update request
+2026-03-17 18:17:25,801 - INFO - PUT /instances/816870 - request body: {'entity_type': 'organization', 'attributes': {'id': 'TEST1', 'name': 'TEST1'}}
+2026-03-17 18:17:25,801 - INFO - PUT /instances/816870 - entity_type from request: organization
+2026-03-17 18:17:25,801 - INFO - PUT /instances/816870 - validated attributes: {'id': 'TEST1', 'name': 'TEST1'}
+2026-03-17 18:17:25,801 - INFO - update_instance: sys_id=816870, entity_type=organization, updates={'id': 'TEST1', 'name': 'TEST1'}
+2026-03-17 18:17:25,802 - INFO - update_instance: POST http://localhost:7239/rest/save payload={"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 816870, "type": "organization", "attributes": {"id": "TEST1", "name": "TEST1"}}]}
+2026-03-17 18:17:26,846 - INFO - update_instance: response status=200, body={
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"_processingTime":"00:00:01.032",
+	"_processingStart":"17.03.2026 18:17:25.815 "
+}
+2026-03-17 18:17:26,847 - INFO - Successfully updated instance 816870
+2026-03-17 18:17:26,847 - INFO - PUT /instances/816870 - update successful
+2026-03-17 18:17:29,225 - INFO - delete_instance: sys_id=816870, entity_type=organization
+2026-03-17 18:17:29,226 - INFO - delete_instance: POST http://localhost:7239/rest/save payload={"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 816870, "type": null}]}
+2026-03-17 18:17:30,341 - INFO - delete_instance: response status=200, body={
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"_processingTime":"00:00:01.110",
+	"_processingStart":"17.03.2026 18:17:29.238 "
+}
