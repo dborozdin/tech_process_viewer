@@ -135,6 +135,34 @@
             font-size: 11px;
         }
 
+        .debug-entry.llm-entry {
+            background: #1a1a2e;
+            border-bottom-color: #2a2a3a;
+            font-size: 11px;
+        }
+        .debug-entry.llm-entry .llm-label {
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+        .debug-entry.llm-entry .llm-label.request { background: #74c7ec; color: #1e1e2e; }
+        .debug-entry.llm-entry .llm-label.response { background: #a6e3a1; color: #1e1e2e; }
+        .debug-entry.llm-entry .llm-messages {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 4px 8px;
+            background: #11111b;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #cdd6f4;
+            display: none;
+        }
+        .debug-entry.llm-entry .llm-messages.open { display: block; }
+
         .debug-entries {
             flex: 1;
             overflow-y: auto;
@@ -403,6 +431,7 @@
         }
         .settings-toggle:hover { background: #546e7a; }
         .settings-toggle.active { background: #7b1fa2; }
+        #llmToggle.active { background: #0d47a1; }
 
         .settings-panel {
             background: #fafafa;
@@ -576,6 +605,28 @@
         .history-btn.use:hover { background: #c5cae9; }
         .history-btn.delete { color: #999; }
         .history-btn.delete:hover { color: #ef5350; background: #ffebee; }
+        .history-btn.details-toggle { color: #5c6bc0; }
+        .history-btn.details-toggle:hover { background: #e8eaf6; }
+        .history-entry { flex-wrap: wrap; }
+        .history-details {
+            width: 100%;
+            padding: 6px 8px;
+            margin-top: 4px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .history-detail-section { margin-bottom: 4px; }
+        .history-detail-section:last-child { margin-bottom: 0; }
+        .history-detail-item { padding-left: 8px; }
+        .history-detail-item code {
+            font-size: 11px;
+            background: #e8eaf6;
+            padding: 1px 4px;
+            border-radius: 2px;
+            word-break: break-all;
+        }
 
         /* Save-to-history star on user messages */
         .message.user {
@@ -680,11 +731,63 @@
             <span id="statusText">Не подключено</span>
             <div class="status-dot" id="statusDot"></div>
             <button class="connect-btn" id="connectBtn" onclick="toggleConnect()">Подключиться</button>
+            <span id="llmInfo" style="font-size:11px; color:rgba(255,255,255,0.7); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title=""></span>
+            <button class="settings-toggle" id="llmToggle" onclick="toggleLlmPanel()">LLM</button>
             <button class="settings-toggle" id="settingsToggle" onclick="toggleSettingsPanel()">&#9881; Промпт</button>
             <button class="history-toggle" id="historyToggle" onclick="toggleHistoryPanel()">История</button>
             <button class="debug-toggle" id="debugToggle" onclick="toggleDebugPanel()">API Debug</button>
         </div>
     </header>
+
+    <div class="settings-panel" id="llmPanel">
+        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="min-width:160px;">
+                <label for="llmProvider">Провайдер:</label>
+                <select id="llmProvider" onchange="onProviderChange()" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="ollama">Ollama (bolt.cals.ru)</option>
+                </select>
+            </div>
+            <div style="flex:1; min-width:250px;">
+                <label for="llmModel">Модель:</label>
+                <div style="display:flex; gap:6px;">
+                    <select id="llmModel" style="flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;"></select>
+                    <button onclick="refreshModels()" style="padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f5f5f5; cursor:pointer; font-size:12px;" title="Обновить список моделей">&#8635;</button>
+                    <button id="checkToolsBtn" onclick="checkOllamaTools()" style="display:none; padding:6px 10px; border:1px solid #5c6bc0; border-radius:4px; background:#e8eaf6; color:#1a237e; cursor:pointer; font-size:11px; white-space:nowrap;" title="Проверить поддержку инструментов (tool use) для всех моделей">&#9881; Tools?</button>
+                </div>
+                <div id="checkToolsStatus" style="display:none; font-size:11px; color:#666; margin-top:2px;"></div>
+            </div>
+            <div style="width:90px;">
+                <label for="llmTemperature">Temperature:</label>
+                <input type="number" id="llmTemperature" value="0.1" min="0" max="2" step="0.1" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+            </div>
+            <div style="width:100px;">
+                <label for="llmMaxTokens">Max tokens:</label>
+                <input type="number" id="llmMaxTokens" value="4096" min="256" max="32768" step="256" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+            </div>
+        </div>
+        <div id="llmApiKeyRow" style="margin-top:10px;">
+            <label for="llmApiKey">API Key:</label>
+            <input type="password" id="llmApiKey" placeholder="sk-or-..." style="width:100%; max-width:400px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+        </div>
+        <div class="settings-actions" style="margin-top:10px;">
+            <button class="settings-save" id="llmSaveBtn" onclick="applyLlmSettings()">Применить</button>
+            <span class="settings-hint" id="llmHint">Переключение сбрасывает контекст агента</span>
+        </div>
+        <div id="ollamaPullRow" style="margin-top:10px; display:none; border-top:1px solid #e0e0e0; padding-top:10px;">
+            <label>Установить модель на сервер Ollama:</label>
+            <div style="display:flex; gap:6px; margin-top:4px;">
+                <input type="text" id="pullModelName" placeholder="например: mistral-small3.1:24b" style="flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                <button id="pullModelBtn" onclick="pullOllamaModel()" style="padding:6px 14px; border:1px solid #1a237e; border-radius:4px; background:#3949ab; color:#fff; cursor:pointer; font-size:13px; white-space:nowrap;">Установить</button>
+            </div>
+            <div id="pullProgress" style="display:none; margin-top:6px;">
+                <div style="background:#e0e0e0; border-radius:4px; height:18px; overflow:hidden;">
+                    <div id="pullProgressBar" style="background:#3949ab; height:100%; width:0%; transition:width 0.3s; border-radius:4px;"></div>
+                </div>
+                <span id="pullStatus" style="font-size:11px; color:#666;"></span>
+            </div>
+        </div>
+    </div>
 
     <div class="settings-panel" id="settingsPanel">
         <details class="base-prompt-details">
@@ -729,6 +832,7 @@
         <div class="debug-panel" id="debugPanel">
             <div class="debug-header">
                 <span>API Debug Log</span>
+                <span class="debug-limits" id="llmRpm" style="color:#89b4fa;"></span>
                 <span class="debug-limits" id="llmLimits"></span>
                 <span class="debug-tokens" id="tokenCounter"></span>
                 <button class="debug-clear" onclick="clearDebugPanel()">Clear</button>
@@ -738,6 +842,8 @@
     </div>
 
     <div class="input-area">
+        <button id="newDialogBtn" class="cancel-btn" onclick="clearConversationContext()" style="display:none" title="Начать новый диалог (сбросить контекст предыдущих запросов)">Новый диалог</button>
+        <span id="contextIndicator" style="font-size:11px; color:#888; white-space:nowrap; display:none;"></span>
         <input type="text" id="questionInput" placeholder="Введите вопрос..."
                onkeydown="if(event.key==='Enter') sendQuestion()" disabled>
         <button id="cancelBtn" class="cancel-btn" onclick="cancelClarification()" style="display:none">Отмена</button>
@@ -972,6 +1078,55 @@
                 const limit = data.limit != null ? '$' + data.limit.toFixed(2) : '\u221e';
                 el.textContent = 'Credits: ' + remaining + ' / ' + limit;
             } catch (e) {}
+        }
+
+        function addDebugLlmEntry(type, step) {
+            const container = document.getElementById('debugEntries');
+            const entry = document.createElement('div');
+            entry.className = 'debug-entry llm-entry';
+
+            const label = document.createElement('span');
+            label.className = `llm-label ${type}`;
+
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'debug-query-toggle';
+
+            const messagesDiv = document.createElement('div');
+            messagesDiv.className = 'llm-messages';
+
+            if (type === 'request') {
+                label.textContent = 'LLM REQUEST';
+                toggleBtn.textContent = `${step.messages.length} messages \u25B8`;
+                let text = '';
+                for (const m of step.messages) {
+                    const roleColor = m.role === 'user' ? '\u{1F464}' : m.role === 'system' ? '\u{2699}' : m.role === 'tool' ? '\u{1F527}' : '\u{1F916}';
+                    text += `${roleColor} [${m.role}]: ${m.content}\n\n`;
+                }
+                messagesDiv.textContent = text;
+            } else {
+                label.textContent = 'LLM RESPONSE';
+                let text = '';
+                if (step.content) text += step.content + '\n';
+                if (step.tool_calls) {
+                    for (const tc of step.tool_calls) {
+                        text += `\u{1F527} ${tc.name}(${tc.arguments})\n`;
+                    }
+                }
+                toggleBtn.textContent = `response \u25B8`;
+                messagesDiv.textContent = text || '[empty]';
+            }
+
+            toggleBtn.onclick = () => {
+                messagesDiv.classList.toggle('open');
+                toggleBtn.textContent = toggleBtn.textContent.replace(
+                    messagesDiv.classList.contains('open') ? '\u25B8' : '\u25BE',
+                    messagesDiv.classList.contains('open') ? '\u25BE' : '\u25B8'
+                );
+            };
+
+            entry.append(label, toggleBtn, messagesDiv);
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
         }
 
         function addDebugTokenEntry(step) {
@@ -1223,6 +1378,8 @@
                 let buffer = '';
                 let hadToolResults = false;
                 const originalQuestion = isClarification ? null : text;
+                const collectedToolCalls = [];
+                const collectedApiCalls = [];
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -1254,7 +1411,7 @@
                                 }
                                 // Auto-save successful queries to history
                                 if (hadToolResults && originalQuestion) {
-                                    saveToHistory(originalQuestion, true);
+                                    saveToHistory(originalQuestion, true, collectedToolCalls, collectedApiCalls);
                                 }
                             } else if (step.type === 'clarification') {
                                 hideProgress();
@@ -1264,17 +1421,36 @@
                             } else if (step.type === 'api_calls') {
                                 for (const call of (step.calls || [])) {
                                     addDebugEntry(call);
+                                    collectedApiCalls.push(call);
                                 }
+                            } else if (step.type === 'llm_request') {
+                                addDebugLlmEntry('request', step);
+                            } else if (step.type === 'llm_response') {
+                                addDebugLlmEntry('response', step);
+                            } else if (step.type === 'llm_thinking') {
+                                updateProgress(`Итерация ${step.iteration}/${step.max_iterations}: ожидание ответа LLM...`);
                             } else if (step.type === 'llm_usage') {
                                 totalPromptTokens += step.prompt_tokens || 0;
                                 totalCompletionTokens += step.completion_tokens || 0;
                                 updateTokenCounter();
                                 addDebugTokenEntry(step);
+                                // Update RPM indicator from rate limit headers
+                                if (step.rate_limit) {
+                                    const rl = step.rate_limit;
+                                    const rpmEl = document.getElementById('llmRpm');
+                                    const parts = [];
+                                    if (rl.rpm_remaining != null && rl.rpm_limit != null)
+                                        parts.push(`RPM: ${rl.rpm_remaining}/${rl.rpm_limit}`);
+                                    if (rl.tpm_remaining != null && rl.tpm_limit != null)
+                                        parts.push(`TPM: ${Number(rl.tpm_remaining).toLocaleString()}/${Number(rl.tpm_limit).toLocaleString()}`);
+                                    rpmEl.textContent = parts.join(' | ');
+                                }
                             } else if (step.type === 'error') {
                                 addStep(stepsContainer, step);
                             } else if (step.type === 'tool_call') {
                                 updateProgress(`${step.tool}...`);
                                 addStep(stepsContainer, step);
+                                collectedToolCalls.push({ tool: step.tool, arguments: step.arguments });
                             } else if (step.type === 'tool_result') {
                                 hadToolResults = true;
                                 updateProgress(`${step.tool} \u2713`);
@@ -1291,7 +1467,7 @@
                 if (e.name === 'AbortError') {
                     addMessage('assistant', 'Превышено время ожидания ответа (3 мин). Попробуйте упростить запрос.');
                 } else {
-                    addMessage('assistant', `Ошибка: ${e.message}`);
+                    addMessage('assistant', `Ошибка соединения: ${e.message}. Возможно, LLM-сервер не ответил вовремя. Попробуйте повторить запрос.`);
                 }
             }
 
@@ -1302,6 +1478,7 @@
             document.getElementById('sendBtn').disabled = false;
             document.getElementById('questionInput').focus();
             loadLlmLimits();
+            refreshContextStatus();
         }
 
         // --- Settings panel ---
@@ -1413,6 +1590,48 @@
                 delBtn.onclick = () => deleteHistoryEntry(idx);
 
                 div.append(auto, question, ts, useBtn, delBtn);
+
+                // Show tool calls and API calls if present
+                const hasDetails = (entry.tool_calls && entry.tool_calls.length) ||
+                                   (entry.api_calls && entry.api_calls.length);
+                if (hasDetails) {
+                    const details = document.createElement('div');
+                    details.className = 'history-details';
+                    details.style.display = 'none';
+                    let detailsHtml = '';
+                    if (entry.tool_calls && entry.tool_calls.length) {
+                        detailsHtml += '<div class="history-detail-section"><b>LLM tool calls:</b>';
+                        for (const tc of entry.tool_calls) {
+                            const argsStr = typeof tc.arguments === 'object'
+                                ? JSON.stringify(tc.arguments, null, 2) : (tc.arguments || '');
+                            detailsHtml += `<div class="history-detail-item"><code>${tc.tool}(${argsStr.replace(/</g,'&lt;')})</code></div>`;
+                        }
+                        detailsHtml += '</div>';
+                    }
+                    if (entry.api_calls && entry.api_calls.length) {
+                        detailsHtml += '<div class="history-detail-section"><b>PSS API:</b>';
+                        for (const ac of entry.api_calls) {
+                            const bodyStr = ac.body ? ` — ${ac.body}` : '';
+                            detailsHtml += `<div class="history-detail-item"><code>${ac.method} ${(ac.url||'').replace(/</g,'&lt;')}${bodyStr.replace(/</g,'&lt;')}</code> <span style="color:#888">${ac.elapsed_ms}ms${ac.result_count != null ? ', ' + ac.result_count + ' rows' : ''}</span></div>`;
+                        }
+                        detailsHtml += '</div>';
+                    }
+                    details.innerHTML = detailsHtml;
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'history-btn details-toggle';
+                    toggleBtn.textContent = '\u2139';
+                    toggleBtn.title = 'Показать запросы';
+                    toggleBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        const visible = details.style.display !== 'none';
+                        details.style.display = visible ? 'none' : '';
+                        toggleBtn.textContent = visible ? '\u2139' : '\u2296';
+                    };
+                    div.insertBefore(toggleBtn, useBtn);
+                    div.appendChild(details);
+                }
+
                 container.appendChild(div);
             });
         }
@@ -1426,12 +1645,15 @@
             document.getElementById('historyToggle').classList.remove('active');
         }
 
-        async function saveToHistory(question, auto) {
+        async function saveToHistory(question, auto, toolCalls, apiCalls) {
             try {
+                const payload = { question, auto: !!auto };
+                if (toolCalls && toolCalls.length) payload.tool_calls = toolCalls;
+                if (apiCalls && apiCalls.length) payload.api_calls = apiCalls;
                 await fetch('/api/history', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question, auto: !!auto }),
+                    body: JSON.stringify(payload),
                 });
                 loadHistory();
             } catch (e) {
@@ -1440,7 +1662,7 @@
         }
 
         function manualSaveToHistory(question) {
-            saveToHistory(question, false);
+            saveToHistory(question, false, [], []);
         }
 
         async function deleteHistoryEntry(idx) {
@@ -1462,17 +1684,329 @@
             }
         }
 
+        // --- Conversation context ---
+
+        let conversationTurns = 0;
+
+        function updateContextIndicator(count) {
+            conversationTurns = count;
+            const indicator = document.getElementById('contextIndicator');
+            const btn = document.getElementById('newDialogBtn');
+            if (count > 0) {
+                indicator.textContent = `(контекст: ${count})`;
+                indicator.style.display = '';
+                btn.style.display = '';
+            } else {
+                indicator.style.display = 'none';
+                btn.style.display = 'none';
+            }
+        }
+
+        async function refreshContextStatus() {
+            try {
+                const resp = await fetch('/api/context-status');
+                const data = await resp.json();
+                updateContextIndicator(data.history_count || 0);
+            } catch (e) {}
+        }
+
+        async function clearConversationContext() {
+            try {
+                await fetch('/api/clear-context', { method: 'POST' });
+                updateContextIndicator(0);
+                addMessage('assistant', 'Контекст диалога очищен. Следующий запрос начнётся с чистого листа.');
+            } catch (e) {
+                console.warn('Failed to clear context:', e);
+            }
+        }
+
+        // --- LLM settings panel ---
+
+        function toggleLlmPanel() {
+            const panel = document.getElementById('llmPanel');
+            const btn = document.getElementById('llmToggle');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        function updateLlmInfo(config) {
+            const el = document.getElementById('llmInfo');
+            const prov = config.provider === 'openrouter' ? 'OpenRouter' : 'Ollama';
+            const shortModel = config.model.length > 40
+                ? config.model.substring(0, 37) + '...'
+                : config.model;
+            el.textContent = `${prov}: ${shortModel} | T=${config.temperature} | max=${config.max_tokens}`;
+            el.title = `${prov}: ${config.model}\nTemperature: ${config.temperature}\nMax tokens: ${config.max_tokens}\nBase URL: ${config.base_url}`;
+        }
+
+        async function loadLlmConfig() {
+            try {
+                const resp = await fetch('/api/llm/providers');
+                const data = await resp.json();
+                const config = data.current;
+                document.getElementById('llmProvider').value = config.provider;
+                document.getElementById('llmTemperature').value = config.temperature;
+                document.getElementById('llmMaxTokens').value = config.max_tokens;
+                document.getElementById('llmApiKey').value = config.api_key || '';
+                updateLlmInfo(config);
+                await onProviderChange(config.model);
+            } catch (e) {
+                console.warn('Failed to load LLM config:', e);
+            }
+        }
+
+        async function onProviderChange(selectModel) {
+            const provider = document.getElementById('llmProvider').value;
+            document.getElementById('llmApiKeyRow').style.display =
+                provider === 'openrouter' ? '' : 'none';
+            document.getElementById('ollamaPullRow').style.display =
+                provider === 'ollama' ? '' : 'none';
+            document.getElementById('checkToolsBtn').style.display =
+                provider === 'ollama' ? '' : 'none';
+            // Hide/show RPM and credits indicators
+            document.getElementById('llmRpm').style.display =
+                provider === 'openrouter' ? '' : 'none';
+            document.getElementById('llmLimits').style.display =
+                provider === 'openrouter' ? '' : 'none';
+            await refreshModels(selectModel);
+        }
+
+        async function refreshModels(selectModel) {
+            const provider = document.getElementById('llmProvider').value;
+            const select = document.getElementById('llmModel');
+            select.innerHTML = '<option>Загрузка...</option>';
+            try {
+                const resp = await fetch(`/api/llm/models?provider=${provider}`);
+                const data = await resp.json();
+                if (data.error) {
+                    select.innerHTML = `<option>Ошибка: ${data.error}</option>`;
+                    return;
+                }
+                select.innerHTML = '';
+                for (const m of data.models) {
+                    const opt = document.createElement('option');
+                    opt.value = m.name;
+                    let label = m.name;
+                    const details = [];
+                    if (m.params) details.push(m.params);
+                    if (m.quant) details.push(m.quant);
+                    if (m.note) details.push(m.note);
+                    if (details.length) label += ` (${details.join(', ')})`;
+                    if (m.recommended) label += ' \u2605 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u043e\u0432\u0430\u043d\u043e';
+                    if (m.tools === true) label += ' \u2713 tools';
+                    else if (m.tools === false) label += ' \u2717 no tools';
+                    opt.textContent = label;
+                    if (m.tools === false) opt.style.color = '#999';
+                    if (selectModel && m.name === selectModel) opt.selected = true;
+                    select.appendChild(opt);
+                }
+            } catch (e) {
+                select.innerHTML = '<option>Ошибка загрузки</option>';
+            }
+        }
+
+        async function applyLlmSettings() {
+            const btn = document.getElementById('llmSaveBtn');
+            const hint = document.getElementById('llmHint');
+            btn.disabled = true;
+
+            const provider = document.getElementById('llmProvider').value;
+            const payload = {
+                provider: provider,
+                model: document.getElementById('llmModel').value,
+                temperature: parseFloat(document.getElementById('llmTemperature').value),
+                max_tokens: parseInt(document.getElementById('llmMaxTokens').value),
+            };
+            if (provider === 'openrouter') {
+                const key = document.getElementById('llmApiKey').value.trim();
+                if (key) payload.api_key = key;
+            }
+
+            try {
+                const resp = await fetch('/api/llm/switch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (data.switched) {
+                    btn.textContent = 'Применено';
+                    btn.classList.add('saved');
+                    hint.textContent = 'Настройки применены, агент переинициализирован';
+                    updateLlmInfo(data.config);
+                    loadLlmLimits();
+                    // Reset RPM display
+                    document.getElementById('llmRpm').textContent = '';
+                    setTimeout(() => {
+                        btn.classList.remove('saved');
+                        btn.textContent = 'Применить';
+                        hint.textContent = 'Переключение сбрасывает контекст агента';
+                    }, 2000);
+                } else {
+                    hint.textContent = 'Ошибка: ' + (data.error || 'неизвестная');
+                    hint.style.color = '#c62828';
+                    setTimeout(() => { hint.style.color = ''; hint.textContent = 'Переключение сбрасывает контекст агента'; }, 3000);
+                }
+            } catch (e) {
+                hint.textContent = 'Ошибка: ' + e.message;
+                hint.style.color = '#c62828';
+                setTimeout(() => { hint.style.color = ''; hint.textContent = 'Переключение сбрасывает контекст агента'; }, 3000);
+            }
+            btn.disabled = false;
+        }
+
+        async function pullOllamaModel() {
+            const nameInput = document.getElementById('pullModelName');
+            const btn = document.getElementById('pullModelBtn');
+            const progressDiv = document.getElementById('pullProgress');
+            const progressBar = document.getElementById('pullProgressBar');
+            const statusEl = document.getElementById('pullStatus');
+            const modelName = nameInput.value.trim();
+            if (!modelName) { nameInput.focus(); return; }
+
+            btn.disabled = true;
+            btn.textContent = 'Загрузка...';
+            progressDiv.style.display = '';
+            progressBar.style.width = '0%';
+            statusEl.textContent = 'Подключение к серверу...';
+
+            try {
+                const resp = await fetch('/api/llm/pull', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: modelName }),
+                });
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.status === 'error') {
+                                statusEl.textContent = 'Ошибка: ' + (data.error || '');
+                                statusEl.style.color = '#c62828';
+                                return;
+                            }
+                            if (data.status === 'done') {
+                                progressBar.style.width = '100%';
+                                statusEl.textContent = 'Готово! Модель установлена.';
+                                statusEl.style.color = '#2e7d32';
+                                // Refresh model list to include new model
+                                await refreshModels(modelName);
+                                return;
+                            }
+                            // Progress update
+                            let statusText = data.status || '';
+                            if (data.total && data.completed) {
+                                const pct = Math.round(data.completed / data.total * 100);
+                                progressBar.style.width = pct + '%';
+                                const mb = (data.completed / 1048576).toFixed(0);
+                                const totalMb = (data.total / 1048576).toFixed(0);
+                                statusText += ` ${mb}/${totalMb} MB (${pct}%)`;
+                            }
+                            statusEl.textContent = statusText;
+                            statusEl.style.color = '#666';
+                        } catch (e) {}
+                    }
+                }
+            } catch (e) {
+                statusEl.textContent = 'Ошибка: ' + e.message;
+                statusEl.style.color = '#c62828';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Установить';
+            }
+        }
+
+        async function checkOllamaTools() {
+            const btn = document.getElementById('checkToolsBtn');
+            const statusEl = document.getElementById('checkToolsStatus');
+            btn.disabled = true;
+            btn.textContent = 'Проверка...';
+            statusEl.style.display = '';
+            statusEl.style.color = '#666';
+            statusEl.textContent = 'Подключение к серверу...';
+
+            try {
+                const resp = await fetch('/api/llm/check-tools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}',
+                });
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let checked = 0;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.status === 'checking') {
+                                statusEl.textContent = `Проверка ${data.model}...`;
+                            } else if (data.status === 'done') {
+                                checked++;
+                                const icon = data.tools ? '\u2713' : '\u2717';
+                                statusEl.textContent = `${icon} ${data.model}: ${data.tools ? 'tools OK' : 'no tools'} (${checked} проверено)`;
+                            } else if (data.status === 'skip') {
+                                statusEl.textContent = `\u26A0 ${data.model}: пропущена (${data.error || ''})`;
+                            } else if (data.status === 'complete') {
+                                statusEl.textContent = `Готово: ${data.with_tools} с tools, ${data.without_tools} без tools`;
+                                statusEl.style.color = '#2e7d32';
+                                // Refresh model list with updated cache
+                                const currentModel = document.getElementById('llmModel').value;
+                                await refreshModels(currentModel);
+                            } else if (data.status === 'error') {
+                                statusEl.textContent = 'Ошибка: ' + (data.error || '');
+                                statusEl.style.color = '#c62828';
+                            }
+                        } catch (e) {}
+                    }
+                }
+            } catch (e) {
+                statusEl.textContent = 'Ошибка: ' + e.message;
+                statusEl.style.color = '#c62828';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '\u2699 Tools?';
+            }
+        }
+
         // --- Startup ---
 
-        // Check initial status
+        // Check initial status — auto-open connect dialog if not connected
         fetch('/api/status').then(r => r.json()).then(data => {
-            if (data.connected) setConnected(true);
-        }).catch(() => {});
+            if (data.connected) {
+                setConnected(true);
+            } else {
+                openConnectModal();
+            }
+        }).catch(() => {
+            openConnectModal();
+        });
 
-        // Load custom instructions, history, and LLM limits on startup
+        // Load custom instructions, history, LLM config, and limits on startup
         loadCustomInstructions();
         loadHistory();
+        loadLlmConfig();
         loadLlmLimits();
+
+        // Auto-open debug panel
+        toggleDebugPanel();
     </script>
 
     <!-- Connection modal -->

@@ -54,6 +54,10 @@ class Agent:
         self._pending_tool_call_id: str | None = None
         self._iteration = 0
 
+        # Cross-turn conversation history (Q&A summaries for context continuity)
+        self._conversation_history: list[dict] = []  # [{question, answer}]
+        self._max_history_turns = 3  # keep last N turns
+
     def _rebuild_system_prompt(self):
         """Rebuild system prompt to include latest knowledge and custom instructions."""
         categories = self.schema.get_categories()
@@ -81,7 +85,18 @@ class Agent:
             {"role": "system", "content": self.system_prompt},
         ]
         self.messages.extend(FEW_SHOT_EXAMPLES)
-        self.messages.append({"role": "user", "content": question})
+
+        # Inject previous conversation turns as context
+        for turn in self._conversation_history:
+            self.messages.append({"role": "user", "content": turn["question"]})
+            self.messages.append({"role": "assistant", "content": turn["answer"]})
+
+        # Inject relevant knowledge directly into the user message
+        knowledge_prefix = ""
+        if self.knowledge:
+            knowledge_prefix = self.knowledge.format_relevant_for_message(question)
+        self._current_question = question
+        self.messages.append({"role": "user", "content": knowledge_prefix + question})
         self._pending_clarification = False
         self._pending_tool_call_id = None
         self._iteration = 0
@@ -110,6 +125,29 @@ class Agent:
             self._iteration += 1
             logger.info(f"Agent iteration {self._iteration}/{self.max_iterations}")
 
+            yield AgentStep("llm_thinking",
+                            iteration=self._iteration,
+                            max_iterations=self.max_iterations)
+
+            # Emit LLM request debug info (full messages for debugging)
+            debug_messages = []
+            for m in self.messages:
+                role = m.get("role", "?")
+                if role == "system":
+                    debug_messages.append({"role": "system", "content": f"[system prompt, {len(m.get('content', ''))} chars]"})
+                elif role == "user":
+                    debug_messages.append({"role": "user", "content": m.get("content", "")})
+                elif role == "assistant":
+                    tc = m.get("tool_calls")
+                    if tc:
+                        calls = [f"{c['function']['name']}({c['function']['arguments']})" for c in tc]
+                        debug_messages.append({"role": "assistant", "content": f"[tool_calls: {', '.join(calls)}]"})
+                    else:
+                        debug_messages.append({"role": "assistant", "content": m.get("content") or ""})
+                elif role == "tool":
+                    debug_messages.append({"role": "tool", "content": m.get("content", "")})
+            yield AgentStep("llm_request", messages=debug_messages)
+
             try:
                 response = self.llm.chat(self.messages, tools=TOOLS)
             except Exception as e:
@@ -117,10 +155,24 @@ class Agent:
                 yield AgentStep("error", message=f"Ошибка LLM: {e}")
                 return
 
-            # Emit token usage info
+            # Emit LLM response debug info
+            resp_debug = {"content": (response.get("content") or "")[:500]}
+            if response.get("tool_calls"):
+                resp_debug["tool_calls"] = [
+                    {"name": tc["function"]["name"],
+                     "arguments": tc["function"]["arguments"][:200]}
+                    for tc in response["tool_calls"]
+                ]
+            yield AgentStep("llm_response", **resp_debug)
+
+            # Emit token usage info (with rate limit data if available)
             usage = response.pop("usage", None)
+            rate_limit = response.pop("rate_limit", None)
             if usage:
-                yield AgentStep("llm_usage", **usage)
+                usage_data = {**usage}
+                if rate_limit:
+                    usage_data["rate_limit"] = rate_limit
+                yield AgentStep("llm_usage", **usage_data)
 
             tool_calls = response.get("tool_calls")
 
@@ -129,6 +181,16 @@ class Agent:
                 content = response.get("content", "")
                 if not content:
                     content = "Не удалось сформировать ответ."
+
+                # Save Q&A to conversation history for cross-turn context
+                if hasattr(self, '_current_question') and self._current_question:
+                    self._conversation_history.append({
+                        "question": self._current_question,
+                        "answer": content[:2000],  # truncate long HTML reports
+                    })
+                    if len(self._conversation_history) > self._max_history_turns:
+                        self._conversation_history = self._conversation_history[-self._max_history_turns:]
+
                 yield AgentStep("answer", content=content)
                 return
 
@@ -186,6 +248,16 @@ class Agent:
         yield AgentStep("error",
                         message=f"Превышено максимальное количество итераций ({self.max_iterations}). "
                                 "Попробуйте уточнить вопрос.")
+
+    def clear_history(self):
+        """Clear conversation history (start fresh context)."""
+        self._conversation_history = []
+        logger.info("Conversation history cleared")
+
+    @property
+    def history_count(self) -> int:
+        """Number of previous turns in conversation history."""
+        return len(self._conversation_history)
 
     def ask_sync(self, question: str) -> dict:
         """Synchronous version of ask(). Returns final result dict.

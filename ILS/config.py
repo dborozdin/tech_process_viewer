@@ -28,7 +28,7 @@ class Config:
     LLM_API_KEY = os.environ.get('LLM_API_KEY', '').strip()
     LLM_MODEL = os.environ.get('LLM_MODEL', 'nvidia/nemotron-3-super-120b-a12b:free')
     LLM_TEMPERATURE = float(os.environ.get('LLM_TEMPERATURE', '0.1'))
-    LLM_MAX_TOKENS = int(os.environ.get('LLM_MAX_TOKENS', '4096'))
+    LLM_MAX_TOKENS = int(os.environ.get('LLM_MAX_TOKENS', '8192'))
 
     # Agent settings
     AGENT_MAX_ITERATIONS = int(os.environ.get('AGENT_MAX_ITERATIONS', '15'))

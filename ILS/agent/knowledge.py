@@ -61,6 +61,47 @@ class KnowledgeStore:
             if keyword_lower in e['topic'].lower() or keyword_lower in e['content'].lower()
         ]
 
+    def find_relevant(self, question: str) -> list[dict]:
+        """Find knowledge entries relevant to a user question.
+
+        Uses prefix-based matching (first 4 chars) to handle Russian
+        word inflections: "финальные"→"фина" matches "финальное",
+        "изделия"→"изде" matches "изделие".
+        """
+        words = [w.lower().strip('.,!?()"\':;') for w in question.split()]
+        words = [w for w in words if len(w) >= 4]
+        if not words:
+            return []
+
+        # Use first 4 chars as stem for matching (handles Russian inflections)
+        stems = [w[:4] for w in words]
+
+        scored = []
+        for entry in self.entries:
+            text = (entry['topic'] + ' ' + entry['content']).lower()
+            hits = sum(1 for stem in stems if stem in text)
+            if hits > 0:
+                scored.append((hits, entry))
+
+        scored.sort(key=lambda x: -x[0])
+        return [e for _, e in scored]
+
+    def format_relevant_for_message(self, question: str) -> str:
+        """Format relevant knowledge entries as a prefix for the user message."""
+        relevant = self.find_relevant(question)
+        if not relevant:
+            return ""
+        lines = []
+        for e in relevant:
+            lines.append(f"- {e['topic']}: {e['content']}")
+        return (
+            "ВАЖНО! Перед выполнением запроса прочитай сохранённые знания.\n"
+            "Используй ТОЧНЫЕ имена сущностей и атрибутов из этих записей, "
+            "НЕ заменяй их на похожие или предполагаемые имена:\n\n"
+            + "\n".join(lines)
+            + "\n\nЗапрос пользователя: "
+        )
+
     def format_for_prompt(self) -> str:
         """Format all entries for inclusion in the system prompt."""
         if not self.entries:

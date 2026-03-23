@@ -54,9 +54,12 @@ class LLMClient:
 
         # Retry on rate limit (429) with exponential backoff
         max_retries = 3
+        raw_headers = None
         for attempt in range(max_retries + 1):
             try:
-                response = self.client.chat.completions.create(**kwargs)
+                raw_response = self.client.chat.completions.with_raw_response.create(**kwargs)
+                response = raw_response.parse()
+                raw_headers = raw_response.headers
                 break
             except RateLimitError as e:
                 if attempt == max_retries:
@@ -76,8 +79,27 @@ class LLMClient:
                 "total_tokens": response.usage.total_tokens,
             }
 
+        # Extract rate-limit headers (OpenRouter sends these)
+        rate_limit = None
+        if raw_headers:
+            rl = {}
+            for hdr, key in (
+                ("x-ratelimit-limit-requests", "rpm_limit"),
+                ("x-ratelimit-remaining-requests", "rpm_remaining"),
+                ("x-ratelimit-limit-tokens", "tpm_limit"),
+                ("x-ratelimit-remaining-tokens", "tpm_remaining"),
+                ("x-ratelimit-reset-requests", "rpm_reset"),
+            ):
+                val = raw_headers.get(hdr)
+                if val is not None:
+                    rl[key] = val
+            if rl:
+                rate_limit = rl
+                logger.debug(f"Rate limits: {rl}")
+
         # Convert to plain dict for serialization
-        result = {"role": "assistant", "content": message.content, "usage": usage}
+        result = {"role": "assistant", "content": message.content, "usage": usage,
+                  "rate_limit": rate_limit}
         if message.tool_calls:
             result["tool_calls"] = [
                 {
