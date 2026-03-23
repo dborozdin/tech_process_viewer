@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ILS Report Agent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #1a237e;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 { font-size: 18px; font-weight: 600; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #ef5350;
+        }
+
+        .status-dot.connected { background: #66bb6a; }
+
+        .connect-btn {
+            background: #42a5f5;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .connect-btn:hover { background: #1e88e5; }
+        .connect-btn:disabled { background: #999; cursor: not-allowed; }
+
+        .debug-toggle {
+            background: #455a64;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .debug-toggle:hover { background: #546e7a; }
+        .debug-toggle.active { background: #ff8f00; }
+
+        .main-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Debug panel */
+        .debug-panel {
+            width: 420px;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            display: none;
+            flex-direction: column;
+            border-left: 1px solid #333;
+        }
+        .debug-panel.open { display: flex; }
+
+        .debug-header {
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            background: #181825;
+            flex-shrink: 0;
+        }
+        .debug-header span { font-weight: 600; color: #cba6f7; }
+
+        .debug-clear {
+            background: #45475a;
+            color: #cdd6f4;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .debug-clear:hover { background: #585b70; }
+
+        .debug-tokens {
+            font-size: 11px;
+            color: #f9e2af;
+            white-space: nowrap;
+        }
+
+        .debug-limits {
+            font-size: 11px;
+            color: #a6e3a1;
+            white-space: nowrap;
+        }
+
+        .debug-entry.token-entry {
+            background: #1a1a2e;
+            border-bottom-color: #2a2a3a;
+            color: #f9e2af;
+            font-size: 11px;
+        }
+
+        .debug-entries {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .debug-entry {
+            padding: 6px 12px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+
+        .debug-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .debug-method {
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        .debug-method.POST { background: #fab387; color: #1e1e2e; }
+        .debug-method.GET { background: #a6e3a1; color: #1e1e2e; }
+
+        .debug-url {
+            flex: 1;
+            color: #89b4fa;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .debug-timing {
+            color: #f9e2af;
+            white-space: nowrap;
+        }
+
+        .debug-count {
+            color: #a6e3a1;
+            white-space: nowrap;
+        }
+
+        .debug-query {
+            margin-top: 4px;
+            padding: 4px 8px;
+            background: #11111b;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #94e2d5;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .debug-query.open { display: block; }
+
+        .debug-entry.debug-error {
+            border-left: 3px solid #f38ba8;
+            background: rgba(243, 139, 168, 0.08);
+        }
+        .debug-error-text {
+            margin-top: 4px;
+            padding: 4px 8px;
+            background: rgba(243, 139, 168, 0.12);
+            border-radius: 4px;
+            color: #f38ba8;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .debug-query-toggle {
+            background: none;
+            border: none;
+            color: #6c7086;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 0;
+            margin-top: 3px;
+        }
+        .debug-query-toggle:hover { color: #cdd6f4; }
+
+        /* Messages */
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: #1a237e;
+            color: white;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: white;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message.clarification {
+            align-self: flex-start;
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+        }
+
+        .message.assistant .report { margin-top: 8px; }
+        .message.assistant table {
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .message.assistant th {
+            background: #e8eaf6 !important;
+            text-align: left;
+        }
+
+        .steps {
+            align-self: flex-start;
+            max-width: 85%;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .step {
+            padding: 4px 8px;
+            margin: 2px 0;
+            background: #fafafa;
+            border-left: 3px solid #42a5f5;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .step.tool_call { border-left-color: #ffa726; }
+        .step.tool_result { border-left-color: #66bb6a; }
+        .step.error { border-left-color: #ef5350; color: #c62828; }
+
+        .input-area {
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .input-area input:focus { border-color: #1a237e; }
+        .input-area input.clarification-mode {
+            border-color: #ff8f00;
+        }
+        .input-area input.clarification-mode:focus {
+            border-color: #e65100;
+        }
+
+        .input-area button {
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-area button:hover { background: #283593; }
+        .input-area button:disabled { background: #999; cursor: not-allowed; }
+        .input-area button.clarification-mode {
+            background: #e65100;
+        }
+        .input-area button.clarification-mode:hover {
+            background: #bf360c;
+        }
+
+        .cancel-btn {
+            background: #757575 !important;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .cancel-btn:hover { background: #616161 !important; }
+
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid #ccc;
+            border-top-color: #1a237e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .welcome {
+            text-align: center;
+            color: #888;
+            padding: 40px;
+        }
+
+        .welcome h2 { color: #1a237e; margin-bottom: 8px; }
+        .welcome p { margin: 4px 0; }
+
+        /* Progress bar */
+        .progress-bar {
+            height: 3px;
+            background: #e0e0e0;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar.active { display: block; }
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: #42a5f5;
+            position: absolute;
+            left: 0; top: 0;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-bar.indeterminate .progress-fill {
+            width: 30%;
+            animation: progress-slide 1.5s ease-in-out infinite;
+        }
+        @keyframes progress-slide {
+            0% { left: -30%; }
+            100% { left: 100%; }
+        }
+
+        .progress-status {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            padding: 2px 0;
+            display: none;
+        }
+        .progress-status.active { display: block; }
+
+        /* Settings panel */
+        .settings-toggle {
+            background: #455a64;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .settings-toggle:hover { background: #546e7a; }
+        .settings-toggle.active { background: #7b1fa2; }
+
+        .settings-panel {
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: none;
+        }
+        .settings-panel.open { display: block; }
+        .settings-panel label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .settings-panel textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+        }
+        .settings-panel textarea:focus { border-color: #7b1fa2; }
+        .settings-actions {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-save {
+            background: #7b1fa2;
+            color: white;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+        }
+        .settings-save:hover { background: #6a1b9a; }
+        .settings-save.saved { background: #2e7d32; }
+        .settings-hint {
+            font-size: 11px;
+            color: #888;
+        }
+        .base-prompt-details {
+            margin-bottom: 10px;
+        }
+        .base-prompt-details summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+            user-select: none;
+        }
+        .base-prompt-details summary:hover { color: #333; }
+        .base-prompt-pre {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f0f0f0;
+            padding: 8px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border: 1px solid #ddd;
+            margin-top: 6px;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        /* History panel */
+        .history-toggle {
+            background: #455a64;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .history-toggle:hover { background: #546e7a; }
+        .history-toggle.active { background: #0277bd; }
+
+        .history-panel {
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0;
+            display: none;
+            max-height: 320px;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        .history-panel.open { display: flex; }
+        .history-header {
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f5f5f5;
+            flex-shrink: 0;
+        }
+        .history-header span {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+        .history-clear {
+            background: #ef5350;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .history-clear:hover { background: #c62828; }
+        .history-entries {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+        .history-empty {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 13px;
+        }
+        .history-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .history-entry:hover { background: #e8eaf6; }
+        .history-auto {
+            font-size: 10px;
+            color: #999;
+            flex-shrink: 0;
+        }
+        .history-question {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            color: #333;
+        }
+        .history-question:hover { color: #1a237e; text-decoration: underline; }
+        .history-time {
+            color: #999;
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .history-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .history-btn.use { color: #1a237e; }
+        .history-btn.use:hover { background: #c5cae9; }
+        .history-btn.delete { color: #999; }
+        .history-btn.delete:hover { color: #ef5350; background: #ffebee; }
+
+        /* Save-to-history star on user messages */
+        .message.user {
+            position: relative;
+        }
+        .save-to-history {
+            position: absolute;
+            top: 4px;
+            right: -28px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #ccc;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .message.user:hover .save-to-history { opacity: 1; }
+        .save-to-history:hover { color: #ffa000; }
+        .save-to-history.saved { color: #ffa000; opacity: 1; }
+
+        /* Connection modal */
+        .modal-overlay {
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-dialog {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90vw;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .modal-dialog h3 {
+            margin-bottom: 16px;
+            color: #1a237e;
+            font-size: 16px;
+        }
+        .modal-dialog label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+            margin-top: 10px;
+        }
+        .modal-dialog input,
+        .modal-dialog select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+        .modal-dialog input:focus,
+        .modal-dialog select:focus { border-color: #1a237e; }
+        .modal-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+        }
+        .modal-actions button {
+            padding: 8px 20px;
+            border-radius: 4px;
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .modal-actions button[type="submit"] {
+            background: #1a237e;
+            color: white;
+        }
+        .modal-actions button[type="submit"]:hover { background: #283593; }
+        .modal-actions button[type="submit"]:disabled { background: #999; }
+        .modal-actions button[type="button"] {
+            background: #e0e0e0;
+            color: #333;
+        }
+        .modal-actions button[type="button"]:hover { background: #bdbdbd; }
+        .modal-error {
+            margin-top: 10px;
+            padding: 8px;
+            background: #ffebee;
+            color: #c62828;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ILS Report Agent</h1>
+        <div class="status">
+            <span id="statusText">Не подключено</span>
+            <div class="status-dot" id="statusDot"></div>
+            <button class="connect-btn" id="connectBtn" onclick="toggleConnect()">Подключиться</button>
+            <button class="settings-toggle" id="settingsToggle" onclick="toggleSettingsPanel()">&#9881; Промпт</button>
+            <button class="history-toggle" id="historyToggle" onclick="toggleHistoryPanel()">История</button>
+            <button class="debug-toggle" id="debugToggle" onclick="toggleDebugPanel()">API Debug</button>
+        </div>
+    </header>
+
+    <div class="settings-panel" id="settingsPanel">
+        <details class="base-prompt-details">
+            <summary>Базовый системный промпт (read-only)</summary>
+            <pre id="basePromptText" class="base-prompt-pre"></pre>
+        </details>
+        <label for="customInstructions">Пользовательские инструкции (добавляются в системный промпт агента):</label>
+        <textarea id="customInstructions" placeholder="Укажите формат вывода, стиль ответов и другие инструкции для агента...&#10;&#10;Например: Всегда выводи результат в виде HTML-таблицы с заголовками столбцов."></textarea>
+        <div class="settings-actions">
+            <button class="settings-save" id="settingsSaveBtn" onclick="saveCustomInstructions()">Сохранить</button>
+            <span class="settings-hint">Изменения применяются к следующему запросу</span>
+        </div>
+    </div>
+
+    <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <span>История запросов</span>
+            <button class="history-clear" onclick="clearHistory()">Очистить</button>
+        </div>
+        <div class="history-entries" id="historyEntries">
+            <div class="history-empty">Нет сохранённых запросов</div>
+        </div>
+    </div>
+
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-status" id="progressStatus"></div>
+
+    <div class="main-area">
+        <div class="chat-container" id="chat">
+            <div class="welcome">
+                <h2>ILS Report Agent</h2>
+                <p>Генератор отчётов по данным АЛП</p>
+                <p style="font-size:13px; margin-top:12px;">
+                    Подключитесь к базе данных и задайте вопрос, например:<br>
+                    <em>"Сколько организаций в базе?"</em><br>
+                    <em>"Покажи список элементов ИЛС"</em><br>
+                    <em>"Какие сущности ссылаются на apl_ils_element?"</em>
+                </p>
+            </div>
+        </div>
+
+        <div class="debug-panel" id="debugPanel">
+            <div class="debug-header">
+                <span>API Debug Log</span>
+                <span class="debug-limits" id="llmLimits"></span>
+                <span class="debug-tokens" id="tokenCounter"></span>
+                <button class="debug-clear" onclick="clearDebugPanel()">Clear</button>
+            </div>
+            <div class="debug-entries" id="debugEntries"></div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="questionInput" placeholder="Введите вопрос..."
+               onkeydown="if(event.key==='Enter') sendQuestion()" disabled>
+        <button id="cancelBtn" class="cancel-btn" onclick="cancelClarification()" style="display:none">Отмена</button>
+        <button id="sendBtn" onclick="sendQuestion()" disabled>Отправить</button>
+    </div>
+
+    <script>
+        let isConnected = false;
+        let isProcessing = false;
+        let pendingClarification = false;
+        let currentAbort = null;
+        let progressSteps = 0;
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
+        let lastConnection = { server_port: '', db: '', user: '', password: '' };
+
+        // --- Progress bar ---
+
+        function showProgress(text) {
+            progressSteps = 0;
+            const bar = document.getElementById('progressBar');
+            const status = document.getElementById('progressStatus');
+            bar.classList.add('active', 'indeterminate');
+            document.getElementById('progressFill').style.width = '0%';
+            status.classList.add('active');
+            status.textContent = text || 'Обработка запроса...';
+        }
+
+        function updateProgress(text) {
+            progressSteps++;
+            const status = document.getElementById('progressStatus');
+            status.textContent = text || `Шаг ${progressSteps}...`;
+            // Switch from indeterminate to determinate feel
+            const bar = document.getElementById('progressBar');
+            bar.classList.remove('indeterminate');
+            const pct = Math.min(90, progressSteps * 15);
+            document.getElementById('progressFill').style.width = pct + '%';
+        }
+
+        function hideProgress() {
+            const bar = document.getElementById('progressBar');
+            const status = document.getElementById('progressStatus');
+            document.getElementById('progressFill').style.width = '100%';
+            setTimeout(() => {
+                bar.classList.remove('active', 'indeterminate');
+                status.classList.remove('active');
+                document.getElementById('progressFill').style.width = '0%';
+            }, 400);
+        }
+
+        // --- Connection ---
+
+        async function toggleConnect() {
+            const btn = document.getElementById('connectBtn');
+            if (isConnected) {
+                btn.disabled = true;
+                try {
+                    await fetch('/api/disconnect', { method: 'POST' });
+                } catch (e) {}
+                setConnected(false);
+                btn.disabled = false;
+            } else {
+                openConnectModal();
+            }
+        }
+
+        async function openConnectModal() {
+            const modal = document.getElementById('connectModal');
+            const errEl = document.getElementById('connError');
+            errEl.style.display = 'none';
+
+            // Load defaults from /api/status
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+                const defs = data.defaults || {};
+                document.getElementById('connServer').value = lastConnection.server_port || defs.server || 'http://localhost:7239';
+                document.getElementById('connUser').value = lastConnection.user || defs.user || 'Administrator';
+                document.getElementById('connPassword').value = lastConnection.password || '';
+
+                // Load database list
+                const dbSelect = document.getElementById('connDb');
+                const defaultDb = lastConnection.db || defs.db || '';
+                await loadDbList(dbSelect, document.getElementById('connServer').value, defaultDb);
+            } catch (e) {
+                document.getElementById('connServer').value = lastConnection.server_port || 'http://localhost:7239';
+                document.getElementById('connUser').value = lastConnection.user || 'Administrator';
+            }
+
+            modal.style.display = '';
+        }
+
+        async function loadDbList(selectEl, server, defaultDb) {
+            selectEl.innerHTML = '';
+            try {
+                const resp = await fetch('/api/dblist');
+                const dbs = await resp.json();
+                const list = Array.isArray(dbs) ? dbs : [defaultDb || 'ils_lessons12'];
+                list.forEach(db => {
+                    const opt = document.createElement('option');
+                    opt.value = db;
+                    opt.textContent = db;
+                    if (db === defaultDb) opt.selected = true;
+                    selectEl.appendChild(opt);
+                });
+            } catch (e) {
+                const opt = document.createElement('option');
+                opt.value = defaultDb || 'ils_lessons12';
+                opt.textContent = opt.value;
+                selectEl.appendChild(opt);
+            }
+        }
+
+        function closeConnectModal() {
+            document.getElementById('connectModal').style.display = 'none';
+        }
+
+        async function submitConnect(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('connSubmitBtn');
+            const errEl = document.getElementById('connError');
+            errEl.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Подключение...';
+
+            const params = {
+                server_port: document.getElementById('connServer').value.trim(),
+                db: document.getElementById('connDb').value,
+                user: document.getElementById('connUser').value.trim(),
+                password: document.getElementById('connPassword').value,
+            };
+
+            try {
+                const resp = await fetch('/api/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                });
+                const data = await resp.json();
+                if (data.connected) {
+                    lastConnection = params;
+                    closeConnectModal();
+                    setConnected(true);
+                    addMessage('assistant', `Подключено к БД <b>${data.db}</b> (${data.user})`);
+                } else {
+                    errEl.textContent = data.error || 'Не удалось подключиться';
+                    errEl.style.display = '';
+                }
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.style.display = '';
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Подключиться';
+        }
+
+        async function autoReconnect() {
+            if (!lastConnection.db) return false;
+            try {
+                const resp = await fetch('/api/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lastConnection),
+                });
+                const data = await resp.json();
+                if (data.connected) {
+                    setConnected(true);
+                    return true;
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        function setConnected(state) {
+            isConnected = state;
+            document.getElementById('statusDot').classList.toggle('connected', state);
+            document.getElementById('statusText').textContent = state ? 'Подключено' : 'Не подключено';
+            document.getElementById('connectBtn').textContent = state ? 'Отключиться' : 'Подключиться';
+            document.getElementById('questionInput').disabled = !state;
+            document.getElementById('sendBtn').disabled = !state;
+            if (state) document.getElementById('questionInput').focus();
+        }
+
+        // Reload DB list when server field changes
+        document.addEventListener('DOMContentLoaded', () => {
+            const serverInput = document.getElementById('connServer');
+            let dbListTimeout;
+            serverInput.addEventListener('change', () => {
+                clearTimeout(dbListTimeout);
+                dbListTimeout = setTimeout(() => {
+                    loadDbList(document.getElementById('connDb'), serverInput.value, '');
+                }, 300);
+            });
+        });
+
+        // --- Debug panel ---
+
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            const btn = document.getElementById('debugToggle');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        function clearDebugPanel() {
+            document.getElementById('debugEntries').innerHTML = '';
+            totalPromptTokens = 0;
+            totalCompletionTokens = 0;
+            updateTokenCounter();
+        }
+
+        function updateTokenCounter() {
+            const total = totalPromptTokens + totalCompletionTokens;
+            const el = document.getElementById('tokenCounter');
+            if (total === 0) {
+                el.textContent = '';
+            } else {
+                el.textContent = `Tokens: ${total.toLocaleString()} (in: ${totalPromptTokens.toLocaleString()} + out: ${totalCompletionTokens.toLocaleString()})`;
+            }
+        }
+
+        async function loadLlmLimits() {
+            try {
+                const resp = await fetch('/api/llm-limits');
+                const data = await resp.json();
+                const el = document.getElementById('llmLimits');
+                if (!data.available) { el.textContent = ''; return; }
+                const remaining = data.limit_remaining != null
+                    ? '$' + data.limit_remaining.toFixed(4)
+                    : 'unlimited';
+                const limit = data.limit != null ? '$' + data.limit.toFixed(2) : '\u221e';
+                el.textContent = 'Credits: ' + remaining + ' / ' + limit;
+            } catch (e) {}
+        }
+
+        function addDebugTokenEntry(step) {
+            const container = document.getElementById('debugEntries');
+            const entry = document.createElement('div');
+            entry.className = 'debug-entry token-entry';
+            const total = (step.prompt_tokens || 0) + (step.completion_tokens || 0);
+            entry.textContent = `LLM: ${total.toLocaleString()} tokens (in: ${(step.prompt_tokens || 0).toLocaleString()} + out: ${(step.completion_tokens || 0).toLocaleString()})`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addDebugEntry(call) {
+            const container = document.getElementById('debugEntries');
+            const isError = call.error || (call.status_code && call.status_code >= 400);
+
+            const entry = document.createElement('div');
+            entry.className = 'debug-entry' + (isError ? ' debug-error' : '');
+
+            const header = document.createElement('div');
+            header.className = 'debug-entry-header';
+
+            const method = document.createElement('span');
+            method.className = `debug-method ${call.method}`;
+            method.textContent = call.method;
+
+            const url = document.createElement('span');
+            url.className = 'debug-url';
+            url.textContent = call.url;
+            url.title = call.url;
+
+            const timing = document.createElement('span');
+            timing.className = 'debug-timing';
+            timing.textContent = `${call.elapsed_ms}ms`;
+
+            const count = document.createElement('span');
+            count.className = 'debug-count';
+            if (isError) {
+                count.textContent = `ERR ${call.status_code || ''}`;
+                count.style.color = '#f38ba8';
+            } else {
+                count.textContent = call.result_count != null ? `${call.result_count} rec` : '';
+            }
+
+            header.append(method, url, timing, count);
+            entry.appendChild(header);
+
+            if (call.body) {
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'debug-query-toggle';
+                toggleBtn.textContent = 'APL Query ▸';
+
+                const queryDiv = document.createElement('div');
+                queryDiv.className = 'debug-query';
+                queryDiv.textContent = call.body;
+
+                toggleBtn.onclick = () => {
+                    queryDiv.classList.toggle('open');
+                    toggleBtn.textContent = queryDiv.classList.contains('open')
+                        ? 'APL Query ▾' : 'APL Query ▸';
+                };
+
+                entry.append(toggleBtn, queryDiv);
+            }
+
+            if (call.error) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'debug-error-text';
+                errorDiv.textContent = call.error;
+                entry.appendChild(errorDiv);
+            }
+
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+
+            // Cap at 200 entries
+            while (container.children.length > 200) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        // --- Messages ---
+
+        function addMessage(role, content) {
+            const chat = document.getElementById('chat');
+            const welcome = chat.querySelector('.welcome');
+            if (welcome) welcome.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = content;
+
+            // Add ★ save-to-history button for user messages
+            if (role === 'user') {
+                const starBtn = document.createElement('button');
+                starBtn.className = 'save-to-history';
+                starBtn.textContent = '\u2605';
+                starBtn.title = 'Сохранить в историю';
+                starBtn.onclick = () => {
+                    manualSaveToHistory(content);
+                    starBtn.classList.add('saved');
+                };
+                div.appendChild(starBtn);
+            }
+
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        function addStepsContainer() {
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = 'steps';
+            div.id = 'currentSteps';
+            chat.appendChild(div);
+            return div;
+        }
+
+        function addStep(container, step) {
+            const div = document.createElement('div');
+            div.className = `step ${step.type}`;
+
+            switch (step.type) {
+                case 'tool_call':
+                    const argsStr = JSON.stringify(step.arguments || {});
+                    div.innerHTML = `<span class="spinner"></span> ${step.tool}(${argsStr.substring(0, 80)}${argsStr.length > 80 ? '...' : ''})`;
+                    break;
+                case 'tool_result':
+                    const result = (step.result || '').substring(0, 120);
+                    div.textContent = `\u2713 ${step.tool} \u2192 ${result}${(step.result || '').length > 120 ? '...' : ''}`;
+                    const prev = container.querySelector('.step.tool_call:last-of-type .spinner');
+                    if (prev) prev.remove();
+                    break;
+                case 'error':
+                    div.textContent = `\u2717 ${step.message}`;
+                    break;
+            }
+
+            container.appendChild(div);
+            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        }
+
+        // --- Clarification ---
+
+        function showClarificationUI(question) {
+            pendingClarification = true;
+            addMessage('clarification', question);
+
+            const input = document.getElementById('questionInput');
+            input.placeholder = 'Введите ответ на уточняющий вопрос...';
+            input.classList.add('clarification-mode');
+            input.disabled = false;
+            input.focus();
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Ответить';
+            sendBtn.classList.add('clarification-mode');
+
+            document.getElementById('cancelBtn').style.display = '';
+            isProcessing = false;
+        }
+
+        function cancelClarification() {
+            pendingClarification = false;
+            resetInputUI();
+        }
+
+        function resetInputUI() {
+            const input = document.getElementById('questionInput');
+            input.placeholder = 'Введите вопрос...';
+            input.classList.remove('clarification-mode');
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.textContent = 'Отправить';
+            sendBtn.classList.remove('clarification-mode');
+
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+
+        // --- Send question / answer ---
+
+        async function sendQuestion(isRetry) {
+            if (isProcessing || !isConnected) return;
+
+            const input = document.getElementById('questionInput');
+            const text = input.value.trim();
+            if (!text && !isRetry) return;
+
+            if (!isRetry) input.value = '';
+            isProcessing = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            const isClarification = pendingClarification;
+            const endpoint = isClarification ? '/api/answer' : '/api/ask';
+            const payload = isClarification ? { answer: text } : { question: text };
+
+            if (!isRetry) {
+                pendingClarification = false;
+                resetInputUI();
+                addMessage('user', text);
+            }
+            const stepsContainer = isRetry
+                ? document.getElementById('currentSteps') || addStepsContainer()
+                : addStepsContainer();
+            showProgress(isClarification ? 'Обработка ответа...' : 'Отправка запроса...');
+
+            // Abort controller with 3 min timeout
+            currentAbort = new AbortController();
+            const timeoutId = setTimeout(() => currentAbort.abort(), 180000);
+
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: currentAbort.signal,
+                });
+
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    const errMsg = errData.error || `HTTP ${resp.status}`;
+
+                    // Auto-reconnect on session loss
+                    if (!isRetry && errMsg.includes('Not connected') && lastConnection.db) {
+                        addMessage('assistant', 'Сессия потеряна, переподключаюсь...');
+                        const reconnected = await autoReconnect();
+                        if (reconnected) {
+                            addMessage('assistant', 'Сессия восстановлена, повторяю запрос...');
+                            // Put text back and retry
+                            input.value = text;
+                            isProcessing = false;
+                            clearTimeout(timeoutId);
+                            hideProgress();
+                            document.getElementById('sendBtn').disabled = false;
+                            return sendQuestion(true);
+                        } else {
+                            setConnected(false);
+                            throw new Error('Не удалось переподключиться. Подключитесь вручную.');
+                        }
+                    }
+
+                    throw new Error(errMsg);
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let hadToolResults = false;
+                const originalQuestion = isClarification ? null : text;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.substring(6).trim();
+                        if (!jsonStr) continue;
+
+                        try {
+                            const step = JSON.parse(jsonStr);
+                            if (step.type === 'done') continue;
+
+                            if (step.type === 'answer') {
+                                let content = step.content || '';
+                                if (content.includes('<div class="report">') ||
+                                    content.includes('<table')) {
+                                    addMessage('assistant', content);
+                                } else {
+                                    content = content
+                                        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+                                        .replace(/\n/g, '<br>');
+                                    addMessage('assistant', content);
+                                }
+                                // Auto-save successful queries to history
+                                if (hadToolResults && originalQuestion) {
+                                    saveToHistory(originalQuestion, true);
+                                }
+                            } else if (step.type === 'clarification') {
+                                hideProgress();
+                                showClarificationUI(step.question);
+                                clearTimeout(timeoutId);
+                                return;
+                            } else if (step.type === 'api_calls') {
+                                for (const call of (step.calls || [])) {
+                                    addDebugEntry(call);
+                                }
+                            } else if (step.type === 'llm_usage') {
+                                totalPromptTokens += step.prompt_tokens || 0;
+                                totalCompletionTokens += step.completion_tokens || 0;
+                                updateTokenCounter();
+                                addDebugTokenEntry(step);
+                            } else if (step.type === 'error') {
+                                addStep(stepsContainer, step);
+                            } else if (step.type === 'tool_call') {
+                                updateProgress(`${step.tool}...`);
+                                addStep(stepsContainer, step);
+                            } else if (step.type === 'tool_result') {
+                                hadToolResults = true;
+                                updateProgress(`${step.tool} \u2713`);
+                                addStep(stepsContainer, step);
+                            } else {
+                                addStep(stepsContainer, step);
+                            }
+                        } catch (e) {
+                            console.warn('Parse error:', e, jsonStr);
+                        }
+                    }
+                }
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    addMessage('assistant', 'Превышено время ожидания ответа (3 мин). Попробуйте упростить запрос.');
+                } else {
+                    addMessage('assistant', `Ошибка: ${e.message}`);
+                }
+            }
+
+            clearTimeout(timeoutId);
+            currentAbort = null;
+            hideProgress();
+            isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('questionInput').focus();
+            loadLlmLimits();
+        }
+
+        // --- Settings panel ---
+
+        function toggleSettingsPanel() {
+            const panel = document.getElementById('settingsPanel');
+            const btn = document.getElementById('settingsToggle');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        async function loadCustomInstructions() {
+            try {
+                const resp = await fetch('/api/settings/prompt');
+                const data = await resp.json();
+                document.getElementById('customInstructions').value = data.custom_instructions || '';
+                document.getElementById('basePromptText').textContent = data.base_prompt || '';
+            } catch (e) {
+                console.warn('Failed to load custom instructions:', e);
+            }
+        }
+
+        async function saveCustomInstructions() {
+            const btn = document.getElementById('settingsSaveBtn');
+            const text = document.getElementById('customInstructions').value;
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/api/settings/prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ custom_instructions: text }),
+                });
+                const data = await resp.json();
+                if (data.saved) {
+                    btn.classList.add('saved');
+                    btn.textContent = 'Сохранено';
+                    setTimeout(() => {
+                        btn.classList.remove('saved');
+                        btn.textContent = 'Сохранить';
+                    }, 1500);
+                }
+            } catch (e) {
+                console.error('Failed to save:', e);
+            }
+            btn.disabled = false;
+        }
+
+        // --- History panel ---
+
+        let historyEntries = [];
+
+        function toggleHistoryPanel() {
+            const panel = document.getElementById('historyPanel');
+            const btn = document.getElementById('historyToggle');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        async function loadHistory() {
+            try {
+                const resp = await fetch('/api/history');
+                const data = await resp.json();
+                historyEntries = data.entries || [];
+                renderHistoryEntries();
+            } catch (e) {
+                console.warn('Failed to load history:', e);
+            }
+        }
+
+        function renderHistoryEntries() {
+            const container = document.getElementById('historyEntries');
+            if (historyEntries.length === 0) {
+                container.innerHTML = '<div class="history-empty">Нет сохранённых запросов</div>';
+                return;
+            }
+            container.innerHTML = '';
+            historyEntries.forEach((entry, idx) => {
+                const div = document.createElement('div');
+                div.className = 'history-entry';
+
+                const auto = document.createElement('span');
+                auto.className = 'history-auto';
+                auto.textContent = entry.auto ? 'авто' : '\u2605';
+                auto.title = entry.auto ? 'Сохранено автоматически' : 'Сохранено вручную';
+
+                const question = document.createElement('span');
+                question.className = 'history-question';
+                question.textContent = entry.question;
+                question.title = entry.question;
+                question.onclick = () => useHistoryQuery(entry.question);
+
+                const ts = document.createElement('span');
+                ts.className = 'history-time';
+                if (entry.timestamp) {
+                    const d = new Date(entry.timestamp);
+                    ts.textContent = d.toLocaleDateString('ru') + ' ' + d.toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
+                }
+
+                const useBtn = document.createElement('button');
+                useBtn.className = 'history-btn use';
+                useBtn.textContent = '\u25B6';
+                useBtn.title = 'Вставить в поле ввода';
+                useBtn.onclick = () => useHistoryQuery(entry.question);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'history-btn delete';
+                delBtn.textContent = '\u2715';
+                delBtn.title = 'Удалить';
+                delBtn.onclick = () => deleteHistoryEntry(idx);
+
+                div.append(auto, question, ts, useBtn, delBtn);
+                container.appendChild(div);
+            });
+        }
+
+        function useHistoryQuery(question) {
+            const input = document.getElementById('questionInput');
+            input.value = question;
+            input.focus();
+            // Close history panel
+            document.getElementById('historyPanel').classList.remove('open');
+            document.getElementById('historyToggle').classList.remove('active');
+        }
+
+        async function saveToHistory(question, auto) {
+            try {
+                await fetch('/api/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, auto: !!auto }),
+                });
+                loadHistory();
+            } catch (e) {
+                console.warn('Failed to save history:', e);
+            }
+        }
+
+        function manualSaveToHistory(question) {
+            saveToHistory(question, false);
+        }
+
+        async function deleteHistoryEntry(idx) {
+            try {
+                await fetch(`/api/history/${idx}`, { method: 'DELETE' });
+                loadHistory();
+            } catch (e) {
+                console.warn('Failed to delete history entry:', e);
+            }
+        }
+
+        async function clearHistory() {
+            if (!confirm('Очистить всю историю запросов?')) return;
+            try {
+                await fetch('/api/history', { method: 'DELETE' });
+                loadHistory();
+            } catch (e) {
+                console.warn('Failed to clear history:', e);
+            }
+        }
+
+        // --- Startup ---
+
+        // Check initial status
+        fetch('/api/status').then(r => r.json()).then(data => {
+            if (data.connected) setConnected(true);
+        }).catch(() => {});
+
+        // Load custom instructions, history, and LLM limits on startup
+        loadCustomInstructions();
+        loadHistory();
+        loadLlmLimits();
+    </script>
+
+    <!-- Connection modal -->
+    <div class="modal-overlay" id="connectModal" style="display:none">
+        <div class="modal-dialog">
+            <h3>Подключение к базе данных</h3>
+            <form id="connectForm" onsubmit="submitConnect(event)">
+                <label for="connServer">Сервер:</label>
+                <input type="text" id="connServer" required>
+                <label for="connDb">База данных:</label>
+                <select id="connDb" required></select>
+                <label for="connUser">Пользователь:</label>
+                <input type="text" id="connUser" required>
+                <label for="connPassword">Пароль:</label>
+                <input type="password" id="connPassword">
+                <div class="modal-actions">
+                    <button type="submit" id="connSubmitBtn">Подключиться</button>
+                    <button type="button" onclick="closeConnectModal()">Отмена</button>
+                </div>
+                <div class="modal-error" id="connError" style="display:none"></div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

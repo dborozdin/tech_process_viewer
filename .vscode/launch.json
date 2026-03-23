@@ -3,6 +3,7 @@
     //   Просмотр техпроцессов: http://localhost:5000
     //   Entity Viewer:         http://localhost:5000/entity-viewer
     //   API документация:      http://localhost:5000/api/docs
+    //   ILS Report Agent:      http://localhost:5001
     "version": "0.2.0",
     "configurations": [
         {
@@ -35,6 +36,20 @@
             "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "jinja": true,
             "console": "integratedTerminal"
+        },
+        {
+            "name": "ILS Report Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ILS.app",
+            "envFile": "${workspaceFolder}/ILS/.env",
+            "jinja": true,
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "ILS Report Agent: (https?://[a-zA-Z0-9.:/_-]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
         }
     ]
 }
