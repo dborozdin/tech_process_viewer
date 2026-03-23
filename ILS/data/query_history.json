@@ -1,5 +1,42 @@
 [
   {
+    "question": "для найденного самолета найди все компоненты и системы, которые входят в его состав. Выведи их количество",
+    "timestamp": "2026-03-24T00:08:19",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_entity_schema",
+        "arguments": {
+          "entity_name": "apl_lss3_component"
+        }
+      }
+    ]
+  },
+  {
+    "question": "найди все финальные изделия",
+    "timestamp": "2026-03-24T00:06:27",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true"
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
+        "elapsed_ms": 41.8,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
     "question": "отбери из найденных объекты apl_lss3_component, выведи для них обозначение и наименование",
     "timestamp": "2026-03-23T19:10:12",
     "auto": true,
@@ -60,150 +97,6 @@
         "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
         "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
         "elapsed_ms": 65.6,
-        "status_code": 200,
-        "result_count": 1
-      }
-    ]
-  },
-  {
-    "question": "для найденного самолета найди все компоненты и системы, которые входят в его состав. Выведи их количество",
-    "timestamp": "2026-03-23T18:56:57",
-    "auto": true,
-    "tool_calls": [
-      {
-        "tool": "execute_query",
-        "arguments": {
-          "query": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true AND .name LIKE \"%самолет%\") } END_SELECT"
-        }
-      },
-      {
-        "tool": "query_instances",
-        "arguments": {
-          "entity_type": "apl_lss3_component",
-          "filters": ".is_fi = true AND .name LIKE \"%самолет%\"",
-          "size": 10,
-          "start": 0
-        }
-      },
-      {
-        "tool": "query_instances",
-        "arguments": {
-          "entity_type": "apl_lss3_component",
-          "filters": ".is_fi = true",
-          "size": 10,
-          "start": 0
-        }
-      },
-      {
-        "tool": "query_instances",
-        "arguments": {
-          "entity_type": "apl_lss3_logistic_element",
-          "filters": ".parent_component = #9199",
-          "size": 1000,
-          "start": 0
-        }
-      },
-      {
-        "tool": "format_html_report",
-        "arguments": {
-          "columns": [
-            "Количество"
-          ],
-          "description": "Количество компонентов и систем, входящих в состав финального изделия \"Самолет\" (исключены зоны).",
-          "rows": [
-            [
-              "8"
-            ]
-          ],
-          "title": "Компоненты и системы в составе самолета"
-        }
-      }
-    ],
-    "api_calls": [
-      {
-        "method": "POST",
-        "url": "http://localhost:7239/rest&start=0&size=10/query&all_attrs=true",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true AND .name LIKE \"%самолет%\")} END_SELECT",
-        "elapsed_ms": 43.6,
-        "status_code": 400,
-        "result_count": null,
-        "error": "{\n\t\"_processingTime\":\"00:00:00.000\",\n\t\"error_description\":[\n\t\t\"Ошибка в тексте запроса в строке 1 позиция 73 :У текущей ентити нет такого атрибута; Текст запроса:\\nSELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true AND .name LIKE \\\"%самолет%\\\")} END_SELECT\"\n\t],\n\t\"_processingStart\":\"23.03.2026 18:56:46.155 \"\n}"
-      },
-      {
-        "method": "POST",
-        "url": "http://localhost:7239/rest&start=0&size=10/query&all_attrs=true",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
-        "elapsed_ms": 35.8,
-        "status_code": 200,
-        "result_count": 1
-      },
-      {
-        "method": "POST",
-        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_logistic_element(.parent_component = #9199)} END_SELECT",
-        "elapsed_ms": 60.8,
-        "status_code": 200,
-        "result_count": 15
-      }
-    ]
-  },
-  {
-    "question": "найди все финальные изделия",
-    "timestamp": "2026-03-23T18:55:07",
-    "auto": true,
-    "tool_calls": [
-      {
-        "tool": "count_instances",
-        "arguments": {
-          "entity_type": "apl_lss3_component",
-          "filters": ".is_fi = true"
-        }
-      },
-      {
-        "tool": "query_instances",
-        "arguments": {
-          "entity_type": "apl_lss3_component",
-          "filters": ".is_fi = true",
-          "size": 50,
-          "start": 0
-        }
-      },
-      {
-        "tool": "format_html_report",
-        "arguments": {
-          "columns": [
-            "ID",
-            "Название",
-            "Класс",
-            "Вес"
-          ],
-          "description": "Список всех объектов типа apl_lss3_component, у которых is_fi = true",
-          "rows": [
-            [
-              "С30М",
-              "Самолет",
-              "→#12648 (apl_classifier_level)",
-              "0"
-            ]
-          ],
-          "title": "Финальные изделия"
-        }
-      }
-    ],
-    "api_calls": [
-      {
-        "method": "POST",
-        "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=false",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
-        "elapsed_ms": 37.2,
-        "status_code": 200,
-        "result_count": 1
-      },
-      {
-        "method": "POST",
-        "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
-        "elapsed_ms": 40.9,
         "status_code": 200,
         "result_count": 1
       }
