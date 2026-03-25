@@ -1,90 +1,94 @@
 {
   "freehuntx/qwen3-coder:14b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:15"
+    "checked": "2026-03-25T10:15:44"
   },
   "qwen3:30b-a3b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:20"
+    "checked": "2026-03-25T10:15:49"
   },
   "gpt-oss:20b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:25"
+    "checked": "2026-03-25T10:15:55"
   },
   "hf.co/dat-lequoc/Fast-Apply-1.5B-v1.0_GGUF:latest": {
     "tools": true,
-    "checked": "2026-03-23T18:42:27"
+    "checked": "2026-03-25T10:15:57"
   },
   "nomic-embed-text:latest": {
     "tools": false,
-    "checked": "2026-03-23T18:42:27"
+    "checked": "2026-03-25T10:15:57"
   },
   "qwen2.5-coder:1.5b-base": {
     "tools": false,
-    "checked": "2026-03-23T18:42:27"
+    "checked": "2026-03-25T10:15:57"
   },
   "qwen3-coder:30b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:32"
+    "checked": "2026-03-25T10:16:02"
   },
   "gemma-3-4b-it-qat-Q3_K_S.gguf:latest": {
     "tools": false,
-    "checked": "2026-03-23T18:42:32"
+    "checked": "2026-03-25T10:16:02"
   },
   "gemma3:4b-it-qat": {
     "tools": false,
-    "checked": "2026-03-23T18:42:32"
+    "checked": "2026-03-25T10:16:02"
   },
   "codellama:34b": {
     "tools": false,
-    "checked": "2026-03-23T18:42:32"
+    "checked": "2026-03-25T10:16:02"
   },
   "qwen2.5-coder:32b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:36"
+    "checked": "2026-03-25T10:16:18"
   },
   "codellama:13b": {
     "tools": false,
-    "checked": "2026-03-23T18:42:36"
+    "checked": "2026-03-25T10:16:18"
   },
   "qwen2.5-coder:14b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:44"
+    "checked": "2026-03-25T10:16:26"
   },
   "saiga_yandexgpt_8b.Q5_K_S:latest": {
     "tools": false,
-    "checked": "2026-03-23T18:42:44"
+    "checked": "2026-03-25T10:16:27"
   },
   "gemma3-it-27b:latest": {
     "tools": false,
-    "checked": "2026-03-23T18:42:44"
+    "checked": "2026-03-25T10:16:27"
   },
   "qwen2.5:32b": {
     "tools": true,
-    "checked": "2026-03-23T18:42:51"
+    "checked": "2026-03-25T10:16:46"
   },
   "deepseek-r1:14b": {
     "tools": false,
-    "checked": "2026-03-23T18:42:51"
+    "checked": "2026-03-25T10:16:46"
   },
   "deepseek-r1:32b": {
     "tools": false,
-    "checked": "2026-03-23T18:42:52"
+    "checked": "2026-03-25T10:16:46"
   },
   "qwq:latest": {
     "tools": true,
-    "checked": "2026-03-23T18:43:09"
+    "checked": "2026-03-25T10:17:06"
   },
   "phi4:latest": {
     "tools": false,
-    "checked": "2026-03-23T18:43:09"
+    "checked": "2026-03-25T10:17:06"
   },
   "gemma3:27b": {
     "tools": false,
-    "checked": "2026-03-23T18:43:10"
+    "checked": "2026-03-25T10:17:06"
   },
   "gemma3:12b": {
     "tools": false,
-    "checked": "2026-03-23T18:43:10"
+    "checked": "2026-03-25T10:17:07"
+  },
+  "mistral-small3.1:24b": {
+    "tools": true,
+    "checked": "2026-03-25T10:15:41"
   }
 }

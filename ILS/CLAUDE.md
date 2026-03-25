@@ -65,9 +65,9 @@ SELECT NO_CASE Ext_ FROM Ext_{entity_type(.ref_field->other_entity.field = "valu
 ```
 
 ### БД для экспериментов
-- База: `ПНЦР_Maximo`
+- База: `ils_lessons12`
 - Пользователь: `Administrator` (без пароля)
-- Credentials: `user=Administrator&db=ПНЦР_Maximo`
+- Credentials: `user=Administrator&db=ils_lessons12`
 
 ## Описание схемы данных
 
@@ -96,6 +96,15 @@ pip install -r ILS/requirements.txt
 python -m ILS.app
 # Открыть http://localhost:5001/
 ```
+
+## ОБЯЗАТЕЛЬНО: Тестирование изменений PSS API
+
+При добавлении или изменении функций, работающих с PSS REST API (api/pss_*_api.py, ILS/pss/api_client.py):
+1. Подключись к тестовой БД: `http://localhost:7239/rest`, БД `ils_lessons12`, пользователь `Administrator` (без пароля)
+2. Вызови изменённую функцию и убедись, что она возвращает корректные данные (например, дерево логистической структуры не пустое, APL-запросы не возвращают ошибок)
+3. Проверь граничные случаи: пустой результат, несуществующий компонент, большое дерево
+
+Не отправляй изменения PSS API без ручной проверки на живой базе.
 
 ## Конфигурация LLM
 

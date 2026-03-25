@@ -823,8 +823,9 @@
                 <p style="font-size:13px; margin-top:12px;">
                     Подключитесь к базе данных и задайте вопрос, например:<br>
                     <em>"Сколько организаций в базе?"</em><br>
-                    <em>"Покажи список элементов ИЛС"</em><br>
-                    <em>"Какие сущности ссылаются на apl_ils_element?"</em>
+                    <em>"Покажи состав изделия СЛ.0200"</em><br>
+                    <em>"Выведи логистическую структуру изделия"</em><br>
+                    <em>"Какие сущности ссылаются на apl_lss3_component?"</em>
                 </p>
             </div>
         </div>
@@ -1097,12 +1098,32 @@
             if (type === 'request') {
                 label.textContent = 'LLM REQUEST';
                 toggleBtn.textContent = `${step.messages.length} messages \u25B8`;
+
+                // Separate system prompt into its own collapsible
+                const systemMsg = step.messages.find(m => m.role === 'system');
+                if (systemMsg && systemMsg.content) {
+                    const promptDetails = document.createElement('details');
+                    promptDetails.style.cssText = 'margin: 4px 0; border: 1px solid #45475a; border-radius: 4px; padding: 2px 6px; background: #1e1e2e;';
+                    const promptSummary = document.createElement('summary');
+                    promptSummary.style.cssText = 'cursor: pointer; color: #cba6f7; font-size: 11px; user-select: none;';
+                    promptSummary.textContent = `System Prompt (${systemMsg.content.length} chars)`;
+                    const promptPre = document.createElement('pre');
+                    promptPre.style.cssText = 'white-space: pre-wrap; font-size: 11px; color: #a6adc8; max-height: 400px; overflow-y: auto; margin: 4px 0;';
+                    promptPre.textContent = systemMsg.content;
+                    promptDetails.append(promptSummary, promptPre);
+                    messagesDiv.appendChild(promptDetails);
+                }
+
                 let text = '';
                 for (const m of step.messages) {
-                    const roleColor = m.role === 'user' ? '\u{1F464}' : m.role === 'system' ? '\u{2699}' : m.role === 'tool' ? '\u{1F527}' : '\u{1F916}';
+                    if (m.role === 'system') continue; // already shown in spoiler
+                    const roleColor = m.role === 'user' ? '\u{1F464}' : m.role === 'tool' ? '\u{1F527}' : '\u{1F916}';
                     text += `${roleColor} [${m.role}]: ${m.content}\n\n`;
                 }
-                messagesDiv.textContent = text;
+                const otherMsgs = document.createElement('pre');
+                otherMsgs.style.cssText = 'white-space: pre-wrap; font-size: 11px; color: #cdd6f4; margin: 4px 0;';
+                otherMsgs.textContent = text;
+                messagesDiv.appendChild(otherMsgs);
             } else {
                 label.textContent = 'LLM RESPONSE';
                 let text = '';

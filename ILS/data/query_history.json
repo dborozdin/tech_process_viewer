@@ -1,5 +1,214 @@
 [
   {
+    "question": "выведи логистическую структуру найденного самолета",
+    "timestamp": "2026-03-25T11:42:47",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_instance_by_id",
+        "arguments": {
+          "entity_type": "apl_lss3_logistic_element",
+          "sys_id": 12345
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_logistic_element(.# = #12345)} END_SELECT",
+        "elapsed_ms": 46.7,
+        "status_code": 200,
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "question": "найди финальное изделие самолет",
+    "timestamp": "2026-03-25T11:41:42",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true",
+          "size": 1
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
+        "elapsed_ms": 65.4,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
+    "question": "выведи состав (логистическую структуру) найденного самолета",
+    "timestamp": "2026-03-25T11:34:52",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_logistic_structure",
+        "arguments": {
+          "component_designation": "",
+          "sys_id": 12345
+        }
+      },
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true"
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.# = #12345)} END_SELECT",
+        "elapsed_ms": 67.1,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
+        "elapsed_ms": 46,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
+    "question": "давай логистическую структуру",
+    "timestamp": "2026-03-25T11:19:50",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_logistic_structure",
+        "arguments": {
+          "component_designation": null,
+          "max_depth": 10,
+          "sys_id": null
+        }
+      }
+    ]
+  },
+  {
+    "question": "выведи логистическую структуру найденного самолета. Укажи ЛКН и количество в узле",
+    "timestamp": "2026-03-25T11:18:53",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".name_rus LIKE 'Самолет'",
+          "size": 1,
+          "start": 0
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.name_rus LIKE 'Самолет')} END_SELECT",
+        "elapsed_ms": 45.3,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
+    "question": "найди финальное изделие с названием самолет",
+    "timestamp": "2026-03-25T11:16:20",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true AND .name_rus LIKE 'самолет'"
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true AND .name_rus LIKE 'самолет')} END_SELECT",
+        "elapsed_ms": 44.8,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
+    "question": "для найденного изделия выведи логистическую структуру. Укажи обозначение, наименование, ЛКН и количество элементов в узле",
+    "timestamp": "2026-03-25T11:09:54",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_logistic_structure",
+        "arguments": {
+          "component_designation": "СЛ.0200",
+          "max_depth": 10
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=5/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.id = \"СЛ.0200\")} END_SELECT",
+        "elapsed_ms": 72.3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=5/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.name_rus LIKE \"СЛ.0200\")} END_SELECT",
+        "elapsed_ms": 42.8,
+        "status_code": 200,
+        "result_count": 0
+      }
+    ]
+  },
+  {
+    "question": "найди в бд финальное изделие самолет",
+    "timestamp": "2026-03-25T11:08:19",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true"
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=50/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
+        "elapsed_ms": 51.9,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
     "question": "для найденного самолета найди все компоненты и системы, которые входят в его состав. Выведи их количество",
     "timestamp": "2026-03-24T00:08:19",
     "auto": true,

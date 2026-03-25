@@ -10,6 +10,7 @@ from typing import Any
 from ILS.pss.api_client import PSSClient
 from ILS.pss.schema import Schema
 from ILS.agent.knowledge import KnowledgeStore
+from api.pss_logstruct_api import LogStructAPI
 
 logger = logging.getLogger("ils.tools")
 
@@ -22,6 +23,7 @@ class ToolExecutor:
         self.pss = pss_client
         self.schema = schema
         self.knowledge = knowledge
+        self.logstruct_api = LogStructAPI(pss_client)
 
     def execute(self, tool_name: str, arguments: dict) -> str:
         """Execute a tool and return result as JSON string.
@@ -41,10 +43,21 @@ class ToolExecutor:
                 return json.dumps({"error": f"Unknown tool: {tool_name}"}, ensure_ascii=False)
             result = handler(**arguments)
             result_str = json.dumps(result, ensure_ascii=False, default=str)
-            # Truncate very large results
-            if len(result_str) > 15000:
+            # Smart truncation for large results
+            if len(result_str) > 25000:
                 logger.warning(f"Tool {tool_name} result truncated from {len(result_str)} chars")
-                result_str = result_str[:15000] + '... (truncated)'
+                if isinstance(result, dict) and "tree" in result:
+                    # For tree results, truncate the tree array intelligently
+                    truncated = {
+                        **result,
+                        "tree": result["tree"][:50],
+                        "_truncated": True,
+                        "_note": (f"Показано 50 из {len(result['tree'])} элементов. "
+                                  "Уточните запрос или уменьшите max_depth."),
+                    }
+                    result_str = json.dumps(truncated, ensure_ascii=False, default=str)
+                else:
+                    result_str = result_str[:25000] + '... (truncated)'
             return result_str
         except Exception as e:
             logger.error(f"Tool {tool_name} failed: {e}", exc_info=True)
@@ -222,6 +235,21 @@ class ToolExecutor:
             "returned": len(simplified),
             "instances": simplified,
         }
+
+    # ------------------------------------------------------------------
+    # High-level domain tools
+    # ------------------------------------------------------------------
+
+    def _tool_get_logistic_structure(self, component_designation: str = "",
+                                     max_depth: int = 10,
+                                     sys_id: int = None) -> dict:
+        if not self.pss.connected:
+            return {"error": "Not connected to PSS database"}
+        if not component_designation and sys_id is None:
+            return {"error": "Укажи component_designation или sys_id компонента"}
+        return self.logstruct_api.get_logistic_structure(
+            component_designation, max_depth=max_depth, sys_id=sys_id
+        )
 
     # ------------------------------------------------------------------
     # Report formatting tool

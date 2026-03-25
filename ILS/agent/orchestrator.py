@@ -12,7 +12,8 @@ from typing import Generator
 from ILS.agent.llm_client import LLMClient
 from ILS.agent.tools import TOOLS
 from ILS.agent.tool_executor import ToolExecutor
-from ILS.agent.prompts import build_system_prompt, format_categories, FEW_SHOT_EXAMPLES
+from ILS.agent.prompts import (build_system_prompt, format_categories,
+                                FEW_SHOT_EXAMPLES, FEW_SHOT_EXAMPLES_HIGH_LEVEL)
 from ILS.agent.knowledge import KnowledgeStore
 from ILS.pss.schema import Schema
 
@@ -67,7 +68,9 @@ class Agent:
         if self.custom_instructions_path and os.path.exists(self.custom_instructions_path):
             with open(self.custom_instructions_path, 'r', encoding='utf-8') as f:
                 custom = f.read()
-        self.system_prompt = build_system_prompt(categories_text, knowledge_text, custom)
+        self.system_prompt = build_system_prompt(
+            categories_text, knowledge_text, custom, high_level_available=True
+        )
 
     def ask(self, question: str) -> Generator[AgentStep, None, None]:
         """Start a new conversation turn.
@@ -84,6 +87,7 @@ class Agent:
         self.messages = [
             {"role": "system", "content": self.system_prompt},
         ]
+        self.messages.extend(FEW_SHOT_EXAMPLES_HIGH_LEVEL)
         self.messages.extend(FEW_SHOT_EXAMPLES)
 
         # Inject previous conversation turns as context
@@ -134,7 +138,7 @@ class Agent:
             for m in self.messages:
                 role = m.get("role", "?")
                 if role == "system":
-                    debug_messages.append({"role": "system", "content": f"[system prompt, {len(m.get('content', ''))} chars]"})
+                    debug_messages.append({"role": "system", "content": m.get("content", "")})
                 elif role == "user":
                     debug_messages.append({"role": "user", "content": m.get("content", "")})
                 elif role == "assistant":

@@ -281,6 +281,48 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_logistic_structure",
+            "description": (
+                "Получить полную логистическую структуру (дерево состава) изделия/компонента. "
+                "Возвращает дерево элементов ИЛС с компонентами, типами (система/связка), "
+                "классификацией LRU/SRU, количеством в узле и ключевыми характеристиками. "
+                "Используй когда пользователь спрашивает о составе изделия, структуре, "
+                "компонентах, входящих в изделие, или дереве ИЛС/ЛСИ. "
+                "ВАЖНО: передай sys_id компонента, если он известен из предыдущего запроса "
+                "(это самый надёжный способ). Если sys_id неизвестен — передай обозначение или название. "
+                "После получения результата используй format_html_report для представления."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "component_designation": {
+                        "type": "string",
+                        "description": (
+                            "Обозначение (id) или название (name_rus) компонента/изделия. "
+                            "Если известен sys_id — можно передать пустую строку ''."
+                        ),
+                    },
+                    "sys_id": {
+                        "type": "integer",
+                        "description": (
+                            "Системный ID компонента из результата предыдущего запроса "
+                            "(query_instances или execute_apl_query). "
+                            "Самый надёжный способ — используй если доступен."
+                        ),
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "description": "Максимальная глубина дерева (по умолчанию 10)",
+                        "default": 10,
+                    },
+                },
+                "required": ["component_designation"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "format_html_report",
             "description": (
                 "Сформировать HTML-отчёт из подготовленных данных. "
@@ -317,3 +359,6 @@ TOOLS = [
         },
     },
 ]
+
+# High-level tools that encapsulate domain logic (one call instead of many)
+HIGH_LEVEL_TOOLS = ["get_logistic_structure"]
