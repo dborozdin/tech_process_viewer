@@ -22,6 +22,7 @@ class PSSClient:
         self.rest_url = rest_url
         self.session_key = None
         self._api_log: list = []
+        self._http = requests.Session()  # HTTP keep-alive
 
     @property
     def connected(self) -> bool:
@@ -51,7 +52,7 @@ class PSSClient:
         logger.info(f"Connecting to PSS: {url}")
 
         try:
-            resp = requests.get(url, timeout=30)
+            resp = self._http.get(url, timeout=30)
             resp.raise_for_status()
             data = resp.json()
         except requests.RequestException as e:
@@ -69,7 +70,7 @@ class PSSClient:
         if not self.session_key:
             return
         try:
-            requests.get(
+            self._http.get(
                 f"{self.rest_url}/disconnect",
                 headers=self._headers(),
                 timeout=10
@@ -128,7 +129,7 @@ class PSSClient:
         t0 = time.perf_counter()
 
         try:
-            resp = requests.post(
+            resp = self._http.post(
                 url, headers=self._headers(),
                 data=query.encode("utf-8"),
                 timeout=60
@@ -187,7 +188,7 @@ class PSSClient:
         t0 = time.perf_counter()
 
         try:
-            resp = requests.get(url, headers=self._headers(), timeout=60)
+            resp = self._http.get(url, headers=self._headers(), timeout=60)
             elapsed = time.perf_counter() - t0
             logger.debug(f"Load took {elapsed:.3f}s, status={resp.status_code}")
 

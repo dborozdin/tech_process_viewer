@@ -15,6 +15,7 @@ from ILS.config import Config
 from ILS.pss.api_client import PSSClient
 from ILS.pss.schema import get_schema
 from ILS.agent.llm_client import LLMClient
+from ILS.agent.mock_llm_client import LLMRecorder, MockLLMClient
 from ILS.agent.tool_executor import ToolExecutor
 from ILS.agent.knowledge import KnowledgeStore
 from ILS.agent.orchestrator import Agent
@@ -74,6 +75,13 @@ LLM_PROVIDERS = {
         "base_url": "http://bolt.cals.ru:38386/v1",
         "api_key": "not-needed",
         "model": "qwen2.5:32b",
+        "needs_api_key": False,
+    },
+    "mock": {
+        "label": "Mock (записи сессий)",
+        "base_url": "",
+        "api_key": "not-needed",
+        "model": "mock-replay",
         "needs_api_key": False,
     },
 }
@@ -144,6 +152,9 @@ def _init_schema():
     return schema
 
 
+RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'recordings')
+
+
 def _init_agent():
     global agent
     if agent is not None:
@@ -151,13 +162,18 @@ def _init_agent():
 
     _init_schema()
 
-    llm = LLMClient(
-        base_url=llm_config["base_url"],
-        api_key=llm_config["api_key"],
-        model=llm_config["model"],
-        temperature=llm_config["temperature"],
-        max_tokens=llm_config["max_tokens"],
-    )
+    if llm_config["provider"] == "mock":
+        llm = MockLLMClient(RECORDINGS_DIR, model_label=llm_config["model"])
+    else:
+        real_llm = LLMClient(
+            base_url=llm_config["base_url"],
+            api_key=llm_config["api_key"],
+            model=llm_config["model"],
+            temperature=llm_config["temperature"],
+            max_tokens=llm_config["max_tokens"],
+        )
+        llm = LLMRecorder(real_llm, RECORDINGS_DIR)
+
     executor = ToolExecutor(pss_client, schema, knowledge=knowledge_store)
     agent = Agent(llm, executor, schema, knowledge=knowledge_store,
                   max_iterations=Config.AGENT_MAX_ITERATIONS,
@@ -278,10 +294,10 @@ def llm_switch():
     llm_config["temperature"] = float(data.get("temperature", llm_config["temperature"]))
     llm_config["max_tokens"] = int(data.get("max_tokens", llm_config["max_tokens"]))
 
-    # Update API key: for openrouter allow override, for ollama use preset
+    # Update API key: for openrouter allow override, for others use preset
     if provider == "openrouter" and data.get("api_key"):
         llm_config["api_key"] = data["api_key"]
-    elif provider != "openrouter":
+    elif provider not in ("openrouter",):
         llm_config["api_key"] = preset["api_key"]
 
     # Force agent re-creation
@@ -390,6 +406,10 @@ def llm_models_list():
             {"name": "google/gemini-2.5-pro-exp-03-25:free"},
         ]})
 
+    elif provider == "mock":
+        models = MockLLMClient.list_models(RECORDINGS_DIR)
+        return jsonify({"models": [{"name": m} for m in models]})
+
     return jsonify({"models": []})
 
 
@@ -493,6 +513,30 @@ def llm_check_tools():
         mimetype='text/event-stream',
         headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Mock sessions management
+# ---------------------------------------------------------------------------
+
+@app.route('/api/mock/sessions')
+def mock_sessions():
+    """List available recorded sessions for mock replay."""
+    model_filter = request.args.get("model")
+    sessions = MockLLMClient.list_sessions(RECORDINGS_DIR)
+    if model_filter:
+        sessions = [s for s in sessions if model_filter in s["model"]]
+    return jsonify({"sessions": sessions})
+
+
+@app.route('/api/mock/sessions/<filename>', methods=['DELETE'])
+def mock_session_delete(filename):
+    """Delete a recorded session."""
+    fpath = os.path.join(RECORDINGS_DIR, filename)
+    if not os.path.exists(fpath):
+        return jsonify({"error": "Not found"}), 404
+    os.remove(fpath)
+    return jsonify({"deleted": True})
 
 
 @app.route('/api/dblist')
@@ -627,10 +671,16 @@ def ask():
 
     _init_agent()
 
+    # Reset mock/recorder state for new question
+    if hasattr(agent.llm, 'reset_session'):
+        agent.llm.reset_session()
+
     def generate():
         for step in agent.ask(question):
             event_data = json.dumps(step.to_dict(), ensure_ascii=False)
             yield f"data: {event_data}\n\n"
+            if step.type in ("answer", "error") and hasattr(agent.llm, 'save_session'):
+                agent.llm.save_session(question)
         yield "data: {\"type\": \"done\"}\n\n"
 
     return Response(

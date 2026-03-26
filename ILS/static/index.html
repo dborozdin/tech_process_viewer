@@ -746,6 +746,7 @@
                 <select id="llmProvider" onchange="onProviderChange()" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
                     <option value="openrouter">OpenRouter</option>
                     <option value="ollama">Ollama (bolt.cals.ru)</option>
+                    <option value="mock">Mock (записи сессий)</option>
                 </select>
             </div>
             <div style="flex:1; min-width:250px;">
@@ -786,6 +787,10 @@
                 </div>
                 <span id="pullStatus" style="font-size:11px; color:#666;"></span>
             </div>
+        </div>
+        <div id="mockSessionsRow" style="margin-top:10px; display:none; border-top:1px solid #e0e0e0; padding-top:10px;">
+            <label>Записанные сессии:</label>
+            <div id="mockSessionsList" style="margin-top:6px; max-height:200px; overflow-y:auto; font-size:12px;"></div>
         </div>
     </div>
 
@@ -1778,6 +1783,7 @@
 
         async function onProviderChange(selectModel) {
             const provider = document.getElementById('llmProvider').value;
+            const isMock = provider === 'mock';
             document.getElementById('llmApiKeyRow').style.display =
                 provider === 'openrouter' ? '' : 'none';
             document.getElementById('ollamaPullRow').style.display =
@@ -1789,6 +1795,12 @@
                 provider === 'openrouter' ? '' : 'none';
             document.getElementById('llmLimits').style.display =
                 provider === 'openrouter' ? '' : 'none';
+            // Hide temperature/max_tokens for mock (not relevant)
+            document.getElementById('llmTemperature').parentElement.style.display = isMock ? 'none' : '';
+            document.getElementById('llmMaxTokens').parentElement.style.display = isMock ? 'none' : '';
+            // Show/hide mock sessions panel
+            document.getElementById('mockSessionsRow').style.display = isMock ? '' : 'none';
+            if (isMock) loadMockSessions();
             await refreshModels(selectModel);
         }
 
@@ -1824,6 +1836,43 @@
             } catch (e) {
                 select.innerHTML = '<option>Ошибка загрузки</option>';
             }
+        }
+
+        async function loadMockSessions() {
+            const container = document.getElementById('mockSessionsList');
+            container.innerHTML = 'Загрузка...';
+            try {
+                const resp = await fetch('/api/mock/sessions');
+                const data = await resp.json();
+                const sessions = data.sessions || [];
+                if (!sessions.length) {
+                    container.innerHTML = '<span style="color:#999;">Нет записанных сессий. Задайте вопрос с реальным провайдером — сессия запишется автоматически.</span>';
+                    return;
+                }
+                let html = '<table style="width:100%; border-collapse:collapse;">';
+                html += '<tr style="border-bottom:1px solid #ddd;"><th style="text-align:left; padding:3px;">Модель</th><th style="text-align:left; padding:3px;">Вопрос</th><th style="padding:3px;">Шагов</th><th style="padding:3px;">Дата</th><th></th></tr>';
+                for (const s of sessions) {
+                    const ts = s.timestamp ? new Date(s.timestamp).toLocaleString() : '';
+                    const q = s.question.length > 60 ? s.question.substring(0, 60) + '...' : s.question;
+                    html += `<tr style="border-bottom:1px solid #eee;">`;
+                    html += `<td style="padding:3px; font-family:monospace; font-size:11px;">${s.model}</td>`;
+                    html += `<td style="padding:3px;" title="${s.question}">${q}</td>`;
+                    html += `<td style="padding:3px; text-align:center;">${s.steps}</td>`;
+                    html += `<td style="padding:3px; font-size:11px; color:#888;">${ts}</td>`;
+                    html += `<td style="padding:3px;"><button onclick="deleteMockSession('${s.file}')" style="border:none; background:none; color:#c00; cursor:pointer; font-size:14px;" title="Удалить">&times;</button></td>`;
+                    html += `</tr>`;
+                }
+                html += '</table>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<span style="color:#c00;">Ошибка загрузки сессий</span>';
+            }
+        }
+
+        async function deleteMockSession(filename) {
+            if (!confirm('Удалить запись?')) return;
+            await fetch(`/api/mock/sessions/${filename}`, { method: 'DELETE' });
+            loadMockSessions();
         }
 
         async function applyLlmSettings() {

@@ -286,16 +286,25 @@ class LogStructAPI:
     # ------------------------------------------------------------------
 
     def _resolve_components(self, sys_ids: list[int]) -> dict[int, dict]:
-        """Fetch components by sys_ids individually, return {sys_id: simplified_dict}."""
+        """Fetch components by sys_ids in batches, return {sys_id: simplified_dict}."""
         result_map = {}
-        for sid in sys_ids:
+        if not sys_ids:
+            return result_map
+
+        # Batch: запрашиваем до BATCH_SIZE компонентов одним APL-запросом
+        BATCH_SIZE = 50
+        for i in range(0, len(sys_ids), BATCH_SIZE):
+            batch = sys_ids[i:i + BATCH_SIZE]
+            # APL: (.# = #id1) OR (.# = #id2) OR ...
+            conditions = " OR ".join(f".# = #{sid}" for sid in batch)
             q = (f"SELECT NO_CASE Ext_ FROM "
-                 f"Ext_{{apl_lss3_component(.# = #{sid})}} END_SELECT")
-            res = self._q.query_apl(q, size=1)
+                 f"Ext_{{apl_lss3_component({conditions})}} END_SELECT")
+            res = self._q.query_apl(q, size=len(batch))
             for inst in res.get("instances", []):
                 inst_id = inst.get("id")
                 if inst_id:
                     result_map[inst_id] = self._simplify_component(inst)
+
         return result_map
 
     # ------------------------------------------------------------------

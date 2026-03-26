@@ -1,0 +1,55 @@
+{
+  "model": "claude-opus",
+  "provider": "anthropic",
+  "user_question": "найди финальное изделие самолет",
+  "timestamp": "2026-03-26T16:00:00",
+  "calls": [
+    {
+      "call_index": 0,
+      "response": {
+        "role": "assistant",
+        "content": "Ищу финальные изделия (is_fi = true) среди компонентов ИЛС.",
+        "tool_calls": [
+          {
+            "id": "call_opus_001",
+            "type": "function",
+            "function": {
+              "name": "query_instances",
+              "arguments": "{\"entity_type\": \"apl_lss3_component\", \"filters\": \".is_fi = true\", \"size\": 20}"
+            }
+          }
+        ],
+        "usage": {"prompt_tokens": 3200, "completion_tokens": 85, "total_tokens": 3285},
+        "rate_limit": null
+      }
+    },
+    {
+      "call_index": 1,
+      "response": {
+        "role": "assistant",
+        "content": "Нашёл финальное изделие. Формирую отчёт с основными характеристиками.",
+        "tool_calls": [
+          {
+            "id": "call_opus_002",
+            "type": "function",
+            "function": {
+              "name": "format_html_report",
+              "arguments": "{\"title\": \"Финальное изделие: Самолет\", \"description\": \"Компоненты ИЛС с признаком is_fi=true (финальное изделие)\", \"columns\": [\"sys_id\", \"Обозначение\", \"Название\", \"Класс\", \"Вид\", \"MTBF расч.\", \"MTBF факт.\", \"MTBUR расч.\", \"Ремонтопригодность\", \"Вес\"], \"rows\": [[\"9199\", \"С30М\", \"Самолет\", \"→#12648\", \"→#6407\", \"0\", \"0\", \"0\", \"нет\", \"0\"]]}"
+            }
+          }
+        ],
+        "usage": {"prompt_tokens": 4100, "completion_tokens": 190, "total_tokens": 4290},
+        "rate_limit": null
+      }
+    },
+    {
+      "call_index": 2,
+      "response": {
+        "role": "assistant",
+        "content": "Найдено одно финальное изделие — **Самолет** (С30М, sys_id 9199). Показатели надёжности (MTBF, MTBUR) пока не заполнены.\n\nЕсли нужно посмотреть состав этого изделия — могу вывести логистическую структуру.",
+        "usage": {"prompt_tokens": 4800, "completion_tokens": 120, "total_tokens": 4920},
+        "rate_limit": null
+      }
+    }
+  ]
+}

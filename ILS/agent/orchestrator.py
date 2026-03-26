@@ -229,6 +229,10 @@ class Agent:
                 if api_log:
                     yield AgentStep("api_calls", calls=api_log)
 
+                # Записать tool-результат (для LLMRecorder)
+                if hasattr(self.llm, 'record_tool_result'):
+                    self.llm.record_tool_result(tc["id"], func_name, result)
+
                 self.messages.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],

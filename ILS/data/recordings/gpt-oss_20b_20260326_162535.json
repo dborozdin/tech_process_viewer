@@ -1,0 +1,32 @@
+{
+  "model": "gpt-oss:20b",
+  "provider": "unknown",
+  "user_question": "выведи логистическую структуру найденного самолета",
+  "timestamp": "2026-03-26T16:25:35.436376",
+  "calls": [
+    {
+      "call_index": 0,
+      "response": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "call_n2yun8d1",
+            "type": "function",
+            "function": {
+              "name": "format_html_report",
+              "arguments": "{\"columns\":[\"LCN\",\"Тип\",\"Обозначение\",\"Название\",\"Кол-во\"],\"rows\":[[\"A00\",\"система\",\"К-010\",\"Планер\",\"1\"],[\"  A01\",\"связка\",\"К-020\",\"Фюзеляж\",\"1\"]],\"title\":\"Логистическая структура самолета ИЗД-001\"}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "call_index": 1,
+      "response": {
+        "role": "assistant",
+        "content": "<div class=\"report\"><h2>Логистическая структура самолета ИЗД-001</h2><table border=\"1\" cellpadding=\"5\" cellspacing=\"0\" style=\"border-collapse:collapse; width:100%\"><thead><tr><th style=\"background:#f0f0f0\">LCN</th><th style=\"background:#f0f0f0\">Тип</th><th style=\"background:#f0f0f0\">Обозначение</th><th style=\"background:#f0f0f0\">Название</th><th style=\"background:#f0f0f0\">Кол-во</th></tr></thead><tbody><tr><td>A00</td><td>система</td><td>К-010</td><td>Планер</td><td>1</td></tr><tr><td> A01</td><td>связка</td><td>К-020</td><td>Фюзеляж</td><td>1</td></tr></tbody></table><p><em>Всего записей: 2</em></p></div>"
+      }
+    }
+  ]
+}

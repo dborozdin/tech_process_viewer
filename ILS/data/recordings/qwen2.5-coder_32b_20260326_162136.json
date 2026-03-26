@@ -1,0 +1,15 @@
+{
+  "model": "qwen2.5-coder:32b",
+  "provider": "unknown",
+  "user_question": "найди финальное изделие самолет",
+  "timestamp": "2026-03-26T16:21:36.536249",
+  "calls": [
+    {
+      "call_index": 0,
+      "response": {
+        "role": "assistant",
+        "content": "{\"name\": \"query_instances\", \"arguments\": {\"entity_type\": \"apl_lss3_component\", \"filters\": \".is_fi = true\"}}"
+      }
+    }
+  ]
+}

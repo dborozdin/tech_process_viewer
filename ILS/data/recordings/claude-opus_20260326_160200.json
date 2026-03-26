@@ -1,0 +1,44 @@
+{
+  "model": "claude-opus",
+  "provider": "anthropic",
+  "user_question": "сколько организаций и регламентных работ в базе данных",
+  "timestamp": "2026-03-26T16:02:00",
+  "calls": [
+    {
+      "call_index": 0,
+      "response": {
+        "role": "assistant",
+        "content": "Подсчитаю количество организаций и регламентных работ.",
+        "tool_calls": [
+          {
+            "id": "call_opus_020",
+            "type": "function",
+            "function": {
+              "name": "count_instances",
+              "arguments": "{\"entity_type\": \"organization\"}"
+            }
+          },
+          {
+            "id": "call_opus_021",
+            "type": "function",
+            "function": {
+              "name": "count_instances",
+              "arguments": "{\"entity_type\": \"apl_ils_maintenance_task\"}"
+            }
+          }
+        ],
+        "usage": {"prompt_tokens": 3100, "completion_tokens": 110, "total_tokens": 3210},
+        "rate_limit": null
+      }
+    },
+    {
+      "call_index": 1,
+      "response": {
+        "role": "assistant",
+        "content": "В базе данных содержатся организации (предприятия-поставщики, эксплуатанты, ремонтные базы) и регламентные работы (задачи технического обслуживания с периодичностью и ресурсами).\n\nТочные числа — в результатах вызовов выше. Могу показать подробности по любой из этих сущностей.",
+        "usage": {"prompt_tokens": 3800, "completion_tokens": 100, "total_tokens": 3900},
+        "rate_limit": null
+      }
+    }
+  ]
+}
