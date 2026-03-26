@@ -1,14 +1,354 @@
 [
   {
-    "question": "выведи логистическую структуру найденного самолета",
-    "timestamp": "2026-03-25T11:42:47",
+    "question": "найди финальное изделие самолет",
+    "timestamp": "2026-03-26T18:55:49",
     "auto": true,
     "tool_calls": [
       {
-        "tool": "get_instance_by_id",
+        "tool": "query_instances",
         "arguments": {
-          "entity_type": "apl_lss3_logistic_element",
-          "sys_id": 12345
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true AND .name_rus LIKE \"%самолёт%\"",
+          "size": 10,
+          "start": 0
+        }
+      },
+      {
+        "tool": "query_instances",
+        "arguments": {
+          "entity_type": "apl_lss3_component",
+          "filters": ".is_fi = true",
+          "size": 10,
+          "start": 0
+        }
+      },
+      {
+        "tool": "format_html_report",
+        "arguments": {
+          "columns": [
+            "ID",
+            "Название",
+            "Вес",
+            "Класс",
+            "MTBF"
+          ],
+          "rows": [
+            [
+              "С30М",
+              "Самолет",
+              "0",
+              "→#12648 (apl_classifier_level)",
+              "0"
+            ]
+          ],
+          "title": "Финальное изделие: Самолет"
+        }
+      }
+    ],
+    "api_calls": [
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=10/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true AND .name_rus LIKE \"%самолёт%\")} END_SELECT",
+        "elapsed_ms": 4.1,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=10/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
+        "elapsed_ms": 5.2,
+        "status_code": 200,
+        "result_count": 1
+      }
+    ]
+  },
+  {
+    "question": "выведи логистическую структуру найденного самолета",
+    "timestamp": "2026-03-26T17:05:08",
+    "auto": true,
+    "tool_calls": [
+      {
+        "tool": "get_logistic_structure",
+        "arguments": {
+          "component_designation": "",
+          "sys_id": 9199
+        }
+      },
+      {
+        "tool": "format_html_report",
+        "arguments": {
+          "title": "Логистическая структура изделия С30М (Самолет)",
+          "description": "Дерево состава ИЛС (max_depth=2): системы и подсистемы с компонентами",
+          "columns": [
+            "LCN",
+            "Название элемента",
+            "Обозначение компонента",
+            "Наименование компонента",
+            "Кол-во"
+          ],
+          "rows": [
+            [
+              "С30М-24",
+              "",
+              "С30М-24",
+              "Система электроснабжения",
+              "1"
+            ],
+            [
+              "    С30М-24-05",
+              "",
+              "С30М-24-01",
+              "Система охлаждения привода-генератора ГП25-2",
+              "1"
+            ],
+            [
+              "    С30М-24-03",
+              "",
+              "С30М-24-02",
+              "Генерирование переменного тока",
+              "1"
+            ],
+            [
+              "    С30М-24-07",
+              "",
+              "С30М-24-03",
+              "Генерирование постоянного тока",
+              "1"
+            ],
+            [
+              "    С30М-24-04",
+              "",
+              "С30М-24-04",
+              "Наземное электропитание",
+              "1"
+            ],
+            [
+              "    С30М-24-06",
+              "",
+              "С30М-24-05",
+              "Распределение нагрузки переменного тока",
+              "1"
+            ],
+            [
+              "    С30М-24-01",
+              "",
+              "С30М-24-06",
+              "Распределение нагрузки постоянного тока",
+              "1"
+            ],
+            [
+              "    С30М-24-02",
+              "",
+              "С30М-24-07",
+              "Коробки реле и контакторов",
+              "1"
+            ],
+            [
+              "С30М-25",
+              "",
+              "С30М-25",
+              "",
+              "1"
+            ],
+            [
+              "С30М-26",
+              "",
+              "Engine1",
+              "Двигатель 1",
+              "1"
+            ],
+            [
+              "С30М-27",
+              "",
+              "ЗИП1",
+              "Комплект ЗИП",
+              "1"
+            ],
+            [
+              "С30М-28",
+              "",
+              "ДИ1",
+              "Доп.имущество",
+              "1"
+            ],
+            [
+              "С30М-21",
+              "",
+              "С30М-21",
+              "Система кондиционирования воздуха",
+              "1"
+            ],
+            [
+              "    С30М-21-08",
+              "",
+              "SU30M-21-60",
+              "Регулирование температуры",
+              "1"
+            ],
+            [
+              "    С30М-21-05",
+              "",
+              "SU30M-21-30",
+              "Регулирование давления",
+              "1"
+            ],
+            [
+              "    С30М-21-07",
+              "",
+              "SU30M-21-50",
+              "Охлаждение",
+              "1"
+            ],
+            [
+              "    С30М-21-03",
+              "",
+              "SU30M-21-10",
+              "Система наддува",
+              "1"
+            ],
+            [
+              "    С30М-21-04",
+              "",
+              "SU30M-21-20",
+              "Распределение",
+              "1"
+            ],
+            [
+              "    С30М-21-01",
+              "",
+              "С30М-00-00",
+              "Общие сведения",
+              "1"
+            ],
+            [
+              "    С30М-21-06",
+              "",
+              "SU30M-21-40",
+              "Обогрев",
+              "1"
+            ],
+            [
+              "    С30М-21-10",
+              "",
+              "SU30M-21-80",
+              "Жидкие/газообразные хладагенты",
+              "1"
+            ],
+            [
+              "    С30М-21-02",
+              "",
+              "SU30M-21-90",
+              "Интегрированная система обеспечения жизнедеятельности",
+              "1"
+            ],
+            [
+              "    С30М-21-09",
+              "",
+              "SU30M-21-70",
+              "Регулирование влажности/загрязнения воздуха",
+              "1"
+            ],
+            [
+              "С30М-22",
+              "",
+              "С30М-22",
+              "Система автоматического управления",
+              "1"
+            ],
+            [
+              "    С30М-22-04",
+              "",
+              "SU30M-22-30",
+              "Автомат тяги",
+              "1"
+            ],
+            [
+              "    С30М-22-01",
+              "",
+              "SU30M-22-00",
+              "Общие сведения",
+              "1"
+            ],
+            [
+              "    С30М-22-02",
+              "",
+              "SU30M-22-10",
+              "Автопилот",
+              "1"
+            ],
+            [
+              "    С30М-22-03",
+              "",
+              "SU30M-22-20",
+              "Средства коррекции скорости и пространственного положения",
+              "1"
+            ],
+            [
+              "    С30М-22-06",
+              "",
+              "SU30M-22-50",
+              "Автоматическая система устойчивости и управляемости",
+              "1"
+            ],
+            [
+              "    С30М-22-05",
+              "",
+              "SU30M-22-40",
+              "Встроенные средства контроля системы",
+              "1"
+            ],
+            [
+              "    С30М-22-07",
+              "",
+              "SU30M-22-60",
+              "Автомат управления скоростью полёта",
+              "1"
+            ],
+            [
+              "    С30М-22-08",
+              "",
+              "SU30M-22-70",
+              "Система автоматического контроля",
+              "1"
+            ],
+            [
+              "С30М-29",
+              "",
+              "С30М-29",
+              "ГИДРАВЛИЧЕСКАЯ СИСТЕМА",
+              "1"
+            ],
+            [
+              "    С30М-29-03",
+              "",
+              "SU30M-29-20",
+              "вспомогательная система",
+              "1"
+            ],
+            [
+              "    С30М-29-01",
+              "",
+              "SU30M-29-00",
+              "общие сведения",
+              "1"
+            ],
+            [
+              "    С30М-29-04",
+              "",
+              "SU30M-29-30",
+              "приборы контроля",
+              "1"
+            ],
+            [
+              "    С30М-29-02",
+              "",
+              "SU30M-29-10",
+              "основная система",
+              "1"
+            ]
+          ]
         }
       }
     ],
@@ -16,16 +356,472 @@
       {
         "method": "POST",
         "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
-        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_logistic_element(.# = #12345)} END_SELECT",
-        "elapsed_ms": 46.7,
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.# = #9199)} END_SELECT",
+        "elapsed_ms": 4.1,
+        "status_code": 200,
+        "result_count": 1
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9199} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.3,
+        "status_code": 200,
+        "result_count": 15
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11972} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.7,
+        "status_code": 200,
+        "result_count": 7
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11969} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.3,
         "status_code": 200,
         "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11965} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.3,
+        "status_code": 200,
+        "result_count": 6
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9331} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9331} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9301} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.9,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9301} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9337} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.5,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9337} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11971} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11970} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11967} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.4,
+        "status_code": 200,
+        "result_count": 5
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9306} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.9,
+        "status_code": 200,
+        "result_count": 2
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9314} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9320} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9310} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.1,
+        "status_code": 200,
+        "result_count": 1
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9325} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9346} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.4,
+        "status_code": 200,
+        "result_count": 2
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9314} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9320} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9330} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2,
+        "status_code": 200,
+        "result_count": 1
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9325} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.1,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9310} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.6,
+        "status_code": 200,
+        "result_count": 1
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#9325} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.1,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11968} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.5,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11966} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11951} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11954} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11960} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#11963} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.9,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12274} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 7.2,
+        "status_code": 200,
+        "result_count": 10
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12291} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12278} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.9,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12290} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12279} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.9,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12286} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12293} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12292} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12302} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12297} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12303} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12315} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.8,
+        "status_code": 200,
+        "result_count": 8
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12333} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12319} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12322} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 3,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12318} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.7,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12324} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.9,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12337} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.5,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12330} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 1.6,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12338} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12342} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 4.2,
+        "status_code": 200,
+        "result_count": 4
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12347} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.8,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12346} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.4,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12348} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2.5,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=200/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext2 FROM Ext_{#12355} Ext2{apl_lss3_logistic_element(.parent_component IN #Ext_)} END_SELECT",
+        "elapsed_ms": 2,
+        "status_code": 200,
+        "result_count": 0
+      },
+      {
+        "method": "POST",
+        "url": "http://localhost:7239/rest&start=0&size=47/query&all_attrs=true",
+        "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.# = #9346 OR .# = #12291 OR .# = #12290 OR .# = #12293 OR .# = #12292 OR .# = #12297 OR .# = #12302 OR .# = #12303 OR .# = #12315 OR .# = #12318 OR .# = #12319 OR .# = #12322 OR .# = #12324 OR .# = #12330 OR .# = #12333 OR .# = #11951 OR .# = #12337 OR .# = #11954 OR .# = #12338 OR .# = #12342 OR .# = #11960 OR .# = #12346 OR .# = #11963 OR .# = #12347 OR .# = #11965 OR .# = #11966 OR .# = #11967 OR .# = #11968 OR .# = #11969 OR .# = #11970 OR .# = #11971 OR .# = #11972 OR .# = #12348 OR .# = #12355 OR .# = #9301 OR .# = #9306 OR .# = #9310 OR .# = #9314 OR .# = #9320 OR .# = #9325 OR .# = #9330 OR .# = #9331 OR .# = #12274 OR .# = #12278 OR .# = #12279 OR .# = #9337 OR .# = #12286)} END_SELECT",
+        "elapsed_ms": 6.6,
+        "status_code": 200,
+        "result_count": 47
       }
     ]
   },
   {
-    "question": "найди финальное изделие самолет",
-    "timestamp": "2026-03-25T11:41:42",
+    "question": "выведи все компоненты, входящие в состав найденного компонента",
+    "timestamp": "2026-03-26T16:18:46",
     "auto": true,
     "tool_calls": [
       {
@@ -42,7 +838,7 @@
         "method": "POST",
         "url": "http://localhost:7239/rest&start=0&size=1/query&all_attrs=true",
         "body": "SELECT NO_CASE Ext_ FROM Ext_{apl_lss3_component(.is_fi = true)} END_SELECT",
-        "elapsed_ms": 65.4,
+        "elapsed_ms": 2066.4,
         "status_code": 200,
         "result_count": 1
       }

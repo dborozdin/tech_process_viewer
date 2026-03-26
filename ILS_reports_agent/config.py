@@ -34,7 +34,7 @@ class Config:
     AGENT_MAX_ITERATIONS = int(os.environ.get('AGENT_MAX_ITERATIONS', '15'))
 
     # Data paths
-    # ILS/ is inside tech_process_viewer/, which is inside express_api/
+    # ILS_reports_agent/ is inside tech_process_viewer/, which is inside express_api/
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # express_api/
     _VIEWER_ROOT = os.path.dirname(os.path.dirname(__file__))  # tech_process_viewer/
 

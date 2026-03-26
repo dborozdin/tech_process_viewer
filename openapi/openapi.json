@@ -50,8 +50,7 @@
             "description": "Errors",
             "additionalProperties": {}
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaginationMetadata": {
         "type": "object",
@@ -77,8 +76,7 @@
           "next_page": {
             "type": "integer"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ConnectRequest": {
         "type": "object",
@@ -103,8 +101,7 @@
             "default": "",
             "description": "Password (optional, not used in current implementation)"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ErrorResponse": {
         "type": "object",
@@ -117,8 +114,7 @@
             "type": "string",
             "description": "Error message"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ConnectResponse": {
         "type": "object",
@@ -139,8 +135,7 @@
             "type": "string",
             "description": "Connected user"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DisconnectResponse": {
         "type": "object",
@@ -153,8 +148,7 @@
             "type": "string",
             "description": "Status message"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "Error1": {
         "type": "object",
@@ -1091,8 +1085,7 @@
             "description": "Status",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentListResponse": {
         "type": "object",
@@ -1116,8 +1109,7 @@
             "type": "integer",
             "description": "Items per page"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentCreate": {
         "type": "object",
@@ -1154,8 +1146,7 @@
         "required": [
           "id",
           "name"
-        ],
-        "additionalProperties": false
+        ]
       },
       "DocumentResponse": {
         "type": "object",
@@ -1216,15 +1207,12 @@
           },
           "kind": {
             "description": "Document kind/type reference",
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/components/schemas/Reference"
-              },
-              {
-                "type": "object",
-                "nullable": true
               }
-            ]
+            ],
+            "nullable": true
           },
           "version_id": {
             "type": "string",
@@ -1241,8 +1229,7 @@
             "description": "Whether document is customized",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentDetail": {
         "type": "object",
@@ -1267,8 +1254,7 @@
               }
             ]
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentUpdate": {
         "type": "object",
@@ -1298,8 +1284,7 @@
             "description": "Document status",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "FileUploadResponse": {
         "type": "object",
@@ -1357,8 +1342,7 @@
             "type": "string",
             "description": "Document code/ID"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentReferenceListResponse": {
         "type": "object",
@@ -1378,8 +1362,7 @@
             "type": "integer",
             "description": "Total number of references"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DocumentReferenceCreate": {
         "type": "object",
@@ -1401,8 +1384,7 @@
         "required": [
           "document_id",
           "item_id"
-        ],
-        "additionalProperties": false
+        ]
       },
       "ResourceListItem": {
         "type": "object",
@@ -1431,8 +1413,7 @@
             "description": "Unit name",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceListResponse": {
         "type": "object",
@@ -1456,8 +1437,7 @@
             "type": "integer",
             "description": "Items per page"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceCreate": {
         "type": "object",
@@ -1489,8 +1469,7 @@
         "required": [
           "process_id",
           "type_id"
-        ],
-        "additionalProperties": false
+        ]
       },
       "ResourceResponse": {
         "type": "object",
@@ -1527,54 +1506,41 @@
           },
           "unit_component": {
             "description": "Unit reference",
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/components/schemas/Reference"
-              },
-              {
-                "type": "object",
-                "nullable": true
               }
-            ]
+            ],
+            "nullable": true
           },
           "object": {
             "description": "Resource object reference",
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/components/schemas/Reference"
-              },
-              {
-                "type": "object",
-                "nullable": true
               }
-            ]
+            ],
+            "nullable": true
           },
           "type": {
             "description": "Resource type reference",
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/components/schemas/Reference"
-              },
-              {
-                "type": "object",
-                "nullable": true
               }
-            ]
+            ],
+            "nullable": true
           },
           "process": {
             "description": "Business process reference",
-            "anyOf": [
+            "allOf": [
               {
                 "$ref": "#/components/schemas/Reference"
-              },
-              {
-                "type": "object",
-                "nullable": true
               }
-            ]
+            ],
+            "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceDetail": {
         "type": "object",
@@ -1599,8 +1565,7 @@
               }
             ]
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceUpdate": {
         "type": "object",
@@ -1620,8 +1585,7 @@
             "description": "Resource object system ID",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceType": {
         "type": "object",
@@ -1639,8 +1603,7 @@
             "description": "Description",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ResourceTypeListResponse": {
         "type": "object",
@@ -1656,8 +1619,7 @@
             "type": "integer",
             "description": "Total number of types"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "OrganizationListItem": {
         "type": "object",
@@ -1679,8 +1641,7 @@
             "description": "Description",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "OrganizationListResponse": {
         "type": "object",
@@ -1704,8 +1665,7 @@
             "type": "integer",
             "description": "Items per page"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "OrganizationCreate": {
         "type": "object",
@@ -1727,8 +1687,7 @@
         "required": [
           "id",
           "name"
-        ],
-        "additionalProperties": false
+        ]
       },
       "OrganizationResponse": {
         "type": "object",
@@ -1776,8 +1735,7 @@
             "description": "Whether organization is customized",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "OrganizationDetail": {
         "type": "object",
@@ -1802,8 +1760,7 @@
               }
             ]
           }
-        },
-        "additionalProperties": false
+        }
       },
       "OrganizationUpdate": {
         "type": "object",
@@ -1818,8 +1775,7 @@
             "description": "Description",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       }
     },
     "responses": {

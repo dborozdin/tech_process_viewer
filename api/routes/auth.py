@@ -64,10 +64,16 @@ class DatabaseListItemSchema(Schema):
     name = fields.String(metadata={'description': 'Database name'})
 
 
-def get_app_api():
-    """Get the Flask app module"""
-    from tech_process_viewer import app as flask_app
-    return flask_app
+def _get_api():
+    """Get current DatabaseAPI instance from Flask app extensions."""
+    from tech_process_viewer.api.app_helpers import get_api
+    return get_api()
+
+
+def _set_api(api_instance):
+    """Store DatabaseAPI instance in Flask app extensions."""
+    from tech_process_viewer.api.app_helpers import set_api
+    set_api(api_instance)
 
 
 @blp.route('/connect')
@@ -95,8 +101,6 @@ class Connect(MethodView):
 
         Returns a session_key to use in X-APL-SessionKey header for all subsequent requests.
         """
-        flask_app = get_app_api()
-
         try:
             server_port = args.get('server_port', 'http://localhost:7239')
             db = args.get('db', 'pss_moma_08_07_2025')
@@ -111,8 +115,7 @@ class Connect(MethodView):
             session_key = api_instance.reconnect_db()
 
             if session_key:
-                # Use the set_api function to store API in Flask app.extensions
-                flask_app.set_api(api_instance)
+                _set_api(api_instance)
 
             if session_key is None:
                 return jsonify({
@@ -142,13 +145,11 @@ class Disconnect(MethodView):
     @blp.doc(description="Disconnect from PSS database and invalidate the session key.")
     def post(self):
         """Disconnect from PSS database"""
-        flask_app = get_app_api()
-
         try:
-            api_instance = flask_app.get_api()
+            api_instance = _get_api()
             if api_instance is not None and api_instance.connect_data is not None:
                 api_instance.disconnect_db()
-                flask_app.set_api(None)
+                _set_api(None)
                 return jsonify({
                     'disconnected': True,
                     'message': 'Successfully disconnected from database'
@@ -194,8 +195,7 @@ class ConnectionStatus(MethodView):
     )
     def get(self):
         """Check connection status"""
-        flask_app = get_app_api()
-        api_instance = flask_app.get_api()
+        api_instance = _get_api()
 
         if api_instance is not None and api_instance.connect_data is not None:
             return jsonify({

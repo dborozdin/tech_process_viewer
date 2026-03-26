@@ -1,6 +1,6 @@
 """
 ILS Report Agent — Flask application.
-Run: python -m ILS.app
+Run: python -m ILS_reports_agent.app
 """
 
 import json
@@ -11,15 +11,15 @@ import time
 
 from flask import Flask, request, jsonify, Response, send_from_directory
 
-from ILS.config import Config
-from ILS.pss.api_client import PSSClient
-from ILS.pss.schema import get_schema
-from ILS.agent.llm_client import LLMClient
-from ILS.agent.mock_llm_client import LLMRecorder, MockLLMClient
-from ILS.agent.tool_executor import ToolExecutor
-from ILS.agent.knowledge import KnowledgeStore
-from ILS.agent.orchestrator import Agent
-from ILS.agent.prompts import SYSTEM_PROMPT
+from ILS_reports_agent.config import Config
+from ILS_reports_agent.pss.api_client import PSSClient
+from ILS_reports_agent.pss.schema import get_schema
+from ILS_reports_agent.agent.llm_client import LLMClient
+from ILS_reports_agent.agent.mock_llm_client import LLMRecorder, MockLLMClient
+from ILS_reports_agent.agent.tool_executor import ToolExecutor
+from ILS_reports_agent.agent.knowledge import KnowledgeStore
+from ILS_reports_agent.agent.orchestrator import Agent
+from ILS_reports_agent.agent.prompts import SYSTEM_PROMPT
 
 # ---------------------------------------------------------------------------
 # Logging

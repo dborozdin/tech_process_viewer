@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSS-C PDM</title>
+<style>
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #222; background: #f5f6f5; }
+
+/* ===== CSS Variables ===== */
+:root {
+  --primary: #005566;
+  --primary-light: #007788;
+  --primary-dark: #003d4d;
+  --hover: #e0f4f4;
+  --bg: #f5f6f5;
+  --bg-white: #ffffff;
+  --border: #d3d3d3;
+  --border-light: #e5e5e5;
+  --text: #222222;
+  --text-secondary: #666666;
+  --text-inverse: #ffffff;
+  --danger: #cc3333;
+  --success: #28a745;
+  --warning: #e6a817;
+  --shadow: 0 2px 8px rgba(0,0,0,0.12);
+  --radius: 4px;
+  --header-height: 48px;
+  --statusbar-height: 28px;
+  --breadcrumb-height: 36px;
+  --left-width: 280px;
+  --right-width: 320px;
+  --transition: 0.2s ease;
+}
+
+/* ===== App Shell ===== */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ===== Header ===== */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: var(--header-height); background: var(--primary-dark);
+  color: var(--text-inverse); padding: 0 16px; flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+.header-logo span { color: #66ccdd; }
+.header-center { display: flex; align-items: center; gap: 12px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.header-status { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.status-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--danger); display: inline-block;
+}
+.status-dot.connected { background: var(--success); }
+.header-user { font-size: 13px; opacity: 0.85; }
+
+/* ===== Buttons ===== */
+.btn {
+  padding: 6px 14px; border: 1px solid transparent; border-radius: var(--radius);
+  font-size: 13px; cursor: pointer; transition: all var(--transition);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-outline { background: transparent; color: var(--text-inverse); border-color: rgba(255,255,255,0.4); }
+.btn-outline:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.7); }
+.btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { background: var(--hover); }
+.btn-danger { background: var(--danger); color: var(--text-inverse); }
+.btn-danger:hover { background: #aa2222; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== Main Layout ===== */
+.main-wrapper { display: flex; flex: 1; overflow: hidden; }
+
+/* ===== Left Panel (Folder Tree) ===== */
+.panel-left {
+  width: var(--left-width); min-width: 200px; max-width: 400px;
+  background: var(--bg-white); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: var(--primary);
+  color: var(--text-inverse); font-weight: 600; font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.panel-header-actions { display: flex; gap: 4px; }
+.panel-header-actions button {
+  background: none; border: none; color: var(--text-inverse);
+  cursor: pointer; font-size: 16px; padding: 2px 4px; opacity: 0.7;
+  transition: opacity var(--transition);
+}
+.panel-header-actions button:hover { opacity: 1; }
+
+.tree-container { flex: 1; overflow: auto; padding: 4px 0; }
+
+/* ===== Tree Nodes ===== */
+.tree-node { user-select: none; }
+.tree-node-row {
+  display: flex; align-items: center; padding: 4px 8px; cursor: pointer;
+  border-left: 3px solid transparent; transition: all var(--transition);
+  min-height: 30px;
+}
+.tree-node-row:hover { background: var(--hover); }
+.tree-node-row.selected { background: #d0eef4; border-left-color: var(--primary); }
+.tree-toggle {
+  width: 20px; height: 20px; display: flex; align-items: center;
+  justify-content: center; font-size: 10px; color: var(--text-secondary);
+  flex-shrink: 0; transition: transform var(--transition);
+}
+.tree-toggle.expanded { transform: rotate(90deg); }
+.tree-toggle.leaf { visibility: hidden; }
+.tree-icon { margin-right: 6px; font-size: 15px; flex-shrink: 0; }
+.tree-label { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-badge {
+  background: var(--border); color: var(--text-secondary); font-size: 10px;
+  padding: 1px 6px; border-radius: 10px; margin-left: 6px; flex-shrink: 0;
+}
+.tree-children { display: none; }
+.tree-children.open { display: block; }
+
+/* ===== Center Panel ===== */
+.panel-center {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-white);
+}
+
+/* ===== Breadcrumb ===== */
+.breadcrumb-bar {
+  display: flex; align-items: center; padding: 0 16px;
+  height: var(--breadcrumb-height); border-bottom: 1px solid var(--border-light);
+  background: var(--bg); flex-shrink: 0; gap: 4px; overflow-x: auto;
+}
+.breadcrumb-item {
+  font-size: 13px; color: var(--primary); cursor: pointer;
+  white-space: nowrap; transition: color var(--transition);
+}
+.breadcrumb-item:hover { color: var(--primary-light); text-decoration: underline; }
+.breadcrumb-item.current { color: var(--text); cursor: default; font-weight: 600; }
+.breadcrumb-item.current:hover { text-decoration: none; }
+.breadcrumb-sep { color: var(--text-secondary); font-size: 12px; margin: 0 2px; }
+
+/* ===== Search Bar ===== */
+.search-bar {
+  display: flex; align-items: center; padding: 8px 16px; gap: 8px;
+  border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+}
+.search-input {
+  flex: 1; padding: 7px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; font-family: inherit;
+  outline: none; transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,85,102,0.15); }
+.search-input::placeholder { color: #aaa; }
+
+/* ===== Content Area ===== */
+.content-area { flex: 1; overflow: auto; padding: 0; position: relative; }
+
+/* ===== Data Table ===== */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead { position: sticky; top: 0; z-index: 10; }
+.data-table th {
+  background: var(--primary); color: var(--text-inverse);
+  padding: 10px 12px; text-align: left; font-weight: 600;
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+.data-table th:last-child { border-right: none; }
+.data-table th:hover { background: var(--primary-light); }
+.data-table td {
+  padding: 8px 12px; border-bottom: 1px solid var(--border-light);
+  font-size: 13px; vertical-align: middle;
+}
+.data-table tr:hover td { background: var(--hover); }
+.data-table tr.selected td { background: #d0eef4; }
+.data-table .cell-icon { font-size: 15px; }
+.data-table .cell-name { font-weight: 500; }
+.data-table .cell-id { color: var(--text-secondary); font-family: monospace; font-size: 12px; }
+
+/* ===== BOM Tree ===== */
+.bom-tree { padding: 8px; }
+.bom-node-row {
+  display: flex; align-items: center; padding: 5px 8px;
+  cursor: pointer; transition: background var(--transition);
+  border-radius: var(--radius); margin: 1px 0;
+}
+.bom-node-row:hover { background: var(--hover); }
+.bom-node-row.selected { background: #d0eef4; }
+.bom-qty {
+  background: var(--primary); color: var(--text-inverse);
+  font-size: 11px; padding: 1px 6px; border-radius: 10px;
+  margin-left: 8px; font-weight: 600;
+}
+.bom-product-id { color: var(--text-secondary); font-size: 12px; margin-left: 8px; font-family: monospace; }
+
+/* ===== Process Details ===== */
+.process-details { padding: 16px; }
+.process-section { margin-bottom: 20px; }
+.process-section-title {
+  font-size: 14px; font-weight: 700; color: var(--primary);
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--primary); text-transform: uppercase;
+}
+.process-info-grid {
+  display: grid; grid-template-columns: 160px 1fr;
+  gap: 6px 12px; font-size: 13px;
+}
+.process-info-label { color: var(--text-secondary); font-weight: 600; }
+
+/* ===== Right Panel (Properties) ===== */
+.panel-right {
+  width: var(--right-width); min-width: 240px; max-width: 450px;
+  background: var(--bg-white); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.property-tabs {
+  display: flex; border-bottom: 2px solid var(--border);
+  background: var(--bg); flex-shrink: 0;
+}
+.property-tab {
+  padding: 10px 16px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; color: var(--text-secondary);
+  transition: all var(--transition); text-transform: uppercase;
+  letter-spacing: 0.3px; white-space: nowrap;
+}
+.property-tab:hover { color: var(--text); background: var(--hover); }
+.property-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-white); }
+.property-content { flex: 1; overflow: auto; padding: 12px; }
+.property-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; color: var(--text-secondary);
+  font-size: 13px; text-align: center; padding: 20px;
+}
+.property-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+
+/* ===== Property Table ===== */
+.prop-table { width: 100%; border-collapse: collapse; }
+.prop-table th {
+  background: var(--bg); padding: 6px 10px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-secondary); border-bottom: 1px solid var(--border);
+}
+.prop-table td {
+  padding: 6px 10px; font-size: 13px;
+  border-bottom: 1px solid var(--border-light);
+}
+.prop-table tr:hover td { background: var(--hover); }
+.prop-pair { display: grid; grid-template-columns: 120px 1fr; gap: 4px 8px; margin-bottom: 4px; }
+.prop-key { font-size: 12px; color: var(--text-secondary); font-weight: 600; padding: 4px 0; }
+.prop-value { font-size: 13px; padding: 4px 0; word-break: break-word; }
+
+/* ===== Report Panel ===== */
+.report-dropdown { position: relative; }
+.report-menu {
+  position: absolute; top: 100%; right: 0; min-width: 260px;
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  z-index: 200; display: none; margin-top: 4px;
+}
+.report-menu.open { display: block; }
+.report-menu-item {
+  padding: 10px 14px; cursor: pointer; font-size: 13px;
+  transition: background var(--transition); border-bottom: 1px solid var(--border-light);
+}
+.report-menu-item:last-child { border-bottom: none; }
+.report-menu-item:hover { background: var(--hover); }
+.report-menu-item-title { font-weight: 600; color: var(--text); }
+.report-menu-item-desc { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ===== Status Bar ===== */
+.statusbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: var(--statusbar-height); background: var(--primary-dark);
+  color: var(--text-inverse); padding: 0 16px; font-size: 11px;
+  flex-shrink: 0; opacity: 0.95;
+}
+.statusbar-left, .statusbar-right { display: flex; align-items: center; gap: 16px; }
+.statusbar-item { display: flex; align-items: center; gap: 4px; }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; opacity: 0; visibility: hidden;
+  transition: all 0.25s ease;
+}
+.modal-overlay.visible { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--bg-white); border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3); max-width: 90vw; max-height: 90vh;
+  display: flex; flex-direction: column;
+  transform: translateY(20px); transition: transform 0.25s ease;
+}
+.modal-overlay.visible .modal { transform: translateY(0); }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  background: var(--primary); color: var(--text-inverse);
+  border-radius: 8px 8px 0 0;
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close {
+  background: none; border: none; color: var(--text-inverse);
+  font-size: 22px; cursor: pointer; padding: 0 4px; opacity: 0.7;
+  transition: opacity var(--transition);
+}
+.modal-close:hover { opacity: 1; }
+.modal-body { padding: 20px; overflow: auto; flex: 1; }
+.modal-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
+/* ===== Connection Form ===== */
+.connect-form { width: 420px; }
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary); text-transform: uppercase; }
+.form-input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; font-family: inherit;
+  outline: none; transition: border-color var(--transition);
+}
+.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,85,102,0.15); }
+.form-row { display: flex; gap: 12px; }
+.form-row .form-group { flex: 1; }
+.form-error { color: var(--danger); font-size: 12px; margin-top: 4px; display: none; }
+.form-error.visible { display: block; }
+
+/* ===== Report Modal ===== */
+.report-modal { width: 80vw; height: 80vh; }
+.report-frame { width: 100%; height: 100%; border: none; }
+
+/* ===== Toast ===== */
+.toast-container { position: fixed; top: 60px; right: 16px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  padding: 12px 18px; border-radius: var(--radius); color: var(--text-inverse);
+  font-size: 13px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px;
+  min-width: 280px; max-width: 420px; animation: toastIn 0.3s ease;
+  cursor: pointer;
+}
+.toast.info { background: var(--primary); }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.warning { background: #c68a00; }
+.toast-icon { font-size: 18px; }
+.toast-text { flex: 1; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(40px); } }
+
+/* ===== Spinner ===== */
+.spinner-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Empty State ===== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; color: var(--text-secondary);
+  font-size: 14px; text-align: center; padding: 40px;
+}
+.empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.25; }
+.empty-state-text { max-width: 300px; line-height: 1.6; }
+
+/* ===== Resize Handle ===== */
+.resize-handle {
+  width: 4px; cursor: col-resize; background: transparent;
+  transition: background var(--transition); flex-shrink: 0;
+}
+.resize-handle:hover, .resize-handle.active { background: var(--primary); }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+/* ===== Utility ===== */
+.hidden { display: none !important; }
+.text-muted { color: var(--text-secondary); }
+.text-mono { font-family: monospace; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">PSS-C <span>PDM</span></div>
+    </div>
+    <div class="header-center">
+      <button id="btnConnect" class="btn btn-outline" title="Подключение к БД">
+        <span>🔌</span> Подключение к БД
+      </button>
+      <button id="btnDisconnect" class="btn btn-outline hidden" title="Отключиться">
+        <span>⏏</span> Отключиться
+      </button>
+    </div>
+    <div class="header-right">
+      <div class="header-status">
+        Статус: <span id="statusDot" class="status-dot"></span>
+        <span id="statusLabel">Не подключено</span>
+      </div>
+      <span id="headerUser" class="header-user hidden"></span>
+    </div>
+  </header>
+
+  <!-- Main 3-Panel Layout -->
+  <div class="main-wrapper">
+    <!-- Left: Folder Tree -->
+    <div class="panel-left" id="panelLeft">
+      <div class="panel-header">
+        <span>Навигация</span>
+        <div class="panel-header-actions">
+          <button id="btnRefreshTree" title="Обновить">&#x21bb;</button>
+          <button id="btnCollapseAll" title="Свернуть все">&#x25b2;</button>
+        </div>
+      </div>
+      <div class="tree-container" id="treeContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">📂</div>
+          <div class="empty-state-text">Подключитесь к базе данных для загрузки дерева папок</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-handle" id="resizeLeft"></div>
+
+    <!-- Center: Content -->
+    <div class="panel-center" id="panelCenter">
+      <!-- Breadcrumb -->
+      <div class="breadcrumb-bar" id="breadcrumbBar">
+        <span class="breadcrumb-item current">Главная</span>
+      </div>
+      <!-- Search -->
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Поиск изделий по наименованию или обозначению...">
+        <button class="btn btn-primary btn-sm" id="btnSearch">Найти</button>
+        <div class="report-dropdown">
+          <button class="btn btn-secondary btn-sm" id="btnReports">Отчёты ▼</button>
+          <div class="report-menu" id="reportMenu"></div>
+        </div>
+      </div>
+      <!-- Content -->
+      <div class="content-area" id="contentArea">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <div class="empty-state-text">Выберите папку в дереве навигации или выполните поиск</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-handle" id="resizeRight"></div>
+
+    <!-- Right: Properties -->
+    <div class="panel-right" id="panelRight">
+      <div class="property-tabs" id="propertyTabs">
+        <div class="property-tab active" data-tab="attrs">Атрибуты</div>
+        <div class="property-tab" data-tab="chars">Характеристики</div>
+        <div class="property-tab" data-tab="docs">Документы</div>
+      </div>
+      <div class="property-content" id="propertyContent">
+        <div class="property-empty">
+          <div class="property-empty-icon">📝</div>
+          <div>Выберите элемент для просмотра свойств</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <div class="statusbar-left">
+      <div class="statusbar-item" id="sbConnection">
+        <span>●</span> <span id="sbConnText">Не подключено</span>
+      </div>
+      <div class="statusbar-item" id="sbDatabase">
+        <span>📀</span> <span id="sbDbText">-</span>
+      </div>
+    </div>
+    <div class="statusbar-right">
+      <div class="statusbar-item">
+        <span>⏱</span> <span id="sbLastOp">-</span>
+      </div>
+      <div class="statusbar-item">
+        <span>📊</span> Запросов: <span id="sbQueryCount">0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Connection Modal -->
+<div class="modal-overlay" id="connectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Подключение к базе данных</span>
+      <button class="modal-close" id="connectModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form class="connect-form" id="connectForm">
+        <div class="form-group">
+          <label class="form-label">Сервер и порт</label>
+          <input type="text" class="form-input" id="cfServer" placeholder="http://localhost:7239" value="http://localhost:7239">
+        </div>
+        <div class="form-group">
+          <label class="form-label">База данных</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="form-input" id="cfDatabase" placeholder="pss_moma_08_07_2025" value="pss_moma_08_07_2025">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnLoadDbs" title="Загрузить список БД">📋</button>
+          </div>
+          <select class="form-input hidden" id="cfDatabaseList" style="margin-top:6px;" size="4"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Пользователь</label>
+            <input type="text" class="form-input" id="cfUser" placeholder="Administrator" value="Administrator">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Пароль</label>
+            <input type="password" class="form-input" id="cfPassword" placeholder="Пароль">
+          </div>
+        </div>
+        <div class="form-error" id="connectError"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btnConnectCancel">Отмена</button>
+      <button class="btn btn-primary" id="btnConnectSubmit">Подключиться</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal report-modal">
+    <div class="modal-header">
+      <span class="modal-title" id="reportModalTitle">Отчёт</span>
+      <button class="modal-close" id="reportModalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="reportModalBody" style="padding:0;">
+    </div>
+  </div>
+</div>
+
+<script src="/shared/js/db-connection.js"></script>
+<script>
+/* ============================================================
+   PSS-C PDM — Single Page Application
+   Vanilla JS, No frameworks
+   ============================================================ */
+
+// ===== Event Bus =====
+class EventBus {
+  constructor() { this._handlers = {}; }
+  on(event, fn) {
+    (this._handlers[event] = this._handlers[event] || []).push(fn);
+    return () => this.off(event, fn);
+  }
+  off(event, fn) {
+    const h = this._handlers[event];
+    if (h) this._handlers[event] = h.filter(f => f !== fn);
+  }
+  emit(event, data) {
+    (this._handlers[event] || []).forEach(fn => {
+      try { fn(data); } catch(e) { console.error(`EventBus [${event}]:`, e); }
+    });
+  }
+}
+
+const bus = new EventBus();
+
+// ===== API Wrapper =====
+class API {
+  constructor() {
+    this.queryCount = 0;
+    this.lastOpTime = null;
+  }
+
+  async _fetch(url, options = {}) {
+    const start = performance.now();
+    this.queryCount++;
+    bus.emit('query-count', this.queryCount);
+    try {
+      const resp = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...options.headers },
+        ...options
+      });
+      const elapsed = Math.round(performance.now() - start);
+      this.lastOpTime = elapsed;
+      bus.emit('last-op', elapsed);
+      if (!resp.ok) {
+        const body = await resp.text();
+        let msg;
+        try { msg = JSON.parse(body).error || body; } catch { msg = body; }
+        throw new Error(`HTTP ${resp.status}: ${msg}`);
+      }
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.includes('application/json')) return resp.json();
+      return resp.text();
+    } catch(err) {
+      bus.emit('api-error', err);
+      throw err;
+    }
+  }
+
+  // Connection
+  connect(data) { return this._fetch('/api/connect', { method: 'POST', body: JSON.stringify(data) }); }
+  disconnect() { return this._fetch('/api/disconnect', { method: 'POST' }); }
+  status() { return this._fetch('/api/status'); }
+  dblist(server) { return this._fetch(`/api/dblist?server=${encodeURIComponent(server)}`); }
+
+  // Folders
+  foldersTree() { return this._fetch('/api/folders/tree'); }
+  folderContents(id) { return this._fetch(`/api/folders/${id}/contents`); }
+
+  // Products
+  product(id) { return this._fetch(`/api/products/${id}`); }
+  productTree(id) { return this._fetch(`/api/products/${id}/tree`); }
+  productChars(id) { return this._fetch(`/api/products/${id}/characteristics`); }
+  productSearch(q) { return this._fetch(`/api/products/search?q=${encodeURIComponent(q)}`); }
+
+  // Processes
+  processes(productId) { return this._fetch(`/api/processes/${productId}`); }
+  processHierarchy(id) { return this._fetch(`/api/processes/${id}/hierarchy`); }
+  processDetails(id) { return this._fetch(`/api/processes/${id}/details`); }
+
+  // Documents
+  documents(itemId) { return this._fetch(`/api/documents/${itemId}`); }
+
+  // Reports
+  reportList() { return this._fetch('/api/reports'); }
+  report(name, params) {
+    const qs = new URLSearchParams(params).toString();
+    return this._fetch(`/api/reports/${name}${qs ? '?' + qs : ''}`);
+  }
+}
+
+const api = new API();
+
+// ===== Toast Notifications =====
+class Toaster {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+  }
+  show(message, type = 'info', duration = 4000) {
+    const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || ''}</span><span class="toast-text">${this._esc(message)}</span>`;
+    toast.addEventListener('click', () => this._remove(toast));
+    this.container.appendChild(toast);
+    if (duration > 0) setTimeout(() => this._remove(toast), duration);
+    return toast;
+  }
+  _remove(toast) {
+    if (!toast.parentNode) return;
+    toast.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }
+  _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+}
+
+const toaster = new Toaster('toastContainer');
+
+// ===== Spinner Helper =====
+function showSpinner(container) {
+  removeSpinner(container);
+  const overlay = document.createElement('div');
+  overlay.className = 'spinner-overlay';
+  overlay.innerHTML = '<div class="spinner"></div>';
+  container.style.position = 'relative';
+  container.appendChild(overlay);
+}
+function removeSpinner(container) {
+  const existing = container.querySelector('.spinner-overlay');
+  if (existing) existing.remove();
+}
+
+// ===== Modal Controller =====
+class ModalController {
+  constructor(overlayId) {
+    this.overlay = document.getElementById(overlayId);
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.close();
+    });
+  }
+  open() { this.overlay.classList.add('visible'); }
+  close() { this.overlay.classList.remove('visible'); }
+  get isOpen() { return this.overlay.classList.contains('visible'); }
+}
+
+// ===== Connection Manager =====
+// Uses shared db-connection.js module (window.dbConnection) for session/cookies
+class ConnectionManager {
+  constructor() {
+    this.connected = false;
+    this.user = null;
+    this.db = null;
+    this.modal = new ModalController('connectModal');
+
+    this.$btnConnect = document.getElementById('btnConnect');
+    this.$btnDisconnect = document.getElementById('btnDisconnect');
+    this.$statusDot = document.getElementById('statusDot');
+    this.$statusLabel = document.getElementById('statusLabel');
+    this.$headerUser = document.getElementById('headerUser');
+    this.$sbConnText = document.getElementById('sbConnText');
+    this.$sbDbText = document.getElementById('sbDbText');
+    this.$form = document.getElementById('connectForm');
+    this.$error = document.getElementById('connectError');
+
+    this.$btnConnect.addEventListener('click', () => this.modal.open());
+    this.$btnDisconnect.addEventListener('click', () => this.doDisconnect());
+    document.getElementById('connectModalClose').addEventListener('click', () => this.modal.close());
+    document.getElementById('btnConnectCancel').addEventListener('click', () => this.modal.close());
+    document.getElementById('btnConnectSubmit').addEventListener('click', () => this.doConnect());
+    document.getElementById('btnLoadDbs').addEventListener('click', () => this.loadDatabases());
+
+    const $dbList = document.getElementById('cfDatabaseList');
+    $dbList.addEventListener('change', () => {
+      document.getElementById('cfDatabase').value = $dbList.value;
+    });
+    $dbList.addEventListener('dblclick', () => {
+      document.getElementById('cfDatabase').value = $dbList.value;
+      $dbList.classList.add('hidden');
+    });
+
+    // Enter key in form
+    this.$form.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); this.doConnect(); }
+    });
+
+    // Restore from shared db-connection.js cookies (cross-app session)
+    this._restore();
+
+    // Handle 401 errors via shared module
+    if (window.dbConnection) {
+      dbConnection.setOn401Callback(() => {
+        this.connected = false;
+        this._updateUI();
+        this.modal.open();
+      });
+    }
+  }
+
+  _restore() {
+    // Prefer shared cookies from db-connection.js, fall back to sessionStorage
+    if (window.DB_SESSION && DB_SESSION.serverPort) {
+      document.getElementById('cfServer').value = DB_SESSION.serverPort;
+    }
+    if (window.DB_SESSION && DB_SESSION.db) {
+      document.getElementById('cfDatabase').value = DB_SESSION.db;
+    }
+    if (window.DB_SESSION && DB_SESSION.user) {
+      document.getElementById('cfUser').value = DB_SESSION.user;
+    }
+    // Also check sessionStorage for password (not stored in cookies)
+    const saved = sessionStorage.getItem('pss_connection');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.password) document.getElementById('cfPassword').value = data.password;
+        // Fill fields not already set from cookies
+        if (!document.getElementById('cfServer').value) document.getElementById('cfServer').value = data.server_port || '';
+        if (!document.getElementById('cfDatabase').value) document.getElementById('cfDatabase').value = data.db || '';
+        if (!document.getElementById('cfUser').value) document.getElementById('cfUser').value = data.user || '';
+      } catch {}
+    }
+  }
+
+  async checkStatus() {
+    try {
+      const s = await api.status();
+      if (s.connected) {
+        this.connected = true;
+        this.db = s.db || (window.DB_SESSION && DB_SESSION.db) || '';
+        this.user = s.user || (window.DB_SESSION && DB_SESSION.user) || '';
+        this._updateUI();
+        bus.emit('connected');
+      } else {
+        this.modal.open();
+      }
+    } catch {
+      this.modal.open();
+    }
+  }
+
+  async loadDatabases() {
+    const server = document.getElementById('cfServer').value.trim();
+    if (!server) { toaster.show('Укажите сервер', 'warning'); return; }
+    const $list = document.getElementById('cfDatabaseList');
+    try {
+      const dbs = await api.dblist(server);
+      $list.innerHTML = '';
+      (Array.isArray(dbs) ? dbs : []).forEach(db => {
+        const name = typeof db === 'string' ? db : (db.name || db.db || '');
+        if (!name) return;
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        $list.appendChild(opt);
+      });
+      $list.classList.remove('hidden');
+    } catch (err) {
+      toaster.show('Не удалось загрузить список БД: ' + err.message, 'error');
+    }
+  }
+
+  async doConnect() {
+    const data = {
+      server_port: document.getElementById('cfServer').value.trim(),
+      db: document.getElementById('cfDatabase').value.trim(),
+      user: document.getElementById('cfUser').value.trim(),
+      password: document.getElementById('cfPassword').value
+    };
+    if (!data.server_port || !data.db || !data.user) {
+      this._showError('Заполните все обязательные поля');
+      return;
+    }
+    this._showError('');
+    const btn = document.getElementById('btnConnectSubmit');
+    btn.disabled = true; btn.textContent = 'Подключение...';
+    try {
+      // Use shared dbConnection.connect for cookie/session management
+      const result = window.dbConnection
+        ? await dbConnection.connect(data)
+        : await api.connect(data);
+
+      if (result.connected || result.session_key) {
+        this.connected = true;
+        this.db = result.db || data.db;
+        this.user = result.user || data.user;
+        sessionStorage.setItem('pss_connection', JSON.stringify(data));
+        this._updateUI();
+        this.modal.close();
+        toaster.show('Подключение установлено', 'success');
+        bus.emit('connected');
+      } else {
+        this._showError(result.error || result.message || 'Не удалось подключиться');
+      }
+    } catch (err) {
+      this._showError(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Подключиться';
+    }
+  }
+
+  async doDisconnect() {
+    try {
+      if (window.dbConnection) {
+        await dbConnection.disconnect();
+      } else {
+        await api.disconnect();
+      }
+    } catch {}
+    this.connected = false;
+    this.user = null;
+    this.db = null;
+    sessionStorage.removeItem('pss_connection');
+    this._updateUI();
+    toaster.show('Отключено от БД', 'info');
+    bus.emit('disconnected');
+  }
+
+  _updateUI() {
+    this.$statusDot.classList.toggle('connected', this.connected);
+    this.$statusLabel.textContent = this.connected ? 'Подключено' : 'Не подключено';
+    this.$btnConnect.classList.toggle('hidden', this.connected);
+    this.$btnDisconnect.classList.toggle('hidden', !this.connected);
+    this.$headerUser.classList.toggle('hidden', !this.connected);
+    this.$headerUser.textContent = this.connected ? `${this.user}@${this.db}` : '';
+    this.$sbConnText.textContent = this.connected ? 'Подключено' : 'Не подключено';
+    this.$sbDbText.textContent = this.connected ? this.db : '-';
+  }
+
+  _showError(msg) {
+    this.$error.textContent = msg;
+    this.$error.classList.toggle('visible', !!msg);
+  }
+}
+
+// ===== Folder Tree View =====
+class FolderTreeView {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+    this.data = [];
+    this.selectedId = null;
+
+    document.getElementById('btnRefreshTree').addEventListener('click', () => this.load());
+    document.getElementById('btnCollapseAll').addEventListener('click', () => this.collapseAll());
+
+    bus.on('connected', () => this.load());
+    bus.on('disconnected', () => this.clear());
+  }
+
+  async load() {
+    showSpinner(this.container);
+    try {
+      const data = await api.foldersTree();
+      this.data = Array.isArray(data) ? data : [];
+      this.render();
+    } catch (err) {
+      toaster.show('Ошибка загрузки дерева: ' + err.message, 'error');
+      this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Ошибка загрузки дерева папок</div></div>';
+    } finally {
+      removeSpinner(this.container);
+    }
+  }
+
+  clear() {
+    this.data = [];
+    this.selectedId = null;
+    this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">Подключитесь к базе данных для загрузки дерева папок</div></div>';
+  }
+
+  render() {
+    if (!this.data.length) {
+      this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">Папки не найдены</div></div>';
+      return;
+    }
+    this.container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    this.data.forEach(node => fragment.appendChild(this._createNode(node, 0)));
+    this.container.appendChild(fragment);
+  }
+
+  _createNode(node, depth) {
+    const el = document.createElement('div');
+    el.className = 'tree-node';
+
+    const hasChildren = node.children && node.children.length > 0;
+    const row = document.createElement('div');
+    row.className = 'tree-node-row';
+    row.style.paddingLeft = (8 + depth * 18) + 'px';
+    row.dataset.id = node.sys_id;
+    row.dataset.name = node.name || '';
+
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle ' + (hasChildren ? '' : 'leaf');
+    toggle.textContent = '▶';
+
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon';
+    icon.textContent = '📁';
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = node.name || `Папка ${node.sys_id}`;
+    label.title = node.name || '';
+
+    row.appendChild(toggle);
+    row.appendChild(icon);
+    row.appendChild(label);
+
+    if (node.content_count != null && node.content_count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'tree-badge';
+      badge.textContent = node.content_count;
+      row.appendChild(badge);
+    }
+
+    el.appendChild(row);
+
+    // Children container
+    if (hasChildren) {
+      const childContainer = document.createElement('div');
+      childContainer.className = 'tree-children';
+      node.children.forEach(child => childContainer.appendChild(this._createNode(child, depth + 1)));
+      el.appendChild(childContainer);
+
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = childContainer.classList.contains('open');
+        childContainer.classList.toggle('open');
+        toggle.classList.toggle('expanded');
+      });
+    }
+
+    row.addEventListener('click', () => {
+      this._selectRow(row);
+      bus.emit('folder-selected', { id: node.sys_id, name: node.name });
+    });
+
+    return el;
+  }
+
+  _selectRow(row) {
+    const prev = this.container.querySelector('.tree-node-row.selected');
+    if (prev) prev.classList.remove('selected');
+    row.classList.add('selected');
+    this.selectedId = row.dataset.id;
+  }
+
+  collapseAll() {
+    this.container.querySelectorAll('.tree-children.open').forEach(el => el.classList.remove('open'));
+    this.container.querySelectorAll('.tree-toggle.expanded').forEach(el => el.classList.remove('expanded'));
+  }
+}
+
+// ===== Breadcrumb =====
+class BreadcrumbNav {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+    this.path = [{ label: 'Главная', action: null }];
+    this.render();
+  }
+
+  set(pathItems) {
+    this.path = [{ label: 'Главная', action: () => bus.emit('navigate-home') }];
+    pathItems.forEach(item => this.path.push(item));
+    this.render();
+  }
+
+  push(label, action) {
+    // Make previous last item clickable
+    if (this.path.length > 0) {
+      const last = this.path[this.path.length - 1];
+      if (!last.action) last.action = () => {};
+    }
+    this.path.push({ label, action: null });
+    this.render();
+  }
+
+  render() {
+    this.container.innerHTML = '';
+    this.path.forEach((item, i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'breadcrumb-sep';
+        sep.textContent = '›';
+        this.container.appendChild(sep);
+      }
+      const el = document.createElement('span');
+      el.className = 'breadcrumb-item';
+      el.textContent = item.label;
+      if (i === this.path.length - 1) {
+        el.classList.add('current');
+      } else if (item.action) {
+        el.addEventListener('click', item.action);
+      }
+      this.container.appendChild(el);
+    });
+  }
+}
+
+// ===== Content View =====
+class ContentView {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+    this.currentFolder = null;
+
+    bus.on('folder-selected', (data) => this.loadFolderContents(data));
+    bus.on('navigate-home', () => this.showEmpty());
+    bus.on('disconnected', () => this.showEmpty());
+  }
+
+  showEmpty(msg) {
+    this.container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <div class="empty-state-text">${msg || 'Выберите папку в дереве навигации или выполните поиск'}</div>
+      </div>`;
+  }
+
+  async loadFolderContents(folder) {
+    this.currentFolder = folder;
+    breadcrumb.set([{ label: folder.name, action: null }]);
+    showSpinner(this.container);
+    try {
+      const data = await api.folderContents(folder.id);
+      this._renderFolderTable(data);
+    } catch (err) {
+      toaster.show('Ошибка загрузки содержимого: ' + err.message, 'error');
+      this.showEmpty('Ошибка загрузки');
+    } finally {
+      removeSpinner(this.container);
+    }
+  }
+
+  _renderFolderTable(data) {
+    const items = data.items || [];
+    if (!items.length) {
+      this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Папка пуста</div></div>';
+      return;
+    }
+    const typeIcons = { product: '📦', process: '⚙️', document: '📄', folder: '📁' };
+
+    let html = `<table class="data-table"><thead><tr>
+      <th style="width:40px"></th>
+      <th>Наименование</th>
+      <th style="width:140px">Тип</th>
+      <th style="width:160px">Категория</th>
+      <th style="width:110px">ID</th>
+    </tr></thead><tbody>`;
+
+    items.forEach(item => {
+      const icon = typeIcons[item.type] || typeIcons[(item.category || '').toLowerCase()] || '📄';
+      const typeName = this._translateType(item.type);
+      html += `<tr data-id="${item.sys_id}" data-type="${item.type || ''}" class="content-row">
+        <td class="cell-icon">${icon}</td>
+        <td class="cell-name">${this._esc(item.name || '')}</td>
+        <td>${typeName}</td>
+        <td>${this._esc(item.category || '')}</td>
+        <td class="cell-id">${item.sys_id || ''}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    this.container.innerHTML = html;
+
+    // Row click
+    this.container.querySelectorAll('.content-row').forEach(row => {
+      row.addEventListener('click', () => {
+        this.container.querySelectorAll('.content-row.selected').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        const id = row.dataset.id;
+        const type = row.dataset.type;
+        bus.emit('item-selected', { id, type });
+      });
+      row.addEventListener('dblclick', () => {
+        const id = row.dataset.id;
+        const type = row.dataset.type;
+        if (type === 'product' || type === 'Product') {
+          bus.emit('product-open', { id });
+        } else if (type === 'process' || type === 'Process') {
+          bus.emit('process-open', { id });
+        }
+      });
+    });
+  }
+
+  async loadProductBOM(productId, productName) {
+    breadcrumb.set([
+      { label: this.currentFolder ? this.currentFolder.name : '...', action: () => { if (this.currentFolder) this.loadFolderContents(this.currentFolder); } },
+      { label: productName || `Изделие ${productId}`, action: null }
+    ]);
+    showSpinner(this.container);
+    try {
+      const tree = await api.productTree(productId);
+      this._renderBOM(tree);
+    } catch (err) {
+      toaster.show('Ошибка загрузки состава: ' + err.message, 'error');
+      this.showEmpty('Ошибка загрузки состава изделия');
+    } finally {
+      removeSpinner(this.container);
+    }
+  }
+
+  _renderBOM(tree) {
+    if (!tree || !tree.root) {
+      this.showEmpty('Состав изделия пуст');
+      return;
+    }
+    const container = document.createElement('div');
+    container.className = 'bom-tree';
+
+    const info = document.createElement('div');
+    info.style.cssText = 'padding:8px 12px; font-size:12px; color:var(--text-secondary); border-bottom:1px solid var(--border-light); margin-bottom:8px;';
+    info.textContent = `Узлов: ${tree.total_nodes || '?'} | Глубина: ${tree.depth || '?'}`;
+    container.appendChild(info);
+
+    const renderNode = (node, depth) => {
+      const row = document.createElement('div');
+      row.className = 'bom-node-row';
+      row.style.paddingLeft = (12 + depth * 22) + 'px';
+      row.dataset.id = node.sys_id;
+
+      const hasKids = node.children && node.children.length > 0;
+      const toggle = document.createElement('span');
+      toggle.className = 'tree-toggle ' + (hasKids ? '' : 'leaf');
+      toggle.textContent = '▶';
+
+      const icon = document.createElement('span');
+      icon.className = 'tree-icon';
+      icon.textContent = hasKids ? '📦' : '🔩';
+
+      const label = document.createElement('span');
+      label.className = 'tree-label';
+      label.textContent = node.name || node.product_id || '';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(label);
+
+      if (node.product_id) {
+        const pid = document.createElement('span');
+        pid.className = 'bom-product-id';
+        pid.textContent = node.product_id;
+        row.appendChild(pid);
+      }
+      if (node.quantity && node.quantity > 1) {
+        const qty = document.createElement('span');
+        qty.className = 'bom-qty';
+        qty.textContent = 'x' + node.quantity;
+        row.appendChild(qty);
+      }
+
+      container.appendChild(row);
+
+      let childContainer = null;
+      if (hasKids) {
+        childContainer = document.createElement('div');
+        childContainer.className = 'tree-children open';
+        node.children.forEach(child => renderNode(child, depth + 1));
+        // We need to move all children into the childContainer approach differently:
+        // Instead, render into childContainer
+      }
+
+      row.addEventListener('click', (e) => {
+        container.querySelectorAll('.bom-node-row.selected').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        bus.emit('item-selected', { id: node.sys_id, type: 'product' });
+      });
+
+      return row;
+    };
+
+    // Recursive BOM rendering (proper approach with containers)
+    container.innerHTML = '';
+    container.appendChild(info);
+    this._renderBOMNode(container, tree.root || tree, 0);
+    if (tree.children) {
+      tree.children.forEach(child => this._renderBOMNode(container, child, 1));
+    }
+
+    this.container.innerHTML = '';
+    this.container.appendChild(container);
+  }
+
+  _renderBOMNode(parent, node, depth) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tree-node';
+
+    const hasKids = node.children && node.children.length > 0;
+
+    const row = document.createElement('div');
+    row.className = 'bom-node-row';
+    row.style.paddingLeft = (12 + depth * 22) + 'px';
+    row.dataset.id = node.sys_id;
+
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle ' + (hasKids ? 'expanded' : 'leaf');
+    toggle.textContent = '▶';
+
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon';
+    icon.textContent = hasKids ? '📦' : '🔩';
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = node.name || node.product_id || '';
+
+    row.appendChild(toggle);
+    row.appendChild(icon);
+    row.appendChild(label);
+
+    if (node.product_id) {
+      const pid = document.createElement('span');
+      pid.className = 'bom-product-id';
+      pid.textContent = node.product_id;
+      row.appendChild(pid);
+    }
+    if (node.quantity != null && node.quantity !== 1) {
+      const qty = document.createElement('span');
+      qty.className = 'bom-qty';
+      qty.textContent = 'x' + node.quantity;
+      row.appendChild(qty);
+    }
+
+    wrapper.appendChild(row);
+
+    if (hasKids) {
+      const childContainer = document.createElement('div');
+      childContainer.className = 'tree-children open';
+      node.children.forEach(child => this._renderBOMNode(childContainer, child, depth + 1));
+      wrapper.appendChild(childContainer);
+
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        childContainer.classList.toggle('open');
+        toggle.classList.toggle('expanded');
+      });
+    }
+
+    row.addEventListener('click', () => {
+      parent.closest('.bom-tree').querySelectorAll('.bom-node-row.selected').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+      bus.emit('item-selected', { id: node.sys_id, type: 'product' });
+    });
+
+    parent.appendChild(wrapper);
+  }
+
+  async loadProcessDetails(processId) {
+    showSpinner(this.container);
+    try {
+      const details = await api.processDetails(processId);
+      this._renderProcessDetails(details);
+    } catch (err) {
+      toaster.show('Ошибка загрузки техпроцесса: ' + err.message, 'error');
+      this.showEmpty('Ошибка загрузки техпроцесса');
+    } finally {
+      removeSpinner(this.container);
+    }
+  }
+
+  _renderProcessDetails(details) {
+    let html = '<div class="process-details">';
+
+    // Header info
+    html += '<div class="process-section">';
+    html += '<div class="process-section-title">Общие сведения</div>';
+    html += '<div class="process-info-grid">';
+    html += `<span class="process-info-label">Наименование</span><span>${this._esc(details.name || '')}</span>`;
+    html += `<span class="process-info-label">Подразделение</span><span>${this._esc(details.org_unit || '')}</span>`;
+    html += '</div></div>';
+
+    // Operations
+    if (details.operations && details.operations.length) {
+      html += '<div class="process-section">';
+      html += '<div class="process-section-title">Операции</div>';
+      html += '<table class="data-table"><thead><tr><th>#</th><th>Наименование</th><th>Подразделение</th></tr></thead><tbody>';
+      details.operations.forEach((op, i) => {
+        html += `<tr>
+          <td>${i + 1}</td>
+          <td>${this._esc(op.name || '')}</td>
+          <td>${this._esc(op.org_unit || '')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // Documents
+    if (details.documents && details.documents.length) {
+      html += '<div class="process-section">';
+      html += '<div class="process-section-title">Документы</div>';
+      html += '<table class="data-table"><thead><tr><th>Наименование</th><th>Код</th><th>Тип</th></tr></thead><tbody>';
+      details.documents.forEach(doc => {
+        html += `<tr>
+          <td>${this._esc(doc.name || '')}</td>
+          <td class="cell-id">${this._esc(doc.code || '')}</td>
+          <td>${this._esc(doc.type || '')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // Materials
+    if (details.materials && details.materials.length) {
+      html += '<div class="process-section">';
+      html += '<div class="process-section-title">Материалы</div>';
+      html += '<table class="data-table"><thead><tr><th>Наименование</th><th>Количество</th></tr></thead><tbody>';
+      details.materials.forEach(mat => {
+        html += `<tr>
+          <td>${this._esc(mat.name || '')}</td>
+          <td>${mat.quantity != null ? mat.quantity : ''}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '</div>';
+    this.container.innerHTML = html;
+  }
+
+  showSearchResults(results) {
+    breadcrumb.set([{ label: 'Результаты поиска', action: null }]);
+    if (!results || !results.length) {
+      this.showEmpty('Ничего не найдено');
+      return;
+    }
+    let html = `<table class="data-table"><thead><tr>
+      <th style="width:40px"></th>
+      <th>Наименование</th>
+      <th style="width:180px">Обозначение</th>
+      <th style="width:110px">ID</th>
+    </tr></thead><tbody>`;
+
+    results.forEach(item => {
+      html += `<tr data-id="${item.sys_id}" data-type="product" class="content-row">
+        <td class="cell-icon">📦</td>
+        <td class="cell-name">${this._esc(item.name || '')}</td>
+        <td>${this._esc(item.product_id || '')}</td>
+        <td class="cell-id">${item.sys_id || ''}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    this.container.innerHTML = html;
+
+    this.container.querySelectorAll('.content-row').forEach(row => {
+      row.addEventListener('click', () => {
+        this.container.querySelectorAll('.content-row.selected').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        bus.emit('item-selected', { id: row.dataset.id, type: row.dataset.type });
+      });
+      row.addEventListener('dblclick', () => {
+        bus.emit('product-open', { id: row.dataset.id });
+      });
+    });
+  }
+
+  _translateType(type) {
+    const map = { product: 'Изделие', process: 'Техпроцесс', document: 'Документ', folder: 'Папка', part: 'Деталь', assembly: 'Сборка' };
+    return map[(type || '').toLowerCase()] || type || '';
+  }
+
+  _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+}
+
+// ===== Property Panel =====
+class PropertyPanel {
+  constructor(tabsId, contentId) {
+    this.tabsContainer = document.getElementById(tabsId);
+    this.contentContainer = document.getElementById(contentId);
+    this.currentItem = null;
+    this.currentTab = 'attrs';
+    this.cache = {};
+
+    // Tab switching
+    this.tabsContainer.addEventListener('click', (e) => {
+      const tab = e.target.closest('.property-tab');
+      if (!tab) return;
+      this.currentTab = tab.dataset.tab;
+      this.tabsContainer.querySelectorAll('.property-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      this._renderCurrentTab();
+    });
+
+    bus.on('item-selected', (data) => this.loadItem(data));
+    bus.on('disconnected', () => this.clear());
+  }
+
+  clear() {
+    this.currentItem = null;
+    this.cache = {};
+    this._showEmpty();
+  }
+
+  async loadItem(item) {
+    this.currentItem = item;
+    this.cache = {};
+    this.currentTab = 'attrs';
+    this.tabsContainer.querySelectorAll('.property-tab').forEach(t => t.classList.remove('active'));
+    this.tabsContainer.querySelector('[data-tab="attrs"]').classList.add('active');
+
+    await this._loadAttributes(item);
+  }
+
+  async _loadAttributes(item) {
+    showSpinner(this.contentContainer);
+    try {
+      if (item.type === 'product' || item.type === 'Product') {
+        const data = await api.product(item.id);
+        this.cache.attrs = data;
+        this._renderCurrentTab();
+      } else if (item.type === 'process' || item.type === 'Process') {
+        const data = await api.processDetails(item.id);
+        this.cache.attrs = data;
+        this._renderCurrentTab();
+      } else {
+        // Generic: try product first
+        try {
+          const data = await api.product(item.id);
+          this.cache.attrs = data;
+          this.currentItem.type = 'product';
+        } catch {
+          this.cache.attrs = { sys_id: item.id };
+        }
+        this._renderCurrentTab();
+      }
+    } catch (err) {
+      this.contentContainer.innerHTML = `<div class="property-empty"><div>Ошибка: ${this._esc(err.message)}</div></div>`;
+    } finally {
+      removeSpinner(this.contentContainer);
+    }
+  }
+
+  async _renderCurrentTab() {
+    const item = this.currentItem;
+    if (!item) { this._showEmpty(); return; }
+
+    if (this.currentTab === 'attrs') {
+      this._renderAttributes();
+    } else if (this.currentTab === 'chars') {
+      await this._renderCharacteristics();
+    } else if (this.currentTab === 'docs') {
+      await this._renderDocuments();
+    }
+  }
+
+  _renderAttributes() {
+    const data = this.cache.attrs;
+    if (!data) { this._showEmpty('Нет данных'); return; }
+
+    let html = '<div style="padding:4px 0;">';
+
+    if (this.currentItem.type === 'product' || this.currentItem.type === 'Product') {
+      const fields = [
+        ['ID', data.sys_id],
+        ['Обозначение', data.product_id],
+        ['Наименование', data.name],
+        ['Тип', data.type],
+        ['Категория', data.category],
+        ['Описание', data.description],
+        ['Статус', data.status],
+        ['Версия', data.version],
+      ];
+      fields.forEach(([k, v]) => {
+        if (v != null && v !== '') {
+          html += `<div class="prop-pair"><span class="prop-key">${k}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
+        }
+      });
+
+      // Additional dynamic attributes
+      const skipKeys = new Set(['sys_id', 'product_id', 'name', 'type', 'category', 'description', 'status', 'version', 'characteristics', 'documents', 'children']);
+      Object.entries(data).forEach(([k, v]) => {
+        if (!skipKeys.has(k) && v != null && v !== '' && typeof v !== 'object') {
+          html += `<div class="prop-pair"><span class="prop-key">${this._esc(k)}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
+        }
+      });
+    } else if (this.currentItem.type === 'process' || this.currentItem.type === 'Process') {
+      const fields = [
+        ['Наименование', data.name],
+        ['Подразделение', data.org_unit],
+        ['Тип процесса', data.process_type],
+      ];
+      fields.forEach(([k, v]) => {
+        if (v != null && v !== '') {
+          html += `<div class="prop-pair"><span class="prop-key">${k}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
+        }
+      });
+
+      if (data.operations && data.operations.length) {
+        html += '<div style="margin-top:12px;"><div class="prop-key" style="margin-bottom:6px;">Операции</div>';
+        html += '<table class="prop-table"><thead><tr><th>#</th><th>Операция</th></tr></thead><tbody>';
+        data.operations.forEach((op, i) => {
+          html += `<tr><td>${i + 1}</td><td>${this._esc(op.name || '')}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+      }
+    } else {
+      Object.entries(data).forEach(([k, v]) => {
+        if (v != null && v !== '' && typeof v !== 'object') {
+          html += `<div class="prop-pair"><span class="prop-key">${this._esc(k)}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
+        }
+      });
+    }
+
+    html += '</div>';
+    this.contentContainer.innerHTML = html;
+  }
+
+  async _renderCharacteristics() {
+    if (this.cache.chars) {
+      this._displayChars(this.cache.chars);
+      return;
+    }
+    const item = this.currentItem;
+    if (!item) return;
+    showSpinner(this.contentContainer);
+    try {
+      // Try product characteristics
+      const chars = await api.productChars(item.id);
+      this.cache.chars = Array.isArray(chars) ? chars : [];
+      this._displayChars(this.cache.chars);
+    } catch {
+      this.cache.chars = [];
+      // Fallback: check if attrs has characteristics embedded
+      if (this.cache.attrs && this.cache.attrs.characteristics) {
+        this.cache.chars = this.cache.attrs.characteristics;
+        this._displayChars(this.cache.chars);
+      } else {
+        this.contentContainer.innerHTML = '<div class="property-empty"><div>Характеристики не найдены</div></div>';
+      }
+    } finally {
+      removeSpinner(this.contentContainer);
+    }
+  }
+
+  _displayChars(chars) {
+    if (!chars.length) {
+      this.contentContainer.innerHTML = '<div class="property-empty"><div>Характеристики отсутствуют</div></div>';
+      return;
+    }
+    let html = '<table class="prop-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>';
+    chars.forEach(c => {
+      html += `<tr><td>${this._esc(c.name || '')}</td><td>${this._esc(String(c.value != null ? c.value : ''))}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    this.contentContainer.innerHTML = html;
+  }
+
+  async _renderDocuments() {
+    if (this.cache.docs) {
+      this._displayDocs(this.cache.docs);
+      return;
+    }
+    const item = this.currentItem;
+    if (!item) return;
+    showSpinner(this.contentContainer);
+    try {
+      const docs = await api.documents(item.id);
+      this.cache.docs = Array.isArray(docs) ? docs : [];
+      this._displayDocs(this.cache.docs);
+    } catch {
+      this.cache.docs = [];
+      if (this.cache.attrs && this.cache.attrs.documents) {
+        this.cache.docs = this.cache.attrs.documents;
+        this._displayDocs(this.cache.docs);
+      } else {
+        this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы не найдены</div></div>';
+      }
+    } finally {
+      removeSpinner(this.contentContainer);
+    }
+  }
+
+  _displayDocs(docs) {
+    if (!docs.length) {
+      this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы отсутствуют</div></div>';
+      return;
+    }
+    let html = '<table class="prop-table"><thead><tr><th>Документ</th><th>Код</th><th>Тип</th></tr></thead><tbody>';
+    docs.forEach(d => {
+      html += `<tr>
+        <td>${this._esc(d.name || '')}</td>
+        <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
+        <td>${this._esc(d.type || '')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    this.contentContainer.innerHTML = html;
+  }
+
+  _showEmpty(msg) {
+    this.contentContainer.innerHTML = `<div class="property-empty"><div class="property-empty-icon">📝</div><div>${msg || 'Выберите элемент для просмотра свойств'}</div></div>`;
+  }
+
+  _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+}
+
+// ===== Search Controller =====
+class SearchController {
+  constructor(inputId, btnId) {
+    this.$input = document.getElementById(inputId);
+    this.$btn = document.getElementById(btnId);
+
+    this.$btn.addEventListener('click', () => this.doSearch());
+    this.$input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.doSearch();
+    });
+  }
+
+  async doSearch() {
+    const q = this.$input.value.trim();
+    if (!q) return;
+    if (q.length < 2) {
+      toaster.show('Введите минимум 2 символа для поиска', 'warning');
+      return;
+    }
+    const contentArea = document.getElementById('contentArea');
+    showSpinner(contentArea);
+    try {
+      const results = await api.productSearch(q);
+      contentView.showSearchResults(Array.isArray(results) ? results : []);
+      toaster.show(`Найдено: ${Array.isArray(results) ? results.length : 0}`, 'info', 2000);
+    } catch (err) {
+      toaster.show('Ошибка поиска: ' + err.message, 'error');
+    } finally {
+      removeSpinner(contentArea);
+    }
+  }
+}
+
+// ===== Report Manager =====
+class ReportManager {
+  constructor() {
+    this.$btn = document.getElementById('btnReports');
+    this.$menu = document.getElementById('reportMenu');
+    this.modal = new ModalController('reportModal');
+    this.reports = [];
+    this.isOpen = false;
+
+    this.$btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleMenu();
+    });
+    document.addEventListener('click', () => this.closeMenu());
+    document.getElementById('reportModalClose').addEventListener('click', () => this.modal.close());
+
+    bus.on('connected', () => this.loadReports());
+  }
+
+  async loadReports() {
+    try {
+      const reports = await api.reportList();
+      this.reports = Array.isArray(reports) ? reports : [];
+      this._renderMenu();
+    } catch {
+      this.reports = [];
+    }
+  }
+
+  _renderMenu() {
+    if (!this.reports.length) {
+      this.$menu.innerHTML = '<div class="report-menu-item"><div class="report-menu-item-title text-muted">Нет доступных отчётов</div></div>';
+      return;
+    }
+    this.$menu.innerHTML = '';
+    this.reports.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'report-menu-item';
+      item.innerHTML = `<div class="report-menu-item-title">${this._esc(r.title || r.name)}</div>
+        ${r.description ? `<div class="report-menu-item-desc">${this._esc(r.description)}</div>` : ''}`;
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.closeMenu();
+        this.openReport(r);
+      });
+      this.$menu.appendChild(item);
+    });
+  }
+
+  toggleMenu() {
+    this.isOpen = !this.isOpen;
+    this.$menu.classList.toggle('open', this.isOpen);
+  }
+
+  closeMenu() {
+    this.isOpen = false;
+    this.$menu.classList.remove('open');
+  }
+
+  async openReport(report) {
+    document.getElementById('reportModalTitle').textContent = report.title || report.name;
+    const body = document.getElementById('reportModalBody');
+    body.innerHTML = '<div class="spinner-overlay" style="position:relative;height:200px;"><div class="spinner"></div></div>';
+    this.modal.open();
+
+    // Gather params: if the report needs product_id, use current selection
+    const params = {};
+    if (report.params && report.params.length) {
+      report.params.forEach(p => {
+        const paramName = typeof p === 'string' ? p : (p.name || '');
+        if (paramName === 'product_id' && propertyPanel.currentItem) {
+          params.product_id = propertyPanel.currentItem.id;
+        }
+      });
+    }
+
+    try {
+      const html = await api.report(report.name, params);
+      if (typeof html === 'string') {
+        const iframe = document.createElement('iframe');
+        iframe.className = 'report-frame';
+        iframe.srcdoc = html;
+        body.innerHTML = '';
+        body.appendChild(iframe);
+      } else {
+        body.innerHTML = '<div style="padding:20px;">Неподдерживаемый формат отчёта</div>';
+      }
+    } catch (err) {
+      body.innerHTML = `<div style="padding:20px;color:var(--danger);">Ошибка: ${this._esc(err.message)}</div>`;
+    }
+  }
+
+  _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+}
+
+// ===== Resize Panels =====
+class PanelResizer {
+  constructor(handleId, panelId, side) {
+    this.handle = document.getElementById(handleId);
+    this.panel = document.getElementById(panelId);
+    this.side = side; // 'left' or 'right'
+    this.dragging = false;
+
+    this.handle.addEventListener('mousedown', (e) => this._start(e));
+    document.addEventListener('mousemove', (e) => this._move(e));
+    document.addEventListener('mouseup', () => this._stop());
+  }
+
+  _start(e) {
+    e.preventDefault();
+    this.dragging = true;
+    this.handle.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  _move(e) {
+    if (!this.dragging) return;
+    const rect = this.panel.parentElement.getBoundingClientRect();
+    if (this.side === 'left') {
+      let w = e.clientX - rect.left;
+      w = Math.max(180, Math.min(w, 500));
+      this.panel.style.width = w + 'px';
+    } else {
+      let w = rect.right - e.clientX;
+      w = Math.max(200, Math.min(w, 550));
+      this.panel.style.width = w + 'px';
+    }
+  }
+
+  _stop() {
+    if (!this.dragging) return;
+    this.dragging = false;
+    this.handle.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+}
+
+// ===== Status Bar Updater =====
+class StatusBarUpdater {
+  constructor() {
+    this.$lastOp = document.getElementById('sbLastOp');
+    this.$queryCount = document.getElementById('sbQueryCount');
+
+    bus.on('last-op', (ms) => {
+      this.$lastOp.textContent = ms + ' мс';
+    });
+    bus.on('query-count', (n) => {
+      this.$queryCount.textContent = n;
+    });
+    bus.on('api-error', (err) => {
+      toaster.show(err.message || 'Ошибка API', 'error');
+    });
+  }
+}
+
+// ===== Initialize Application =====
+let breadcrumb, contentView, propertyPanel;
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Components
+  const conn = new ConnectionManager();
+  const tree = new FolderTreeView('treeContainer');
+  breadcrumb = new BreadcrumbNav('breadcrumbBar');
+  contentView = new ContentView('contentArea');
+  propertyPanel = new PropertyPanel('propertyTabs', 'propertyContent');
+  const search = new SearchController('searchInput', 'btnSearch');
+  const reports = new ReportManager();
+  const statusBar = new StatusBarUpdater();
+
+  // Resizers
+  new PanelResizer('resizeLeft', 'panelLeft', 'left');
+  new PanelResizer('resizeRight', 'panelRight', 'right');
+
+  // Product open (double-click in table)
+  bus.on('product-open', async (data) => {
+    try {
+      const product = await api.product(data.id);
+      contentView.loadProductBOM(data.id, product.name || product.product_id || '');
+    } catch (err) {
+      toaster.show('Ошибка открытия изделия: ' + err.message, 'error');
+    }
+  });
+
+  // Process open (double-click in table)
+  bus.on('process-open', async (data) => {
+    breadcrumb.push('Техпроцесс');
+    contentView.loadProcessDetails(data.id);
+  });
+
+  // Check connection on load
+  conn.checkStatus();
+
+  // Keyboard shortcut: Ctrl+K for search focus
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      document.getElementById('searchInput').focus();
+    }
+    if (e.key === 'Escape') {
+      // Close any open modal
+      document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
+    }
+  });
+});
+</script>
+</body>
+</html>

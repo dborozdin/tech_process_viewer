@@ -1,0 +1,2958 @@
+components:
+  responses:
+    DEFAULT_ERROR:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Default error response
+    UNPROCESSABLE_ENTITY:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Unprocessable Entity
+  schemas:
+    BOMItem:
+      properties:
+        attributes:
+          $ref: '#/components/schemas/BOMItemAttributes'
+        id:
+          description: BOM item system ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      required:
+      - id
+      type: object
+    BOMItemAttributes:
+      properties:
+        reference_designator:
+          description: Component designation (e.g., R1, C2)
+          type: string
+        related_product_definition:
+          additionalProperties: {}
+          description: Child product definition (component)
+          type: object
+        relating_product_definition:
+          additionalProperties: {}
+          description: Parent product definition
+          type: object
+        unit_component:
+          additionalProperties: {}
+          description: Unit of measurement
+          type: object
+        value_component:
+          description: Quantity
+          type: number
+      type: object
+    BOMItemCreate:
+      properties:
+        component_id:
+          description: Component product definition ID
+          type: integer
+        quantity:
+          description: Quantity
+          type: number
+        reference_designator:
+          description: Reference designator (e.g., R1, C2)
+          type: string
+        unit_id:
+          description: Unit of measurement ID
+          type: integer
+      required:
+      - component_id
+      - quantity
+      type: object
+    BOMItemUpdate:
+      properties:
+        quantity:
+          description: Quantity
+          type: number
+        reference_designator:
+          description: Reference designator
+          type: string
+        unit_id:
+          description: Unit of measurement ID
+          type: integer
+      type: object
+    BOMResponse:
+      properties:
+        bom_item_id:
+          description: BOM item ID
+          type: integer
+        data:
+          allOf:
+          - $ref: '#/components/schemas/BOMItem'
+          description: BOM item data
+        message:
+          description: Response message
+          type: string
+        success:
+          description: Operation success
+          type: boolean
+      required:
+      - success
+      type: object
+    BOMStructure:
+      properties:
+        components:
+          description: List of components
+          items:
+            $ref: '#/components/schemas/BOMItem'
+          type: array
+        product_definition_id:
+          description: Product definition ID
+          type: integer
+        product_name:
+          description: Product name
+          type: string
+        total_components:
+          description: Total number of components
+          type: integer
+      required:
+      - product_definition_id
+      type: object
+    BusinessProcess:
+      properties:
+        access:
+          description: Access level
+          type: string
+        attributes:
+          $ref: '#/components/schemas/BusinessProcessAttributes'
+        id:
+          description: System ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      required:
+      - attributes
+      - id
+      - type
+      type: object
+    BusinessProcessAttributes:
+      properties:
+        customized:
+          description: Whether process is customized
+          type: boolean
+        description:
+          default: ''
+          description: Process description
+          type: string
+        elements:
+          description: Sub-processes/phases
+          items:
+            $ref: '#/components/schemas/BusinessProcessElement'
+          type: array
+        id:
+          description: Business process ID (business key)
+          type: string
+        name:
+          description: Process name
+          type: string
+        resources:
+          description: Process resources
+          items:
+            $ref: '#/components/schemas/BusinessProcessResourceReference'
+          type: array
+        type:
+          allOf:
+          - $ref: '#/components/schemas/BusinessProcessType'
+          description: Process type reference
+      required:
+      - name
+      type: object
+    BusinessProcessCreate:
+      properties:
+        customized:
+          default: false
+          description: Whether process is customized
+          type: boolean
+        description:
+          default: ''
+          description: Process description
+          type: string
+        id:
+          description: Business process ID (optional, will be generated if not provided)
+          type: string
+        name:
+          description: Process name
+          type: string
+        parent_id:
+          description: Parent process ID (if this is a sub-process)
+          type: integer
+        type_id:
+          description: Process type system ID
+          type: integer
+      required:
+      - name
+      type: object
+    BusinessProcessDetail:
+      properties:
+        customized:
+          description: Whether process is customized
+          type: boolean
+        description:
+          description: Process description
+          type: string
+        documents:
+          description: Related documents
+          items:
+            additionalProperties: {}
+            type: object
+          type: array
+        elements:
+          description: Sub-processes
+          items:
+            $ref: '#/components/schemas/BusinessProcessListItem'
+          type: array
+        name:
+          description: Process name
+          type: string
+        org_unit:
+          description: Organizational unit
+          type: string
+        process_id:
+          description: Process system ID
+          type: integer
+        process_type:
+          description: Process type (Typical/Customized)
+          type: string
+        resources:
+          description: Process resources
+          items:
+            additionalProperties: {}
+            type: object
+          type: array
+      required:
+      - name
+      - process_id
+      type: object
+    BusinessProcessElement:
+      properties:
+        id:
+          description: Element system ID
+          type: integer
+        type:
+          description: Element type
+          type: string
+      required:
+      - id
+      type: object
+    BusinessProcessElementCreate:
+      properties:
+        element_id:
+          description: ID of existing process to add as sub-element
+          type: integer
+      required:
+      - element_id
+      type: object
+    BusinessProcessListItem:
+      properties:
+        customized:
+          description: Whether process is customized
+          type: boolean
+        description:
+          description: Process description
+          type: string
+        name:
+          description: Process name
+          type: string
+        org_unit:
+          description: Organizational unit
+          type: string
+        process_id:
+          description: Process system ID
+          type: integer
+        process_type:
+          description: Process type (Typical/Customized)
+          type: string
+      required:
+      - name
+      - process_id
+      type: object
+    BusinessProcessListResponse:
+      properties:
+        page:
+          description: Current page
+          type: integer
+        per_page:
+          description: Items per page
+          type: integer
+        processes:
+          items:
+            $ref: '#/components/schemas/BusinessProcessListItem'
+          type: array
+        total:
+          description: Total number of processes
+          type: integer
+      required:
+      - processes
+      type: object
+    BusinessProcessResourceCreate:
+      properties:
+        object_id:
+          description: Object ID (organization, product, etc.)
+          type: integer
+        type_id:
+          description: Resource type ID
+          type: integer
+        unit_id:
+          description: Unit of measurement ID
+          type: integer
+        value_component:
+          description: Resource value (e.g., time in hours)
+          type: number
+      required:
+      - type_id
+      type: object
+    BusinessProcessResourceReference:
+      properties:
+        id:
+          description: Resource system ID
+          type: integer
+        type:
+          description: Resource type
+          type: string
+      required:
+      - id
+      type: object
+    BusinessProcessResourceUpdate:
+      properties:
+        object_id:
+          description: Object ID
+          type: integer
+        unit_id:
+          description: Unit ID
+          type: integer
+        value_component:
+          description: Resource value
+          type: number
+      type: object
+    BusinessProcessResponse:
+      properties:
+        data:
+          allOf:
+          - $ref: '#/components/schemas/BusinessProcess'
+          description: Business process data
+        message:
+          description: Response message
+          type: string
+        process_id:
+          description: Created/updated process ID
+          type: integer
+        success:
+          description: Operation success
+          type: boolean
+      required:
+      - success
+      type: object
+    BusinessProcessType:
+      properties:
+        id:
+          description: Process type ID
+          type: integer
+        name:
+          description: Process type name
+          type: string
+      required:
+      - id
+      type: object
+    BusinessProcessUpdate:
+      properties:
+        customized:
+          description: Whether process is customized
+          type: boolean
+        description:
+          description: Process description
+          type: string
+        name:
+          description: Process name
+          type: string
+        type_id:
+          description: Process type system ID
+          type: integer
+      type: object
+    ConnectRequest:
+      properties:
+        db:
+          default: pss_moma_08_07_2025
+          description: Database name to connect to
+          type: string
+        password:
+          default: ''
+          description: Password (optional, not used in current implementation)
+          type: string
+        server_port:
+          default: http://localhost:7239
+          description: PSS server URL (e.g., http://localhost:7239)
+          type: string
+        user:
+          default: Administrator
+          description: Username for authentication
+          type: string
+      type: object
+    ConnectResponse:
+      properties:
+        connected:
+          description: Connection status
+          type: boolean
+        db:
+          description: Connected database name
+          type: string
+        session_key:
+          description: Session key for X-APL-SessionKey header
+          type: string
+        user:
+          description: Connected user
+          type: string
+      type: object
+    DisconnectResponse:
+      properties:
+        disconnected:
+          description: Disconnection status
+          type: boolean
+        message:
+          description: Status message
+          type: string
+      type: object
+    Document:
+      properties:
+        customized:
+          description: Whether document is customized
+          nullable: true
+          type: boolean
+        description:
+          description: Document description
+          nullable: true
+          type: string
+        id:
+          description: Document ID
+          type: string
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/Reference'
+          description: Document kind/type reference
+          nullable: true
+        name:
+          description: Document name
+          type: string
+        status:
+          description: Document status
+          nullable: true
+          type: string
+        version_id:
+          description: Version identifier
+          nullable: true
+          type: string
+      type: object
+    DocumentCreate:
+      properties:
+        description:
+          description: Document description
+          nullable: true
+          type: string
+        id:
+          description: Document ID
+          type: string
+        kind_id:
+          description: Document kind/type sys_id
+          nullable: true
+          type: integer
+        name:
+          description: Document name
+          type: string
+        status:
+          description: Document status
+          nullable: true
+          type: string
+        version_id:
+          description: Version identifier
+          nullable: true
+          type: string
+      required:
+      - id
+      - name
+      type: object
+    DocumentDetail:
+      properties:
+        access:
+          description: Access level
+          type: string
+        attributes:
+          allOf:
+          - $ref: '#/components/schemas/Document'
+          description: Document attributes
+        sys_id:
+          description: System ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      type: object
+    DocumentListItem:
+      properties:
+        document_id:
+          description: Document system ID
+          type: integer
+        id:
+          description: Document ID
+          type: string
+        kind_name:
+          description: Document kind name
+          nullable: true
+          type: string
+        name:
+          description: Document name
+          type: string
+        status:
+          description: Status
+          nullable: true
+          type: string
+        version_id:
+          description: Version ID
+          nullable: true
+          type: string
+      type: object
+    DocumentListResponse:
+      properties:
+        documents:
+          description: List of documents
+          items:
+            $ref: '#/components/schemas/DocumentListItem'
+          type: array
+        page:
+          description: Current page number
+          type: integer
+        per_page:
+          description: Items per page
+          type: integer
+        total:
+          description: Total number of documents
+          type: integer
+      type: object
+    DocumentReference:
+      properties:
+        document_code:
+          description: Document code/ID
+          type: string
+        document_id:
+          description: Document system ID
+          type: integer
+        document_name:
+          description: Document name
+          type: string
+        item_id:
+          description: Item system ID
+          type: integer
+        reference_id:
+          description: Document reference system ID
+          type: integer
+      type: object
+    DocumentReferenceCreate:
+      properties:
+        document_id:
+          description: System ID of document to link
+          type: integer
+        item_id:
+          description: System ID of item to link document to
+          type: integer
+        reference_type:
+          description: Type of reference
+          nullable: true
+          type: string
+      required:
+      - document_id
+      - item_id
+      type: object
+    DocumentReferenceListResponse:
+      properties:
+        item_id:
+          description: Item system ID
+          type: integer
+        references:
+          description: Document references
+          items:
+            $ref: '#/components/schemas/DocumentReference'
+          type: array
+        total:
+          description: Total number of references
+          type: integer
+      type: object
+    DocumentResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Document data
+          type: object
+        document_id:
+          description: Document system ID
+          type: integer
+        message:
+          description: Success message
+          type: string
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    DocumentUpdate:
+      properties:
+        description:
+          description: Document description
+          nullable: true
+          type: string
+        kind_id:
+          description: Document kind/type sys_id
+          nullable: true
+          type: integer
+        name:
+          description: Document name
+          nullable: true
+          type: string
+        status:
+          description: Document status
+          nullable: true
+          type: string
+        version_id:
+          description: Version identifier
+          nullable: true
+          type: string
+      type: object
+    Error:
+      properties:
+        code:
+          description: Error code
+          type: integer
+        errors:
+          additionalProperties: {}
+          description: Errors
+          type: object
+        message:
+          description: Error message
+          type: string
+        status:
+          description: Error name
+          type: string
+      type: object
+    Error1:
+      properties:
+        details:
+          additionalProperties: {}
+          description: Additional error details
+          type: object
+        error:
+          description: Error message
+          type: string
+        message:
+          description: Detailed error description
+          type: string
+        status_code:
+          description: HTTP status code
+          type: integer
+      required:
+      - error
+      type: object
+    ErrorResponse:
+      properties:
+        connected:
+          description: Connection status (false)
+          type: boolean
+        message:
+          description: Error message
+          type: string
+      type: object
+    FileUploadResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Response data
+          type: object
+        document_id:
+          description: Document system ID
+          type: integer
+        filename:
+          description: Uploaded filename
+          type: string
+        message:
+          description: Success message
+          type: string
+        size:
+          description: File size in bytes
+          type: integer
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    Organization:
+      properties:
+        customized:
+          description: Whether organization is customized
+          nullable: true
+          type: boolean
+        description:
+          description: Description
+          nullable: true
+          type: string
+        id:
+          description: Organization ID
+          type: string
+        name:
+          description: Organization name
+          type: string
+      type: object
+    OrganizationCreate:
+      properties:
+        description:
+          description: Description
+          nullable: true
+          type: string
+        id:
+          description: Organization ID
+          type: string
+        name:
+          description: Organization name
+          type: string
+      required:
+      - id
+      - name
+      type: object
+    OrganizationDetail:
+      properties:
+        access:
+          description: Access level
+          type: string
+        attributes:
+          allOf:
+          - $ref: '#/components/schemas/Organization'
+          description: Organization attributes
+        sys_id:
+          description: System ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      type: object
+    OrganizationListItem:
+      properties:
+        description:
+          description: Description
+          nullable: true
+          type: string
+        id:
+          description: Organization ID
+          type: string
+        name:
+          description: Organization name
+          type: string
+        organization_id:
+          description: Organization system ID
+          type: integer
+      type: object
+    OrganizationListResponse:
+      properties:
+        organizations:
+          description: List of organizations
+          items:
+            $ref: '#/components/schemas/OrganizationListItem'
+          type: array
+        page:
+          description: Current page number
+          type: integer
+        per_page:
+          description: Items per page
+          type: integer
+        total:
+          description: Total number of organizations
+          type: integer
+      type: object
+    OrganizationResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Organization data
+          type: object
+        message:
+          description: Success message
+          type: string
+        organization_id:
+          description: Organization system ID
+          type: integer
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    OrganizationUpdate:
+      properties:
+        description:
+          description: Description
+          nullable: true
+          type: string
+        name:
+          description: Organization name
+          nullable: true
+          type: string
+      type: object
+    PaginationMetadata:
+      properties:
+        first_page:
+          type: integer
+        last_page:
+          type: integer
+        next_page:
+          type: integer
+        page:
+          type: integer
+        previous_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+      type: object
+    Product:
+      properties:
+        access:
+          description: Access level
+          type: string
+        attributes:
+          $ref: '#/components/schemas/ProductAttributes'
+        id:
+          description: System ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      required:
+      - attributes
+      - id
+      - type
+      type: object
+    ProductAttributes:
+      properties:
+        code:
+          description: Product code
+          type: string
+        description:
+          default: ''
+          description: Product description
+          type: string
+        guid:
+          description: Global unique identifier
+          type: string
+        id:
+          description: Product ID (business key)
+          type: string
+        name:
+          description: Product name
+          type: string
+      required:
+      - name
+      type: object
+    ProductCreate:
+      properties:
+        code:
+          description: Product code
+          type: string
+        description:
+          default: ''
+          description: Product description
+          type: string
+        guid:
+          description: Global unique identifier
+          type: string
+        id:
+          description: Product ID (optional, will be generated if not provided)
+          type: string
+        name:
+          description: Product name
+          type: string
+      required:
+      - name
+      type: object
+    ProductDefinitionAttributes:
+      properties:
+        code1:
+          description: Code 1
+          type: string
+        code2:
+          description: Code 2
+          type: string
+        description:
+          description: Definition description
+          type: string
+        id:
+          description: Definition ID
+          type: string
+        of_product:
+          allOf:
+          - $ref: '#/components/schemas/ProductReference'
+          description: Reference to product
+      type: object
+    ProductDefinitionCreate:
+      properties:
+        code1:
+          description: Code 1
+          type: string
+        code2:
+          description: Code 2
+          type: string
+        description:
+          description: Version description
+          type: string
+        id:
+          description: Definition ID
+          type: string
+      required:
+      - description
+      type: object
+    ProductDefinitionFormation:
+      properties:
+        attributes:
+          $ref: '#/components/schemas/ProductDefinitionAttributes'
+        id:
+          description: Formation system ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      required:
+      - id
+      type: object
+    ProductDefinitionListResponse:
+      properties:
+        definitions:
+          items:
+            $ref: '#/components/schemas/ProductDefinitionFormation'
+          type: array
+        product_id:
+          description: Product system ID
+          type: integer
+        total:
+          description: Total number of versions
+          type: integer
+      required:
+      - definitions
+      - product_id
+      type: object
+    ProductDefinitionResponse:
+      properties:
+        data:
+          allOf:
+          - $ref: '#/components/schemas/ProductDefinitionFormation'
+          description: Product definition data
+        definition_id:
+          description: Created/updated definition ID
+          type: integer
+        message:
+          description: Response message
+          type: string
+        success:
+          description: Operation success
+          type: boolean
+      required:
+      - success
+      type: object
+    ProductDefinitionUpdate:
+      properties:
+        code1:
+          description: Code 1
+          type: string
+        code2:
+          description: Code 2
+          type: string
+        description:
+          description: Version description
+          type: string
+      type: object
+    ProductDetail:
+      properties:
+        definition_count:
+          description: Number of versions
+          type: integer
+        definitions:
+          description: Product versions
+          items:
+            $ref: '#/components/schemas/ProductDefinitionFormation'
+          type: array
+        product:
+          $ref: '#/components/schemas/Product'
+      required:
+      - product
+      type: object
+    ProductListItem:
+      properties:
+        code:
+          description: Product code
+          type: string
+        description:
+          description: Product description
+          type: string
+        has_versions:
+          description: Whether product has versions
+          type: boolean
+        id:
+          description: Product business ID
+          type: string
+        name:
+          description: Product name
+          type: string
+        product_id:
+          description: Product system ID
+          type: integer
+      required:
+      - name
+      - product_id
+      type: object
+    ProductListResponse:
+      properties:
+        page:
+          description: Current page
+          type: integer
+        per_page:
+          description: Items per page
+          type: integer
+        products:
+          items:
+            $ref: '#/components/schemas/ProductListItem'
+          type: array
+        total:
+          description: Total number of products
+          type: integer
+      required:
+      - products
+      type: object
+    ProductReference:
+      properties:
+        id:
+          description: Product system ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      required:
+      - id
+      type: object
+    ProductResponse:
+      properties:
+        data:
+          allOf:
+          - $ref: '#/components/schemas/Product'
+          description: Product data
+        message:
+          description: Response message
+          type: string
+        product_id:
+          description: Created/updated product ID
+          type: integer
+        success:
+          description: Operation success
+          type: boolean
+      required:
+      - success
+      type: object
+    ProductUpdate:
+      properties:
+        code:
+          description: Product code
+          type: string
+        description:
+          description: Product description
+          type: string
+        name:
+          description: Product name
+          type: string
+      type: object
+    Reference:
+      properties:
+        id:
+          description: Object system ID
+          type: integer
+        type:
+          description: Object type
+          type: string
+      required:
+      - id
+      type: object
+    Resource:
+      properties:
+        object:
+          allOf:
+          - $ref: '#/components/schemas/Reference'
+          description: Resource object reference
+          nullable: true
+        process:
+          allOf:
+          - $ref: '#/components/schemas/Reference'
+          description: Business process reference
+          nullable: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/Reference'
+          description: Resource type reference
+          nullable: true
+        unit_component:
+          allOf:
+          - $ref: '#/components/schemas/Reference'
+          description: Unit reference
+          nullable: true
+        value_component:
+          description: Resource quantity/value
+          nullable: true
+          type: number
+      type: object
+    ResourceCreate:
+      properties:
+        object_id:
+          description: Resource object system ID
+          nullable: true
+          type: integer
+        process_id:
+          description: Business process system ID
+          type: integer
+        type_id:
+          description: Resource type system ID
+          type: integer
+        unit_id:
+          description: Unit system ID
+          nullable: true
+          type: integer
+        value_component:
+          description: Resource quantity/value
+          nullable: true
+          type: number
+      required:
+      - process_id
+      - type_id
+      type: object
+    ResourceDetail:
+      properties:
+        access:
+          description: Access level
+          type: string
+        attributes:
+          allOf:
+          - $ref: '#/components/schemas/Resource'
+          description: Resource attributes
+        sys_id:
+          description: System ID
+          type: integer
+        type:
+          description: Entity type
+          type: string
+      type: object
+    ResourceListItem:
+      properties:
+        process_id:
+          description: Business process ID
+          nullable: true
+          type: integer
+        resource_id:
+          description: Resource system ID
+          type: integer
+        type_name:
+          description: Resource type name
+          nullable: true
+          type: string
+        unit_name:
+          description: Unit name
+          nullable: true
+          type: string
+        value_component:
+          description: Quantity/value
+          nullable: true
+          type: number
+      type: object
+    ResourceListResponse:
+      properties:
+        page:
+          description: Current page number
+          type: integer
+        per_page:
+          description: Items per page
+          type: integer
+        resources:
+          description: List of resources
+          items:
+            $ref: '#/components/schemas/ResourceListItem'
+          type: array
+        total:
+          description: Total number of resources
+          type: integer
+      type: object
+    ResourceResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Resource data
+          type: object
+        message:
+          description: Success message
+          type: string
+        resource_id:
+          description: Resource system ID
+          type: integer
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    ResourceType:
+      properties:
+        description:
+          description: Description
+          nullable: true
+          type: string
+        id:
+          description: Resource type ID
+          type: string
+        name:
+          description: Resource type name
+          type: string
+      type: object
+    ResourceTypeListResponse:
+      properties:
+        resource_types:
+          description: List of resource types
+          items:
+            $ref: '#/components/schemas/ResourceType'
+          type: array
+        total:
+          description: Total number of types
+          type: integer
+      type: object
+    ResourceUpdate:
+      properties:
+        object_id:
+          description: Resource object system ID
+          nullable: true
+          type: integer
+        unit_id:
+          description: Unit system ID
+          nullable: true
+          type: integer
+        value_component:
+          description: Resource quantity/value
+          nullable: true
+          type: number
+      type: object
+  securitySchemes:
+    SessionKey:
+      description: Session key obtained from /api/connect endpoint
+      in: header
+      name: X-APL-SessionKey
+      type: apiKey
+info:
+  contact:
+    name: API Support
+  description: REST API for managing technical processes, products, documents, and
+    resources in the PSS application
+  license:
+    name: Proprietary
+  title: Tech Process Viewer API
+  version: v1
+openapi: 3.0.3
+paths:
+  /api/connect:
+    post:
+      description: 'Connect to PSS database and obtain a session key.
+
+
+        **Usage:**
+
+        1. Call this endpoint with connection parameters
+
+        2. Copy the `session_key` from the response
+
+        3. Click "Authorize" button in Swagger UI
+
+        4. Paste the session_key into the value field
+
+        5. All subsequent API calls will use this session key
+
+
+        **Default values** will connect to local development database.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectResponse'
+          description: OK
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Connection failed
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      security: []
+      summary: Connect to PSS database
+      tags:
+      - auth
+  /api/dblist:
+    get:
+      description: Get list of available databases from PSS server. No authentication
+        required.
+      responses:
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      security: []
+      summary: Get list of available databases
+      tags:
+      - auth
+  /api/disconnect:
+    post:
+      description: Disconnect from PSS database and invalidate the session key.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisconnectResponse'
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Disconnect from PSS database
+      tags:
+      - auth
+  /api/entity-viewer/:
+    get:
+      description: Get list of all entity types defined in the dictionary
+      responses:
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all entity types
+      tags:
+      - entity_viewer
+  /api/entity-viewer/entities/{entity_name}:
+    get:
+      description: Get entity type schema and metadata
+      responses:
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get entity type details
+      tags:
+      - entity_viewer
+    parameters:
+    - in: path
+      name: entity_name
+      required: true
+      schema:
+        minLength: 1
+        type: string
+  /api/entity-viewer/entities/{entity_name}/count:
+    get:
+      description: Get count of instances for entity type (fast query)
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get instance count
+      tags:
+      - entity_viewer
+    parameters:
+    - in: path
+      name: entity_name
+      required: true
+      schema:
+        minLength: 1
+        type: string
+  /api/entity-viewer/entities/{entity_name}/instances:
+    get:
+      description: Get instances of entity type with pagination (start/size)
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List instances of entity type
+      tags:
+      - entity_viewer
+    parameters:
+    - in: path
+      name: entity_name
+      required: true
+      schema:
+        minLength: 1
+        type: string
+    post:
+      description: Create a new instance of entity type
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new instance
+      tags:
+      - entity_viewer
+  /api/entity-viewer/instances/{instance_id}:
+    delete:
+      description: Delete an instance (soft delete)
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Instance not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete an instance
+      tags:
+      - entity_viewer
+    get:
+      description: Get instance details with resolved references
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Instance not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get instance with resolved references
+      tags:
+      - entity_viewer
+    parameters:
+    - in: path
+      name: instance_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update instance attributes
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Instance not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update instance attributes
+      tags:
+      - entity_viewer
+  /api/entity-viewer/resolve/{instance_id}:
+    get:
+      description: Get instance details with reference attribute info for inline expansion
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Instance not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Resolve a reference for inline display
+      tags:
+      - entity_viewer
+    parameters:
+    - in: path
+      name: instance_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/status:
+    get:
+      description: Check if currently connected to a database.
+      responses:
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      security: []
+      summary: Check connection status
+      tags:
+      - auth
+  /api/v1/business-processes/:
+    get:
+      description: Get list of business processes with optional filtering
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all business processes
+      tags:
+      - business_processes
+    post:
+      description: Create a new business process
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessProcessCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new business process
+      tags:
+      - business_processes
+  /api/v1/business-processes/{process_id}:
+    delete:
+      description: Delete business process
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete business process
+      tags:
+      - business_processes
+    get:
+      description: Get business process details by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessDetail'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get business process by ID
+      tags:
+      - business_processes
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update business process
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessProcessUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update business process
+      tags:
+      - business_processes
+  /api/v1/business-processes/{process_id}/elements:
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Add a sub-process element to a business process
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessProcessElementCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessResponse'
+          description: Created
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Add element to business process
+      tags:
+      - business_processes
+  /api/v1/business-processes/{process_id}/elements/{element_id}:
+    delete:
+      description: Remove an element from a business process
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Remove element from business process
+      tags:
+      - business_processes
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    - in: path
+      name: element_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/business-processes/{process_id}/resources:
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Add a resource to a business process
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessProcessResourceCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessResponse'
+          description: Created
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Business process not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Add resource to business process
+      tags:
+      - business_processes
+  /api/v1/business-processes/{process_id}/resources/{resource_id}:
+    delete:
+      description: Delete a business process resource
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Resource not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete business process resource
+      tags:
+      - business_processes
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    - in: path
+      name: resource_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update a business process resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessProcessResourceUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessProcessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Resource not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update business process resource
+      tags:
+      - business_processes
+  /api/v1/documents/:
+    get:
+      description: Get list of documents with optional filtering
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all documents
+      tags:
+      - documents
+    post:
+      description: Create a new document (metadata only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new document
+      tags:
+      - documents
+  /api/v1/documents/items/{item_id}/documents:
+    get:
+      description: Get all documents linked to an item
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentReferenceListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List documents for an item
+      tags:
+      - documents
+    parameters:
+    - in: path
+      name: item_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Link a document to an item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentReferenceCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create document reference
+      tags:
+      - documents
+  /api/v1/documents/items/{item_id}/documents/{document_id}:
+    delete:
+      description: Unlink document from item
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Reference not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete document reference
+      tags:
+      - documents
+    parameters:
+    - in: path
+      name: item_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    - in: path
+      name: document_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/documents/{document_id}:
+    delete:
+      description: Delete document
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Document not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete document
+      tags:
+      - documents
+    get:
+      description: Get document details by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Document not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get document by ID
+      tags:
+      - documents
+    parameters:
+    - in: path
+      name: document_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update document metadata
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Document not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update document
+      tags:
+      - documents
+  /api/v1/documents/{document_id}/download:
+    get:
+      description: Download file content from document
+      responses:
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Document or file not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Download file from document
+      tags:
+      - documents
+    parameters:
+    - in: path
+      name: document_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/documents/{document_id}/upload:
+    parameters:
+    - in: path
+      name: document_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Upload file content to document
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+          description: OK
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: No file provided
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Document not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Upload file to document
+      tags:
+      - documents
+  /api/v1/organizations/:
+    get:
+      description: Get list of organizations with optional filtering
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all organizations
+      tags:
+      - organizations
+    post:
+      description: Create a new organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new organization
+      tags:
+      - organizations
+  /api/v1/organizations/{organization_id}:
+    delete:
+      description: Delete organization
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Organization not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete organization
+      tags:
+      - organizations
+    get:
+      description: Get organization details by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationDetail'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Organization not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get organization by ID
+      tags:
+      - organizations
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Organization not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update organization
+      tags:
+      - organizations
+  /api/v1/products/:
+    get:
+      description: Get list of products with optional filtering
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all products
+      tags:
+      - products
+    post:
+      description: Create a new product
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new product
+      tags:
+      - products
+  /api/v1/products/{product_id}:
+    delete:
+      description: Delete product
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete product
+      tags:
+      - products
+    get:
+      description: Get product details by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get product by ID
+      tags:
+      - products
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update product
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update product
+      tags:
+      - products
+  /api/v1/products/{product_id}/bom:
+    get:
+      description: Get BOM structure for a product
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BOMStructure'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get product BOM structure
+      tags:
+      - products
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/products/{product_id}/bom/items:
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Add a component to product BOM
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BOMItemCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BOMResponse'
+          description: Created
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Add component to BOM
+      tags:
+      - products
+  /api/v1/products/{product_id}/bom/items/{bom_item_id}:
+    delete:
+      description: Delete BOM item
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: BOM item not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete BOM item
+      tags:
+      - products
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    - in: path
+      name: bom_item_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update BOM item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BOMItemUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BOMResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: BOM item not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update BOM item
+      tags:
+      - products
+  /api/v1/products/{product_id}/versions:
+    get:
+      description: Get all versions of a product
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDefinitionListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List product versions
+      tags:
+      - products
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Create a new product version
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductDefinitionCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDefinitionResponse'
+          description: Created
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Product not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create product version
+      tags:
+      - products
+  /api/v1/products/{product_id}/versions/{version_id}:
+    delete:
+      description: Delete product version
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Version not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete product version
+      tags:
+      - products
+    get:
+      description: Get product version details
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDefinitionFormation'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Version not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get product version
+      tags:
+      - products
+    parameters:
+    - in: path
+      name: product_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    - in: path
+      name: version_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update product version
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductDefinitionUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDefinitionResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Version not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update product version
+      tags:
+      - products
+  /api/v1/resources/:
+    get:
+      description: Get list of resources with optional filtering
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all resources
+      tags:
+      - resources
+    post:
+      description: Create a new resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Invalid request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Create a new resource
+      tags:
+      - resources
+  /api/v1/resources/types:
+    get:
+      description: Get list of resource types
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypeListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: List all resource types
+      tags:
+      - resources
+  /api/v1/resources/{resource_id}:
+    delete:
+      description: Delete resource
+      responses:
+        '204':
+          description: No Content
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Resource not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Delete resource
+      tags:
+      - resources
+    get:
+      description: Get resource details by ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetail'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Resource not found
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Get resource by ID
+      tags:
+      - resources
+    parameters:
+    - in: path
+      name: resource_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not authenticated
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Resource not found
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      summary: Update resource
+      tags:
+      - resources
+security:
+- SessionKey: []
+servers:
+- description: Development server
+  url: http://localhost:5000
+- description: Backend PSS REST API server
+  url: http://localhost:7239
+tags:
+- description: Database authentication and session management
+  name: auth
+- description: Business process management endpoints
+  name: business_processes
+- description: Generic entity browser and editor
+  name: entity_viewer
+- description: Product management endpoints
+  name: products
+- description: Document management endpoints
+  name: documents
+- description: Resource management endpoints
+  name: resources
+- description: Organization management endpoints
+  name: organizations

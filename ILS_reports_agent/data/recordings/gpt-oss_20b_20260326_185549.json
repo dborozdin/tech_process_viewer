@@ -1,0 +1,84 @@
+{
+  "model": "gpt-oss:20b",
+  "provider": "unknown",
+  "user_question": "найди финальное изделие самолет",
+  "timestamp": "2026-03-26T18:55:49.371953",
+  "calls": [
+    {
+      "call_index": 0,
+      "response": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "call_oolsn6wf",
+            "type": "function",
+            "function": {
+              "name": "query_instances",
+              "arguments": "{\"entity_type\":\"apl_lss3_component\",\"filters\":\".is_fi = true AND .name_rus LIKE \\\"%самолёт%\\\"\",\"size\":10,\"start\":0}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "call_index": 1,
+      "response": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "call_9c1ncjw7",
+            "type": "function",
+            "function": {
+              "name": "query_instances",
+              "arguments": "{\"entity_type\":\"apl_lss3_component\",\"filters\":\".is_fi = true\",\"size\":10,\"start\":0}"
+            }
+          }
+        ]
+      },
+      "tool_results": {
+        "call_oolsn6wf": {
+          "tool_name": "query_instances",
+          "result": "{\"entity_type\": \"apl_lss3_component\", \"count\": 0, \"instances\": []}"
+        }
+      }
+    },
+    {
+      "call_index": 2,
+      "response": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "id": "call_13q8omi4",
+            "type": "function",
+            "function": {
+              "name": "format_html_report",
+              "arguments": "{\"columns\":[\"ID\",\"Название\",\"Вес\",\"Класс\",\"MTBF\"],\"rows\":[[\"С30М\",\"Самолет\",\"0\",\"→#12648 (apl_classifier_level)\",\"0\"]],\"title\":\"Финальное изделие: Самолет\"}"
+            }
+          }
+        ]
+      },
+      "tool_results": {
+        "call_9c1ncjw7": {
+          "tool_name": "query_instances",
+          "result": "{\"entity_type\": \"apl_lss3_component\", \"count\": 1, \"instances\": [{\"sys_id\": 9199, \"type\": \"apl_lss3_component\", \"id\": \"С30М\", \"name_rus\": \"Самолет\", \"recommend_as_part\": false, \"fnn\": \"NSN TEST\", \"spec_maint\": false, \"is_fi\": true, \"class\": \"→#12648 (apl_classifier_level)\", \"ref_intense_calc\": 0, \"ref_intense_fact\": 0, \"ref_intense_predict\": 0, \"mtbf_calc\": 0, \"mtbf_fact\": 0, \"mtbf_predict\": 0, \"mtbur_calc\": 0, \"mtbur_fact\": 0, \"mtbur_predict\": 0, \"repairability\": false, \"usage_resname\": \"→#8749 (ils_resource_name)\", \"kind\": \"→#6407 (apl_classifier_level)\", \"actual_supply_option\": \"→#10155 (apl_lss3_comp_org_rel)\", \"is_standard\": false, \"weight\": 0}]}"
+        }
+      }
+    },
+    {
+      "call_index": 3,
+      "response": {
+        "role": "assistant",
+        "content": "<div class=\"report\"><h2>Финальное изделие: Самолет</h2><table border=\"1\" cellpadding=\"5\" cellspacing=\"0\" style=\"border-collapse:collapse; width:100%\"><thead><tr><th style=\"background:#f0f0f0\">ID</th><th style=\"background:#f0f0f0\">Название</th><th style=\"background:#f0f0f0\">Вес</th><th style=\"background:#f0f0f0\">Класс</th><th style=\"background:#f0f0f0\">MTBF</th></tr></thead><tbody><tr><td>С30М</td><td>Самолет</td><td>0</td><td>→#12648 (apl_classifier_level)</td><td>0</td></tr></tbody></table><p><em>Всего записей: 1</em></p></div>"
+      },
+      "tool_results": {
+        "call_13q8omi4": {
+          "tool_name": "format_html_report",
+          "result": "{\"html\": \"<div class=\\\"report\\\">\\n<h2>Финальное изделие: Самолет</h2>\\n<table border=\\\"1\\\" cellpadding=\\\"5\\\" cellspacing=\\\"0\\\" style=\\\"border-collapse:collapse; width:100%\\\">\\n<thead><tr>\\n<th style=\\\"background:#f0f0f0\\\">ID</th>\\n<th style=\\\"background:#f0f0f0\\\">Название</th>\\n<th style=\\\"background:#f0f0f0\\\">Вес</th>\\n<th style=\\\"background:#f0f0f0\\\">Класс</th>\\n<th style=\\\"background:#f0f0f0\\\">MTBF</th>\\n</tr></thead>\\n<tbody>\\n<tr>\\n<td>С30М</td>\\n<td>Самолет</td>\\n<td>0</td>\\n<td>→#12648 (apl_classifier_level)</td>\\n<td>0</td>\\n</tr>\\n</tbody></table>\\n<p><em>Всего записей: 1</em></p>\\n</div>\"}"
+        }
+      }
+    }
+  ]
+}

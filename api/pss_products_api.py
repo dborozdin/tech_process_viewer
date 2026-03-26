@@ -336,3 +336,50 @@ class ProductsAPI:
             quantity=quantity,
             UOM=unit_id or 1  # Default unit
         )
+
+    # === New methods for PSS-C ===
+
+    def search_products(self, text, limit=50):
+        """Search products by id or name (case-insensitive LIKE)."""
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{product(.id LIKE "*{text}*" OR .name LIKE "*{text}*")}}
+        END_SELECT"""
+        result = self.db_api.query_apl(query)
+        if result and 'instances' in result:
+            return result['instances'][:limit]
+        return []
+
+    def get_product_characteristics(self, pdf_sys_id):
+        """Get characteristics (properties) for a product definition.
+
+        Queries apl_property_definition linked to the given product definition.
+        """
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_property_definition(.definition = #{pdf_sys_id})}}
+        END_SELECT"""
+        result = self.db_api.query_apl(query)
+        if result and 'instances' in result:
+            return result['instances']
+        return []
+
+    def set_product_characteristic(self, pdf_sys_id, char_name, char_value, char_type=None):
+        """Set a characteristic (property) on a product definition.
+
+        Creates or updates apl_property_definition for the given PDF.
+        """
+        attributes = {
+            "name": char_name,
+            "value": char_value,
+            "definition": {
+                "id": pdf_sys_id,
+                "type": "apl_product_definition_formation"
+            }
+        }
+        if char_type:
+            attributes["property_type"] = char_type
+
+        return self.db_api.create_instance('apl_property_definition', attributes)

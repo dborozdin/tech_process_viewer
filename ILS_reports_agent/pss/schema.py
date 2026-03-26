@@ -400,7 +400,7 @@ def get_schema(dict_path: str = None, html_path: str = None) -> Schema:
     global _schema_instance
     if _schema_instance is None:
         if dict_path is None:
-            from ILS.config import Config
+            from ILS_reports_agent.config import Config
             dict_path = Config.DICT_FILE_PATH
             html_path = Config.HTML_SCHEMA_PATH
         _schema_instance = Schema(dict_path, html_path)

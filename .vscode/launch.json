@@ -1,52 +1,94 @@
 {
-    // После запуска приложения доступны:
-    //   Просмотр техпроцессов: http://localhost:5000
-    //   Entity Viewer:         http://localhost:5000/entity-viewer
-    //   API документация:      http://localhost:5000/api/docs
-    //   ILS Report Agent:      http://localhost:5001
+    // 5 независимых приложений платформы PSS:
+    //   Tech Process Viewer: http://localhost:5000
+    //   ILS Reports Agent:   http://localhost:5001
+    //   PSS-C PDM:           http://localhost:5002
+    //   Entity Viewer:       http://localhost:5003
+    //   API Docs (Swagger):  http://localhost:5004/api/docs
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Flask App (Debug)",
+            "name": "Tech Process Viewer (5000)",
             "type": "debugpy",
             "request": "launch",
-            "module": "flask",
-            "args": [
-                "--app", "app:app",
-                "run",
-                "--debug",
-                "--port", "5000"
-            ],
+            "program": "${workspaceFolder}/tech_process_viewer_app.py",
             "env": {
-                "FLASK_ENV": "development"
+                "FLASK_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
             },
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-            "jinja": true,
-            "autoStartBrowser": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: app.py",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/app.py",
-            "env": {
-                "FLASK_ENV": "development"
-            },
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
-            "jinja": true,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "ILS Report Agent",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "ILS.app",
-            "envFile": "${workspaceFolder}/ILS/.env",
+            "python": "${workspaceFolder}/../.venv/Scripts/python.exe",
             "jinja": true,
             "console": "integratedTerminal",
             "serverReadyAction": {
-                "pattern": "ILS Report Agent: (https?://[a-zA-Z0-9.:/_-]+)",
+                "pattern": "Tech Process Viewer: (https?://[^\\s]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "ILS Reports Agent (5001)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ILS_reports_agent.app",
+            "envFile": "${workspaceFolder}/ILS_reports_agent/.env",
+            "jinja": true,
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "ILS Report Agent: (https?://[^\\s]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "PSS-C PDM (5002)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/PSS-C/app.py",
+            "env": {
+                "FLASK_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "python": "${workspaceFolder}/../.venv/Scripts/python.exe",
+            "console": "integratedTerminal",
+            "jinja": true,
+            "serverReadyAction": {
+                "pattern": "PSS-C PDM: (https?://[^\\s]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "Entity Viewer (5003)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/entity_viewer_app.py",
+            "env": {
+                "FLASK_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "python": "${workspaceFolder}/../.venv/Scripts/python.exe",
+            "jinja": true,
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "Entity Viewer: (https?://[^\\s]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "API Docs / Swagger (5004)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/api_docs_app.py",
+            "env": {
+                "FLASK_ENV": "development",
+                "LOG_LEVEL": "DEBUG"
+            },
+            "python": "${workspaceFolder}/../.venv/Scripts/python.exe",
+            "jinja": true,
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "API Docs \\(Swagger\\): (https?://[^\\s]+)",
                 "uriFormat": "%s",
                 "action": "openExternally"
             }

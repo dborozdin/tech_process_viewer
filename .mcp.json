@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "pss": {
+      "command": "python",
+      "args": ["-m", "tech_process_viewer.mcp_server.server"],
+      "cwd": "..",
+      "env": {
+        "PSS_SERVER": "http://localhost:7239",
+        "PSS_DB": "pss_moma_08_07_2025",
+        "PSS_USER": "Administrator"
+      }
+    }
+  }
+}

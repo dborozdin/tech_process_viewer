@@ -1,8 +1,10 @@
 import requests
+from tech_process_viewer.globals import logger
+
 
 class FoldersAPI:
     def __init__(self, db_api):
-        self.db_api= db_api
+        self.db_api = db_api
         
     def find_folder(self, PSS_folder_name):
         print(f'----------------------- find_folder ------------------------')
@@ -125,3 +127,95 @@ class FoldersAPI:
             print(f'Find folder error: {request_result}')
             print(f'Error description: {request_result.json()}')
             print(f'Query: {query}')
+
+    # === New methods for PSS-C ===
+
+    def get_all_folders(self):
+        """Get all folders in the database."""
+        query = """SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{apl_folder}
+        END_SELECT"""
+        result = self.db_api.query_apl(query)
+        if result and 'instances' in result:
+            return result['instances']
+        return []
+
+    def rename_folder(self, folder_sys_id, new_name):
+        """Rename a folder."""
+        return self.db_api.update_instance(folder_sys_id, 'apl_folder', {'name': new_name})
+
+    def delete_folder(self, folder_sys_id):
+        """Delete a folder."""
+        return self.db_api.delete_instance(folder_sys_id, 'apl_folder')
+
+    def remove_item_from_folder(self, folder_sys_id, item_sys_id):
+        """Remove an item from folder content.
+
+        Loads current content, removes the item, and saves back.
+        """
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_folder(.# = #{folder_sys_id})}}
+        END_SELECT"""
+        result = self.db_api.query_apl(query)
+        if not result or not result.get('instances'):
+            logger.error(f'Folder {folder_sys_id} not found')
+            return None
+
+        content_data = result['instances'][0]['attributes'].get('content', [])
+        new_content = [item for item in content_data if item.get('id') != item_sys_id]
+
+        if len(new_content) == len(content_data):
+            logger.debug(f'Item {item_sys_id} not found in folder {folder_sys_id}')
+            return None
+
+        return self.db_api.update_instance(folder_sys_id, 'apl_folder', {'content': new_content})
+
+    def get_folder_with_content_types(self, folder_sys_id):
+        """Get folder content with resolved types for each item.
+
+        Returns dict: {folder_id, folder_name, items: [{sys_id, type, category, name, attributes}]}
+        """
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_folder(.# = #{folder_sys_id})}}
+        END_SELECT"""
+        result = self.db_api.query_apl(query)
+        if not result or not result.get('instances'):
+            return None
+
+        folder_inst = result['instances'][0]
+        folder_attrs = folder_inst.get('attributes', {})
+        content_data = folder_attrs.get('content', [])
+
+        if not content_data:
+            return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': []}
+
+        content_ids = [item.get('id') for item in content_data if item.get('id')]
+        if not content_ids:
+            return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': []}
+
+        from tech_process_viewer.api.query_helpers import batch_query_by_ids
+        instances = batch_query_by_ids(self.db_api, content_ids, "Folder content items")
+
+        items = []
+        for inst in instances:
+            item_type = inst.get('type', '')
+            attrs = inst.get('attributes', {})
+            if item_type == 'apl_folder':
+                category, name = 'folder', attrs.get('name', '')
+            elif item_type in ('product', 'apl_product_definition_formation'):
+                category, name = 'product', attrs.get('name', '') or attrs.get('id', '')
+            elif item_type == 'apl_business_process':
+                category, name = 'process', attrs.get('name', '')
+            elif item_type in ('apl_document', 'apl_digital_document'):
+                category, name = 'document', attrs.get('name', '')
+            else:
+                category, name = 'other', attrs.get('name', '') or str(inst.get('id', ''))
+            items.append({'sys_id': inst.get('id'), 'type': item_type, 'category': category, 'name': name, 'attributes': attrs})
+
+        return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': items}

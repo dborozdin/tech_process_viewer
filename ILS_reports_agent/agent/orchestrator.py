@@ -9,13 +9,13 @@ import os
 import time
 from typing import Generator
 
-from ILS.agent.llm_client import LLMClient
-from ILS.agent.tools import TOOLS
-from ILS.agent.tool_executor import ToolExecutor
-from ILS.agent.prompts import (build_system_prompt, format_categories,
+from ILS_reports_agent.agent.llm_client import LLMClient
+from ILS_reports_agent.agent.tools import TOOLS
+from ILS_reports_agent.agent.tool_executor import ToolExecutor
+from ILS_reports_agent.agent.prompts import (build_system_prompt, format_categories,
                                 FEW_SHOT_EXAMPLES, FEW_SHOT_EXAMPLES_HIGH_LEVEL)
-from ILS.agent.knowledge import KnowledgeStore
-from ILS.pss.schema import Schema
+from ILS_reports_agent.agent.knowledge import KnowledgeStore
+from ILS_reports_agent.pss.schema import Schema
 
 logger = logging.getLogger("ils.agent")
 

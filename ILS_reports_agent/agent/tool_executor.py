@@ -7,9 +7,9 @@ import logging
 import re
 from typing import Any
 
-from ILS.pss.api_client import PSSClient
-from ILS.pss.schema import Schema
-from ILS.agent.knowledge import KnowledgeStore
+from ILS_reports_agent.pss.api_client import PSSClient
+from ILS_reports_agent.pss.schema import Schema
+from ILS_reports_agent.agent.knowledge import KnowledgeStore
 from api.pss_logstruct_api import LogStructAPI
 
 logger = logging.getLogger("ils.tools")

@@ -1,7 +1,7 @@
 {
   "provider": "ollama",
   "base_url": "http://bolt.cals.ru:38386/v1",
-  "model": "mistral-small3.1:24b",
+  "model": "gpt-oss:20b",
   "temperature": 0.1,
-  "max_tokens": 8192
+  "max_tokens": 16384
 }
