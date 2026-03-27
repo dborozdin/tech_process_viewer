@@ -1,6 +1,6 @@
 """Общие хелперы для всех приложений платформы PSS.
 
-Используется в: tech_process_viewer_app, entity_viewer_app, api_docs_app, PSS-C.
+Используется в: tech_process_viewer_app, entity_viewer_app, api_docs_app, PSS-aiR.
 """
 
 import os

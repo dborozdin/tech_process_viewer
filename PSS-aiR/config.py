@@ -1,4 +1,4 @@
-"""Configuration for PSS-C PDM application."""
+"""Configuration for PSS-aiR application."""
 
 import os
 

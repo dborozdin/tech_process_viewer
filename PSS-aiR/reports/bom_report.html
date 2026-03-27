@@ -108,8 +108,9 @@
             text-align: center;
         }
 
-        .col-type {
-            width: 140px;
+        .col-unit {
+            width: 80px;
+            text-align: center;
         }
 
         .row-depth-0 td {
@@ -129,10 +130,9 @@
     <h1>Структура изделия (BOM)</h1>
     <div class="report-meta">
         <span><span class="label">Изделие:</span> {{ product.name }}</span>
-        <span><span class="label">Обозначение:</span> {{ product.code1 or '—' }}</span>
-        <span><span class="label">Тип:</span> {{ product.formation_type or '—' }}</span>
+        <span><span class="label">Обозначение:</span> {{ product.product_id or '—' }}</span>
+        <span><span class="label">Тип:</span> {{ formation_types.get(product.formation_type, product.formation_type) if product.formation_type else '—' }}</span>
         <span><span class="label">ID:</span> {{ product.sys_id }}</span>
-        <span><span class="label">Дата:</span> {{ now().strftime('%d.%m.%Y %H:%M') if now is defined else '—' }}</span>
     </div>
 </div>
 
@@ -143,7 +143,7 @@
             <th class="col-code">Обозначение</th>
             <th>Наименование</th>
             <th class="col-qty">Кол-во</th>
-            <th class="col-type">Тип</th>
+            <th class="col-unit">Ед.изм.</th>
         </tr>
     </thead>
     <tbody>
@@ -152,14 +152,14 @@
             <td class="col-level">{{ item.depth }}</td>
             <td class="col-code">
                 <span class="depth-indent" style="width: {{ item.depth * 16 }}px;"></span>
-                {{ item.code1 or '—' }}
+                {{ item.product_id or '—' }}
             </td>
             <td>
                 <span class="depth-indent" style="width: {{ item.depth * 16 }}px;"></span>
                 {{ item.name }}
             </td>
             <td class="col-qty">{{ item.quantity if item.quantity is not none else '—' }}</td>
-            <td class="col-type">{{ item.formation_type or '—' }}</td>
+            <td class="col-unit">{{ item.unit_name or '—' }}</td>
         </tr>
         {% endfor %}
     </tbody>

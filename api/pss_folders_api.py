@@ -128,7 +128,7 @@ class FoldersAPI:
             print(f'Error description: {request_result.json()}')
             print(f'Query: {query}')
 
-    # === New methods for PSS-C ===
+    # === New methods for PSS-aiR ===
 
     def get_all_folders(self):
         """Get all folders in the database."""

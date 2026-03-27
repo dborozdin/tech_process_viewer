@@ -1,9 +1,9 @@
-"""PSS-C PDM — Product Data Management web application.
+"""PSS-aiR — Product Data Management web application.
 
 Порт: 5002
 Функции: папки, структура изделий (BOM), документы, техпроцессы, отчёты.
 
-Запуск: python PSS-C/app.py
+Запуск: python PSS-aiR/app.py
 """
 
 import os
@@ -11,7 +11,7 @@ import sys
 
 from flask import Flask, jsonify, request, send_from_directory
 
-# Add PSS-C/ to path so 'services' and 'routes' are importable
+# Add PSS-aiR/ to path so 'services' and 'routes' are importable
 _PSS_C_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _PSS_C_DIR)
 # Add grandparent directory (express_api/) to path so 'tech_process_viewer' package is importable
@@ -51,7 +51,7 @@ def connect():
         _db_api = DatabaseAPI(rest_url, credentials)
         _db_api.reconnect_db()
         app.config['db_api'] = _db_api
-        logger.info(f"PSS-C connected to {db} as {user}")
+        logger.info(f"PSS-aiR connected to {db} as {user}")
         return jsonify({
             'connected': True,
             'session_key': _db_api.connect_data['session_key'],
@@ -59,7 +59,7 @@ def connect():
             'user': user
         })
     except Exception as e:
-        logger.error(f"PSS-C connection error: {e}")
+        logger.error(f"PSS-aiR connection error: {e}")
         _db_api = None
         return jsonify({'error': str(e)}), 500
 
@@ -96,7 +96,7 @@ def dblist():
 
 # ========== Register Route Blueprints ==========
 
-# PSS-C contains a hyphen which is invalid for Python imports,
+# PSS-aiR contains a hyphen which is invalid for Python imports,
 # so we use relative imports from within the package
 from routes.folders import bp as folders_bp
 from routes.products import bp as products_bp
@@ -130,5 +130,5 @@ def index():
 # ========== Startup ==========
 
 if __name__ == '__main__':
-    print(f" * PSS-C PDM: http://localhost:5002/")
+    print(f" * PSS-aiR: http://localhost:5002/")
     app.run(debug=True, port=5002)

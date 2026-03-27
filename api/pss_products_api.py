@@ -337,7 +337,7 @@ class ProductsAPI:
             UOM=unit_id or 1  # Default unit
         )
 
-    # === New methods for PSS-C ===
+    # === New methods for PSS-aiR ===
 
     def search_products(self, text, limit=50):
         """Search products by id or name (case-insensitive LIKE)."""

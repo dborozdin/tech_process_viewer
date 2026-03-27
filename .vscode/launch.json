@@ -2,7 +2,7 @@
     // 5 независимых приложений платформы PSS:
     //   Tech Process Viewer: http://localhost:5000
     //   ILS Reports Agent:   http://localhost:5001
-    //   PSS-C PDM:           http://localhost:5002
+    //   PSS-aiR:           http://localhost:5002
     //   Entity Viewer:       http://localhost:5003
     //   API Docs (Swagger):  http://localhost:5004/api/docs
     "version": "0.2.0",
@@ -40,10 +40,10 @@
             }
         },
         {
-            "name": "PSS-C PDM (5002)",
+            "name": "PSS-aiR (5002)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/PSS-C/app.py",
+            "program": "${workspaceFolder}/PSS-aiR/app.py",
             "env": {
                 "FLASK_ENV": "development",
                 "LOG_LEVEL": "DEBUG"
@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "jinja": true,
             "serverReadyAction": {
-                "pattern": "PSS-C PDM: (https?://[^\\s]+)",
+                "pattern": "PSS-aiR: (https?://[^\\s]+)",
                 "uriFormat": "%s",
                 "action": "openExternally"
             }

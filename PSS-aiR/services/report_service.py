@@ -1,4 +1,4 @@
-"""Фреймворк отчётов для PSS-C.
+"""Фреймворк отчётов для PSS-aiR.
 
 Отчёты — Jinja2-шаблоны в папке reports/ с метаданными в HTML-комментариях.
 Заказчик добавляет новый отчёт, просто создав HTML-файл.
@@ -94,6 +94,16 @@ class ReportService:
         else:
             return params  # Pass params as-is for simple templates
 
+    # Display name mappings for enum values (from db_schema_doc)
+    FORMATION_TYPES = {
+        'part': 'Деталь', 'assembly': 'Сборка', 'material': 'Материал',
+        'kit': 'Комплект', 'komplex': 'Комплекс',
+    }
+    MAKE_OR_BUY = {
+        'bought': 'Покупное', 'made': 'Изготовление', 'not_known': 'Не известно',
+        'buy': 'Покупное', 'make': 'Изготовление', 'unknown': 'Не известно',
+    }
+
     def _data_bom_report(self, params):
         """Данные для отчёта BOM."""
         product_id = params.get('product_id')
@@ -106,7 +116,11 @@ class ReportService:
         product = ps.get_product_details(int(product_id)) or {}
         bom = ps.export_bom_flat(int(product_id))
 
-        return {'product': product, 'bom': bom}
+        return {
+            'product': product, 'bom': bom,
+            'formation_types': self.FORMATION_TYPES,
+            'make_or_buy_types': self.MAKE_OR_BUY,
+        }
 
     def _data_process_report(self, params):
         """Данные для отчёта по техпроцессам."""

@@ -1,6 +1,6 @@
 """Хелперы для APL-запросов и метрики производительности.
 
-Используется в: tech_process_viewer_app, PSS-C services.
+Используется в: tech_process_viewer_app, PSS-aiR services.
 """
 
 import time

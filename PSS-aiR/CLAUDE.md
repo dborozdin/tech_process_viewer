@@ -1,4 +1,4 @@
-# PSS-C PDM — Product Data Management
+# PSS-aiR — Product Data Management
 
 ## Назначение
 
@@ -25,7 +25,7 @@
 
 ### Структура
 ```
-PSS-C/
+PSS-aiR/
 ├── CLAUDE.md                    # Этот файл
 ├── app.py                       # Flask app, подключение к БД, регистрация blueprints
 ├── __init__.py
@@ -51,7 +51,7 @@ PSS-C/
 
 ### Общий API-слой
 
-PSS-C использует общие модули из `tech_process_viewer/api/`:
+PSS-aiR использует общие модули из `tech_process_viewer/api/`:
 - `api/pss_api.py` — DatabaseAPI (подключение, CRUD, session management)
 - `api/pss_folders_api.py` — операции с папками
 - `api/pss_products_api.py` — операции с изделиями + поиск + характеристики
@@ -195,11 +195,11 @@ BOM-дерево читается по уровням (BFS): ~max_depth запр
 
 ```bash
 cd tech_process_viewer
-python PSS-C/app.py
+python PSS-aiR/app.py
 # Открыть http://localhost:5002/
 ```
 
-Или через VS Code: конфигурация "PSS-C PDM (5002)".
+Или через VS Code: конфигурация "PSS-aiR (5002)".
 
 ## БД для экспериментов
 

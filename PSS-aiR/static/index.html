@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PSS-C PDM</title>
+<title>PSS-aiR</title>
 <style>
 /* ===== Reset & Base ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -420,7 +420,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   <!-- Header -->
   <header class="header">
     <div class="header-left">
-      <div class="header-logo">PSS-C <span>PDM</span></div>
+      <div class="header-logo">PSS-<span>aiR</span></div>
     </div>
     <div class="header-center">
       <button id="btnConnect" class="btn btn-outline" title="Подключение к БД">
@@ -465,7 +465,6 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
       <!-- Breadcrumb -->
       <div class="breadcrumb-bar" id="breadcrumbBar">
         <span class="breadcrumb-item current">Главная</span>
-        <button class="btn-icon breadcrumb-columns-btn" id="btnColumns" title="Настройка колонок" style="margin-left:auto;display:none;">⚙️ Колонки</button>
       </div>
       <!-- Search -->
       <div class="search-bar">
@@ -573,6 +572,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   <div class="modal report-modal">
     <div class="modal-header">
       <span class="modal-title" id="reportModalTitle">Отчёт</span>
+      <span class="report-export-btns" id="reportExportBtns" style="display:none; margin-left:auto; margin-right:12px; gap:6px; display:none; align-items:center;">
+        <button class="btn-icon" id="btnExportHtml" title="Сохранить HTML">📄</button>
+        <button class="btn-icon" id="btnExportExcel" title="Сохранить Excel">📊</button>
+      </span>
       <button class="modal-close" id="reportModalClose">&times;</button>
     </div>
     <div class="modal-body" id="reportModalBody" style="padding:0;">
@@ -581,9 +584,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 </div>
 
 <script src="/shared/js/db-connection.js"></script>
+<script src="/static/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
-   PSS-C PDM — Single Page Application
+   PSS-aiR — Single Page Application
    Vanilla JS, No frameworks
    ============================================================ */
 
@@ -1102,6 +1106,7 @@ class FolderTreeView {
 class BreadcrumbNav {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
+    this._extraButtons = [];
     this.path = [{ label: 'Главная', action: null }];
     this.render();
   }
@@ -1141,6 +1146,14 @@ class BreadcrumbNav {
       }
       this.container.appendChild(el);
     });
+    // Re-append extra buttons
+    this._extraButtons.forEach(btn => this.container.appendChild(btn));
+  }
+
+  addButton(btn) {
+    btn.style.marginLeft = 'auto';
+    this._extraButtons.push(btn);
+    this.container.appendChild(btn);
   }
 }
 
@@ -1152,8 +1165,13 @@ class ContentView {
     this.folderPath = []; // breadcrumb stack for nested folder navigation
     this._currentView = null; // 'folder' | 'bom' | null
 
-    const colBtn = document.getElementById('btnColumns');
-    if (colBtn) colBtn.addEventListener('click', () => this._onColumnsBtnClick());
+    // Column config button — will be added to breadcrumb bar after it's created
+    this._colBtn = document.createElement('button');
+    this._colBtn.className = 'btn-icon breadcrumb-columns-btn';
+    this._colBtn.title = 'Настройка колонок';
+    this._colBtn.textContent = '⚙️ Колонки';
+    this._colBtn.style.display = 'none';
+    this._colBtn.addEventListener('click', () => this._onColumnsBtnClick());
 
     bus.on('folder-selected', (data) => {
       this.folderPath = []; // reset path when selecting from tree
@@ -1164,8 +1182,7 @@ class ContentView {
   }
 
   _updateColBtn() {
-    const btn = document.getElementById('btnColumns');
-    if (btn) btn.style.display = (this._currentView === 'folder' || this._currentView === 'bom') ? '' : 'none';
+    this._colBtn.style.display = (this._currentView === 'folder' || this._currentView === 'bom') ? '' : 'none';
   }
 
   _onColumnsBtnClick() {
@@ -1917,7 +1934,13 @@ class ReportManager {
       this.toggleMenu();
     });
     document.addEventListener('click', () => this.closeMenu());
-    document.getElementById('reportModalClose').addEventListener('click', () => this.modal.close());
+    document.getElementById('reportModalClose').addEventListener('click', () => {
+      this.modal.close();
+      const eb = document.getElementById('reportExportBtns');
+      if (eb) eb.style.display = 'none';
+    });
+    document.getElementById('btnExportHtml').addEventListener('click', () => this._exportHtml());
+    document.getElementById('btnExportExcel').addEventListener('click', () => this._exportExcel());
 
     bus.on('connected', () => this.loadReports());
   }
@@ -1990,17 +2013,49 @@ class ReportManager {
     try {
       const html = await api.report(report.name, params);
       if (typeof html === 'string') {
+        this._lastReportHtml = html;
+        this._lastReportName = report.title || report.name;
         const iframe = document.createElement('iframe');
         iframe.className = 'report-frame';
         iframe.srcdoc = html;
         body.innerHTML = '';
         body.appendChild(iframe);
+        // Show export buttons
+        const exportBtns = document.getElementById('reportExportBtns');
+        if (exportBtns) exportBtns.style.display = 'flex';
       } else {
         body.innerHTML = '<div style="padding:20px;">Неподдерживаемый формат отчёта</div>';
       }
     } catch (err) {
       body.innerHTML = `<div style="padding:20px;color:var(--danger);">Ошибка: ${this._esc(err.message)}</div>`;
     }
+  }
+
+  _exportHtml() {
+    if (!this._lastReportHtml) return;
+    const blob = new Blob([this._lastReportHtml], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (this._lastReportName || 'report') + '.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  _exportExcel() {
+    if (!this._lastReportHtml || typeof XLSX === 'undefined') {
+      toaster.show('Библиотека Excel не загружена', 'error');
+      return;
+    }
+    // Parse HTML table from report
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(this._lastReportHtml, 'text/html');
+    const table = doc.querySelector('table');
+    if (!table) { toaster.show('Таблица не найдена в отчёте', 'warning'); return; }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, 'Отчёт');
+    XLSX.writeFile(wb, (this._lastReportName || 'report') + '.xlsx');
   }
 
   _esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -2077,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tree = new FolderTreeView('treeContainer');
   breadcrumb = new BreadcrumbNav('breadcrumbBar');
   contentView = new ContentView('contentArea');
+  breadcrumb.addButton(contentView._colBtn);
   propertyPanel = new PropertyPanel('propertyTabs', 'propertyContent');
   const search = new SearchController('searchInput', 'btnSearch');
   const reports = new ReportManager();
