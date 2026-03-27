@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:openrouter.ai)"
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(C:/Python312/python.exe \"c:/python_projects/express_api/tech_process_viewer/mcp_server/server.py\")"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "pss"
+  ],
+  "enableAllProjectMcpServers": true
 }

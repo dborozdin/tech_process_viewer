@@ -146,6 +146,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .breadcrumb-item.current { color: var(--text); cursor: default; font-weight: 600; }
 .breadcrumb-item.current:hover { text-decoration: none; }
 .breadcrumb-sep { color: var(--text-secondary); font-size: 12px; margin: 0 2px; }
+.breadcrumb-columns-btn { flex-shrink: 0; font-size: 12px; padding: 2px 8px; }
 
 /* ===== Search Bar ===== */
 .search-bar {
@@ -183,6 +184,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .data-table tr.selected td { background: #d0eef4; }
 .data-table .cell-icon { font-size: 15px; }
 .data-table .cell-name { font-weight: 500; }
+.bom-table .cell-name { display: flex; align-items: center; gap: 2px; white-space: nowrap; }
+.bom-table .cell-name .tree-toggle { display: inline-flex; cursor: pointer; }
 .data-table .cell-id { color: var(--text-secondary); font-family: monospace; font-size: 12px; }
 
 /* ===== BOM Tree ===== */
@@ -200,6 +203,20 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   margin-left: 8px; font-weight: 600;
 }
 .bom-product-id { color: var(--text-secondary); font-size: 12px; margin-left: 8px; font-family: monospace; }
+
+/* ===== Table Toolbar & Column Config ===== */
+.btn-icon { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 3px 10px; cursor: pointer; font-size: 12px; }
+.btn-icon:hover { background: var(--hover); }
+.col-config-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.35); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.col-config-dialog { background: #fff; border-radius: 8px; padding: 20px; min-width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+.col-config-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--primary); }
+.col-config-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.col-config-item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: var(--radius); }
+.col-config-item:hover { background: var(--hover); }
+.col-config-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-sm { padding: 5px 14px; font-size: 12px; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { opacity: .9; }
 
 /* ===== Process Details ===== */
 .process-details { padding: 16px; }
@@ -448,6 +465,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
       <!-- Breadcrumb -->
       <div class="breadcrumb-bar" id="breadcrumbBar">
         <span class="breadcrumb-item current">Главная</span>
+        <button class="btn-icon breadcrumb-columns-btn" id="btnColumns" title="Настройка колонок" style="margin-left:auto;display:none;">⚙️ Колонки</button>
       </div>
       <!-- Search -->
       <div class="search-bar">
@@ -637,6 +655,7 @@ class API {
   product(id) { return this._fetch(`/api/products/${id}`); }
   productTree(id) { return this._fetch(`/api/products/${id}/tree`); }
   productChars(id) { return this._fetch(`/api/products/${id}/characteristics`); }
+  productFullInfo(id) { return this._fetch(`/api/products/${id}/full`); }
   productSearch(q) { return this._fetch(`/api/products/search?q=${encodeURIComponent(q)}`); }
 
   // Processes
@@ -656,6 +675,38 @@ class API {
 }
 
 const api = new API();
+
+// ===== PSS Display Names (from db_schema_doc) =====
+const PSS_LABELS = {
+  // Product attributes
+  attr: {
+    id: 'Обозначение', name: 'Наименование', description: 'Описание', code: 'Код',
+    code1: 'Код 1', code2: 'Код 2', formation_type: 'Тип', make_or_buy: 'Источник',
+    is_standard_part: 'Стандартное', unit: 'Ед.изм.', weight: 'Масса',
+    relevance: 'Актуальность', inner_code: 'Внутренний код', changed_date: 'Дата изменения',
+    designation: 'Обозначение', product_code: 'Код изделия',
+    reference_designator: 'Позиционное обозначение', quantity: 'Количество', unit_name: 'Ед.изм.',
+  },
+  // formation_type enum
+  formation_type: {
+    part: 'Деталь', assembly: 'Сборка', material: 'Материал',
+    kit: 'Комплект', komplex: 'Комплекс',
+  },
+  // make_or_buy enum
+  make_or_buy: {
+    bought: 'Покупное', made: 'Изготовление', not_known: 'Не известно',
+    buy: 'Покупное', make: 'Изготовление', unknown: 'Не известно',
+  },
+  // relevance enum
+  relevance: { active: 'Активно', inactive: 'Неактивно' },
+};
+
+function pssLabel(key) { return PSS_LABELS.attr[key] || key; }
+function pssEnum(enumName, value) {
+  if (!value) return '';
+  const map = PSS_LABELS[enumName];
+  return map ? (map[value] || value) : value;
+}
 
 // ===== Toast Notifications =====
 class Toaster {
@@ -797,11 +848,43 @@ class ConnectionManager {
         this._updateUI();
         bus.emit('connected');
       } else {
-        this.modal.open();
+        // Server not connected — try auto-reconnect from saved credentials
+        await this._tryAutoReconnect();
       }
     } catch {
-      this.modal.open();
+      await this._tryAutoReconnect();
     }
+  }
+
+  async _tryAutoReconnect() {
+    // Clean up stale server-side session
+    try { await api.disconnect(); } catch {}
+
+    // Try to reconnect using saved credentials (cookies + sessionStorage)
+    this._restore();
+    const server = document.getElementById('cfServer').value.trim();
+    const db = document.getElementById('cfDatabase').value.trim();
+    const user = document.getElementById('cfUser').value.trim();
+    const password = document.getElementById('cfPassword').value;
+
+    if (server && db && user) {
+      try {
+        const result = window.dbConnection
+          ? await dbConnection.connect({ server_port: server, db, user, password })
+          : await api.connect({ server_port: server, db, user, password });
+        if (result.connected || result.session_key) {
+          this.connected = true;
+          this.db = result.db || db;
+          this.user = result.user || user;
+          sessionStorage.setItem('pss_connection', JSON.stringify({ server_port: server, db, user, password }));
+          this._updateUI();
+          bus.emit('connected');
+          return;
+        }
+      } catch {}
+    }
+    // Could not auto-reconnect — show dialog
+    this.modal.open();
   }
 
   async loadDatabases() {
@@ -1066,10 +1149,28 @@ class ContentView {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
     this.currentFolder = null;
+    this.folderPath = []; // breadcrumb stack for nested folder navigation
+    this._currentView = null; // 'folder' | 'bom' | null
 
-    bus.on('folder-selected', (data) => this.loadFolderContents(data));
-    bus.on('navigate-home', () => this.showEmpty());
-    bus.on('disconnected', () => this.showEmpty());
+    const colBtn = document.getElementById('btnColumns');
+    if (colBtn) colBtn.addEventListener('click', () => this._onColumnsBtnClick());
+
+    bus.on('folder-selected', (data) => {
+      this.folderPath = []; // reset path when selecting from tree
+      this.loadFolderContents(data);
+    });
+    bus.on('navigate-home', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this.showEmpty(); });
+    bus.on('disconnected', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this.showEmpty(); });
+  }
+
+  _updateColBtn() {
+    const btn = document.getElementById('btnColumns');
+    if (btn) btn.style.display = (this._currentView === 'folder' || this._currentView === 'bom') ? '' : 'none';
+  }
+
+  _onColumnsBtnClick() {
+    if (this._currentView === 'bom') this._showBomColumnConfig();
+    else if (this._currentView === 'folder') this._showColumnConfig();
   }
 
   showEmpty(msg) {
@@ -1082,7 +1183,7 @@ class ContentView {
 
   async loadFolderContents(folder) {
     this.currentFolder = folder;
-    breadcrumb.set([{ label: folder.name, action: null }]);
+    this._updateBreadcrumb();
     showSpinner(this.container);
     try {
       const data = await api.folderContents(folder.id);
@@ -1095,32 +1196,127 @@ class ContentView {
     }
   }
 
+  _navigateIntoFolder(folder) {
+    this.folderPath.push(this.currentFolder);
+    this.loadFolderContents(folder);
+  }
+
+  _navigateToPathIndex(index) {
+    const target = this.folderPath[index];
+    this.folderPath = this.folderPath.slice(0, index);
+    this.loadFolderContents(target);
+  }
+
+  _updateBreadcrumb() {
+    const crumbs = [];
+    this.folderPath.forEach((f, i) => {
+      const idx = i;
+      crumbs.push({ label: f.name, action: () => this._navigateToPathIndex(idx) });
+    });
+    crumbs.push({ label: this.currentFolder.name, action: null });
+    breadcrumb.set(crumbs);
+  }
+
+  // ---- Column configuration ----
+  static ALL_COLUMNS = [
+    { key: 'icon',           label: '',              width: '40px',  always: true, default: true },
+    { key: 'designation',    label: 'Обозначение',   width: null,    always: false, default: true },
+    { key: 'name',           label: 'Наименование',  width: null,    always: false, default: true },
+    { key: 'code1',          label: 'Код 1',          width: '130px', always: false, default: true },
+    { key: 'formation_type', label: 'Тип',           width: '120px', always: false, default: false },
+    { key: 'make_or_buy',    label: 'Источник',      width: '110px', always: false, default: false },
+    { key: 'product_code',   label: 'Код изделия',   width: '120px', always: false, default: false },
+    { key: 'category',       label: 'Категория',     width: '110px', always: false, default: false },
+    { key: 'sys_id',         label: 'Системный ID',  width: '100px', always: false, default: false },
+  ];
+
+  _getVisibleColumns() {
+    try {
+      const saved = localStorage.getItem('pssc_table_columns');
+      if (saved) {
+        const keys = JSON.parse(saved);
+        return ContentView.ALL_COLUMNS.filter(c => c.always || keys.includes(c.key));
+      }
+    } catch(e) {}
+    return ContentView.ALL_COLUMNS.filter(c => c.always || c.default);
+  }
+
+  _saveVisibleColumns(keys) {
+    localStorage.setItem('pssc_table_columns', JSON.stringify(keys));
+  }
+
+  _showColumnConfig() {
+    const visible = this._getVisibleColumns().map(c => c.key);
+    let html = '<div class="col-config-overlay"><div class="col-config-dialog"><div class="col-config-title">Колонки таблицы</div><div class="col-config-list">';
+    ContentView.ALL_COLUMNS.filter(c => !c.always).forEach(c => {
+      const checked = visible.includes(c.key) ? 'checked' : '';
+      html += `<label class="col-config-item"><input type="checkbox" value="${c.key}" ${checked}> ${c.label}</label>`;
+    });
+    html += '</div><div class="col-config-actions"><button class="btn btn-sm btn-primary col-config-apply">Применить</button><button class="btn btn-sm col-config-cancel">Отмена</button></div></div></div>';
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const overlay = wrapper.firstElementChild;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.col-config-apply').addEventListener('click', () => {
+      const keys = [...overlay.querySelectorAll('input:checked')].map(cb => cb.value);
+      this._saveVisibleColumns(keys);
+      overlay.remove();
+      if (this._lastFolderData) this._renderFolderTable(this._lastFolderData);
+    });
+    overlay.querySelector('.col-config-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
+
   _renderFolderTable(data) {
-    const items = data.items || [];
+    this._lastFolderData = data;
+    const items = (data.items || []).slice().sort((a, b) => {
+      const af = a.category === 'folder' ? 0 : 1;
+      const bf = b.category === 'folder' ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return (a.name || '').localeCompare(b.name || '');
+    });
     if (!items.length) {
       this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Папка пуста</div></div>';
       return;
     }
+
+    this._currentView = 'folder';
+    this._updateColBtn();
+    const cols = this._getVisibleColumns();
     const typeIcons = { product: '📦', process: '⚙️', document: '📄', folder: '📁' };
 
-    let html = `<table class="data-table"><thead><tr>
-      <th style="width:40px"></th>
-      <th>Наименование</th>
-      <th style="width:140px">Тип</th>
-      <th style="width:160px">Категория</th>
-      <th style="width:110px">ID</th>
-    </tr></thead><tbody>`;
+    let html = '<table class="data-table"><thead><tr>';
+    cols.forEach(c => {
+      html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
+    });
+    html += '</tr></thead><tbody>';
 
     items.forEach(item => {
-      const icon = typeIcons[item.type] || typeIcons[(item.category || '').toLowerCase()] || '📄';
-      const typeName = this._translateType(item.type);
-      html += `<tr data-id="${item.sys_id}" data-type="${item.type || ''}" class="content-row">
-        <td class="cell-icon">${icon}</td>
-        <td class="cell-name">${this._esc(item.name || '')}</td>
-        <td>${typeName}</td>
-        <td>${this._esc(item.category || '')}</td>
-        <td class="cell-id">${item.sys_id || ''}</td>
-      </tr>`;
+      const icon = typeIcons[item.category] || typeIcons[(item.type || '').toLowerCase()] || '📄';
+      html += `<tr data-id="${item.sys_id}" data-type="${item.type || ''}" data-category="${item.category || ''}" data-name="${this._esc(item.name || '')}" class="content-row">`;
+      cols.forEach(c => {
+        if (c.key === 'icon') {
+          html += `<td class="cell-icon">${icon}</td>`;
+        } else if (c.key === 'name') {
+          html += `<td class="cell-name">${this._esc(item.name || '')}</td>`;
+        } else if (c.key === 'designation') {
+          const val = item.designation || item.attributes?.id || '';
+          html += `<td>${this._esc(val)}</td>`;
+        } else if (c.key === 'code1') {
+          html += `<td>${this._esc(item.code1 || '')}</td>`;
+        } else if (c.key === 'formation_type') {
+          html += `<td>${this._esc(pssEnum('formation_type', item.formation_type))}</td>`;
+        } else if (c.key === 'make_or_buy') {
+          html += `<td>${this._esc(pssEnum('make_or_buy', item.make_or_buy))}</td>`;
+        } else if (c.key === 'product_code') {
+          html += `<td>${this._esc(item.product_code || '')}</td>`;
+        } else if (c.key === 'category') {
+          html += `<td>${this._translateType(item.category || item.type)}</td>`;
+        } else if (c.key === 'sys_id') {
+          html += `<td class="cell-id">${item.sys_id || ''}</td>`;
+        }
+      });
+      html += '</tr>';
     });
     html += '</tbody></table>';
     this.container.innerHTML = html;
@@ -1136,10 +1332,13 @@ class ContentView {
       });
       row.addEventListener('dblclick', () => {
         const id = row.dataset.id;
-        const type = row.dataset.type;
-        if (type === 'product' || type === 'Product') {
+        const category = row.dataset.category;
+        const name = row.dataset.name || '';
+        if (category === 'folder') {
+          this._navigateIntoFolder({ id, name });
+        } else if (category === 'product') {
           bus.emit('product-open', { id });
-        } else if (type === 'process' || type === 'Process') {
+        } else if (category === 'process') {
           bus.emit('process-open', { id });
         }
       });
@@ -1147,10 +1346,16 @@ class ContentView {
   }
 
   async loadProductBOM(productId, productName) {
-    breadcrumb.set([
-      { label: this.currentFolder ? this.currentFolder.name : '...', action: () => { if (this.currentFolder) this.loadFolderContents(this.currentFolder); } },
-      { label: productName || `Изделие ${productId}`, action: null }
-    ]);
+    const crumbs = [];
+    this.folderPath.forEach((f, i) => {
+      const idx = i;
+      crumbs.push({ label: f.name, action: () => this._navigateToPathIndex(idx) });
+    });
+    if (this.currentFolder) {
+      crumbs.push({ label: this.currentFolder.name, action: () => this.loadFolderContents(this.currentFolder) });
+    }
+    crumbs.push({ label: productName || `Изделие ${productId}`, action: null });
+    breadcrumb.set(crumbs);
     showSpinner(this.container);
     try {
       const tree = await api.productTree(productId);
@@ -1163,149 +1368,149 @@ class ContentView {
     }
   }
 
+  // BOM column definitions (shared with folder table concept)
+  static BOM_COLUMNS = [
+    { key: 'name',              label: 'Наименование',  width: null,    always: true,  default: true },
+    { key: 'designation',       label: 'Обозначение',   width: '160px', always: false, default: true },
+    { key: 'quantity',          label: 'Кол-во',        width: '100px', always: false, default: true },
+    { key: 'unit_name',         label: 'Ед.изм.',       width: '80px',  always: false, default: true },
+    { key: 'code1',             label: 'Код 1',         width: '110px', always: false, default: false },
+    { key: 'code2',             label: 'Код 2',         width: '110px', always: false, default: false },
+    { key: 'formation_type',    label: 'Тип',           width: '100px', always: false, default: false },
+    { key: 'make_or_buy',       label: 'Источник',      width: '110px', always: false, default: false },
+    { key: 'reference_designator', label: 'Поз. обозн.',width: '100px', always: false, default: false },
+    { key: 'sys_id',            label: 'Системный ID',  width: '100px', always: false, default: false },
+    { key: 'bom_sys_id',        label: 'ID связи',      width: '90px',  always: false, default: false },
+  ];
+
+  _getBomColumns() {
+    try {
+      const saved = localStorage.getItem('pssc_bom_columns');
+      if (saved) {
+        const keys = JSON.parse(saved);
+        return ContentView.BOM_COLUMNS.filter(c => c.always || keys.includes(c.key));
+      }
+    } catch(e) {}
+    return ContentView.BOM_COLUMNS.filter(c => c.always || c.default);
+  }
+
+  _saveBomColumns(keys) {
+    localStorage.setItem('pssc_bom_columns', JSON.stringify(keys));
+  }
+
+  _showBomColumnConfig() {
+    const visible = this._getBomColumns().map(c => c.key);
+    let html = '<div class="col-config-overlay"><div class="col-config-dialog"><div class="col-config-title">Колонки структуры</div><div class="col-config-list">';
+    ContentView.BOM_COLUMNS.filter(c => !c.always).forEach(c => {
+      const checked = visible.includes(c.key) ? 'checked' : '';
+      html += `<label class="col-config-item"><input type="checkbox" value="${c.key}" ${checked}> ${c.label}</label>`;
+    });
+    html += '</div><div class="col-config-actions"><button class="btn btn-sm btn-primary col-config-apply">Применить</button><button class="btn btn-sm col-config-cancel">Отмена</button></div></div></div>';
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const overlay = wrapper.firstElementChild;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.col-config-apply').addEventListener('click', () => {
+      const keys = [...overlay.querySelectorAll('input:checked')].map(cb => cb.value);
+      this._saveBomColumns(keys);
+      overlay.remove();
+      if (this._lastBomTree) this._renderBOM(this._lastBomTree);
+    });
+    overlay.querySelector('.col-config-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
+
   _renderBOM(tree) {
+    this._lastBomTree = tree;
     if (!tree || !tree.root) {
       this.showEmpty('Состав изделия пуст');
       return;
     }
-    const container = document.createElement('div');
-    container.className = 'bom-tree';
+    this._currentView = 'bom';
+    this._updateColBtn();
+    const cols = this._getBomColumns();
 
-    const info = document.createElement('div');
-    info.style.cssText = 'padding:8px 12px; font-size:12px; color:var(--text-secondary); border-bottom:1px solid var(--border-light); margin-bottom:8px;';
-    info.textContent = `Узлов: ${tree.total_nodes || '?'} | Глубина: ${tree.depth || '?'}`;
-    container.appendChild(info);
+    // Table header
+    let html = '';
+    html += '<table class="data-table bom-table"><thead><tr>';
+    cols.forEach(c => {
+      html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
+    });
+    html += '</tr></thead><tbody>';
 
-    const renderNode = (node, depth) => {
-      const row = document.createElement('div');
-      row.className = 'bom-node-row';
-      row.style.paddingLeft = (12 + depth * 22) + 'px';
-      row.dataset.id = node.sys_id;
+    // Merge root with its children for unified rendering
+    const rootNode = tree.root || tree;
+    if (!rootNode.children && tree.children) {
+      rootNode.children = tree.children;
+    }
 
+    // Flatten tree into rows with depth info
+    const renderRows = (node, depth) => {
       const hasKids = node.children && node.children.length > 0;
-      const toggle = document.createElement('span');
-      toggle.className = 'tree-toggle ' + (hasKids ? '' : 'leaf');
-      toggle.textContent = '▶';
+      const icon = hasKids ? '📦' : '🔩';
+      const toggleHtml = hasKids
+        ? `<span class="tree-toggle expanded bom-toggle">▶</span>`
+        : `<span class="tree-toggle leaf"></span>`;
 
-      const icon = document.createElement('span');
-      icon.className = 'tree-icon';
-      icon.textContent = hasKids ? '📦' : '🔩';
-
-      const label = document.createElement('span');
-      label.className = 'tree-label';
-      label.textContent = node.name || node.product_id || '';
-
-      row.appendChild(toggle);
-      row.appendChild(icon);
-      row.appendChild(label);
-
-      if (node.product_id) {
-        const pid = document.createElement('span');
-        pid.className = 'bom-product-id';
-        pid.textContent = node.product_id;
-        row.appendChild(pid);
-      }
-      if (node.quantity && node.quantity > 1) {
-        const qty = document.createElement('span');
-        qty.className = 'bom-qty';
-        qty.textContent = 'x' + node.quantity;
-        row.appendChild(qty);
-      }
-
-      container.appendChild(row);
-
-      let childContainer = null;
-      if (hasKids) {
-        childContainer = document.createElement('div');
-        childContainer.className = 'tree-children open';
-        node.children.forEach(child => renderNode(child, depth + 1));
-        // We need to move all children into the childContainer approach differently:
-        // Instead, render into childContainer
-      }
-
-      row.addEventListener('click', (e) => {
-        container.querySelectorAll('.bom-node-row.selected').forEach(r => r.classList.remove('selected'));
-        row.classList.add('selected');
-        bus.emit('item-selected', { id: node.sys_id, type: 'product' });
+      html += `<tr class="content-row bom-row" data-id="${node.sys_id}" data-depth="${depth}" data-type="product">`;
+      cols.forEach(c => {
+        if (c.key === 'name') {
+          const pad = 4 + depth * 20;
+          html += `<td class="cell-name" style="padding-left:${pad}px">${toggleHtml}<span class="tree-icon">${icon}</span> ${this._esc(node.name || '')}</td>`;
+        } else if (c.key === 'designation') {
+          html += `<td>${this._esc(node.product_id || '')}</td>`;
+        } else if (c.key === 'quantity') {
+          html += `<td>${node.quantity != null && node.quantity !== '' ? node.quantity : ''}</td>`;
+        } else if (c.key === 'unit_name') {
+          html += `<td>${this._esc(node.unit_name || '')}</td>`;
+        } else if (c.key === 'code1') {
+          html += `<td>${this._esc(node.code1 || '')}</td>`;
+        } else if (c.key === 'code2') {
+          html += `<td>${this._esc(node.code2 || '')}</td>`;
+        } else if (c.key === 'formation_type') {
+          html += `<td>${this._esc(pssEnum('formation_type', node.formation_type))}</td>`;
+        } else if (c.key === 'make_or_buy') {
+          html += `<td>${this._esc(pssEnum('make_or_buy', node.make_or_buy))}</td>`;
+        } else if (c.key === 'reference_designator') {
+          html += `<td>${this._esc(node.reference_designator || '')}</td>`;
+        } else if (c.key === 'sys_id') {
+          html += `<td class="cell-id">${node.sys_id || ''}</td>`;
+        } else if (c.key === 'bom_sys_id') {
+          html += `<td class="cell-id">${node.bom_sys_id || ''}</td>`;
+        }
       });
-
-      return row;
+      html += '</tr>';
+      if (node.children) node.children.forEach(child => renderRows(child, depth + 1));
     };
 
-    // Recursive BOM rendering (proper approach with containers)
-    container.innerHTML = '';
-    container.appendChild(info);
-    this._renderBOMNode(container, tree.root || tree, 0);
-    if (tree.children) {
-      tree.children.forEach(child => this._renderBOMNode(container, child, 1));
-    }
+    renderRows(rootNode, 0);
+    html += '</tbody></table>';
+    this.container.innerHTML = html;
 
-    this.container.innerHTML = '';
-    this.container.appendChild(container);
-  }
-
-  _renderBOMNode(parent, node, depth) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'tree-node';
-
-    const hasKids = node.children && node.children.length > 0;
-
-    const row = document.createElement('div');
-    row.className = 'bom-node-row';
-    row.style.paddingLeft = (12 + depth * 22) + 'px';
-    row.dataset.id = node.sys_id;
-
-    const toggle = document.createElement('span');
-    toggle.className = 'tree-toggle ' + (hasKids ? 'expanded' : 'leaf');
-    toggle.textContent = '▶';
-
-    const icon = document.createElement('span');
-    icon.className = 'tree-icon';
-    icon.textContent = hasKids ? '📦' : '🔩';
-
-    const label = document.createElement('span');
-    label.className = 'tree-label';
-    label.textContent = node.name || node.product_id || '';
-
-    row.appendChild(toggle);
-    row.appendChild(icon);
-    row.appendChild(label);
-
-    if (node.product_id) {
-      const pid = document.createElement('span');
-      pid.className = 'bom-product-id';
-      pid.textContent = node.product_id;
-      row.appendChild(pid);
-    }
-    if (node.quantity != null && node.quantity !== 1) {
-      const qty = document.createElement('span');
-      qty.className = 'bom-qty';
-      qty.textContent = 'x' + node.quantity;
-      row.appendChild(qty);
-    }
-
-    wrapper.appendChild(row);
-
-    if (hasKids) {
-      const childContainer = document.createElement('div');
-      childContainer.className = 'tree-children open';
-      node.children.forEach(child => this._renderBOMNode(childContainer, child, depth + 1));
-      wrapper.appendChild(childContainer);
-
+    // Toggle collapse/expand
+    this.container.querySelectorAll('.bom-toggle').forEach(toggle => {
       toggle.addEventListener('click', (e) => {
         e.stopPropagation();
-        childContainer.classList.toggle('open');
+        const tr = toggle.closest('tr');
+        const depth = parseInt(tr.dataset.depth);
         toggle.classList.toggle('expanded');
+        let next = tr.nextElementSibling;
+        const collapsed = !toggle.classList.contains('expanded');
+        while (next && parseInt(next.dataset.depth) > depth) {
+          next.style.display = collapsed ? 'none' : '';
+          next = next.nextElementSibling;
+        }
       });
-    }
-
-    row.addEventListener('click', () => {
-      parent.closest('.bom-tree').querySelectorAll('.bom-node-row.selected').forEach(r => r.classList.remove('selected'));
-      row.classList.add('selected');
-      bus.emit('item-selected', { id: node.sys_id, type: 'product' });
     });
 
-    parent.appendChild(wrapper);
+    // Row click → select
+    this.container.querySelectorAll('.bom-row').forEach(row => {
+      row.addEventListener('click', () => {
+        this.container.querySelectorAll('.bom-row.selected').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        bus.emit('item-selected', { id: row.dataset.id, type: 'product' });
+      });
+    });
   }
 
   async loadProcessDetails(processId) {
@@ -1417,7 +1622,8 @@ class ContentView {
   }
 
   _translateType(type) {
-    const map = { product: 'Изделие', process: 'Техпроцесс', document: 'Документ', folder: 'Папка', part: 'Деталь', assembly: 'Сборка' };
+    const map = { product: 'Изделие', process: 'Техпроцесс', document: 'Документ', folder: 'Папка',
+      ...PSS_LABELS.formation_type };
     return map[(type || '').toLowerCase()] || type || '';
   }
 
@@ -1466,9 +1672,13 @@ class PropertyPanel {
   async _loadAttributes(item) {
     showSpinner(this.contentContainer);
     try {
-      if (item.type === 'product' || item.type === 'Product') {
-        const data = await api.product(item.id);
-        this.cache.attrs = data;
+      if (item.type === 'product' || item.type === 'Product' || item.type === 'apl_product_definition_formation') {
+        const [details, fullInfo] = await Promise.all([
+          api.product(item.id),
+          api.productFullInfo(item.id).catch(() => null),
+        ]);
+        this.cache.attrs = { ...details, ...(fullInfo || {}) };
+        this.currentItem.type = 'product';
         this._renderCurrentTab();
       } else if (item.type === 'process' || item.type === 'Process') {
         const data = await api.processDetails(item.id);
@@ -1513,14 +1723,15 @@ class PropertyPanel {
 
     if (this.currentItem.type === 'product' || this.currentItem.type === 'Product') {
       const fields = [
-        ['ID', data.sys_id],
-        ['Обозначение', data.product_id],
-        ['Наименование', data.name],
-        ['Тип', data.type],
-        ['Категория', data.category],
-        ['Описание', data.description],
-        ['Статус', data.status],
-        ['Версия', data.version],
+        ['Системный ID', data.sys_id],
+        [pssLabel('designation'), data.designation || data.product_id],
+        [pssLabel('name'), data.name],
+        [pssLabel('code1'), data.code1],
+        [pssLabel('code2'), data.code2],
+        [pssLabel('product_code'), data.product_code],
+        [pssLabel('formation_type'), pssEnum('formation_type', data.formation_type)],
+        [pssLabel('make_or_buy'), pssEnum('make_or_buy', data.make_or_buy)],
+        [pssLabel('description'), data.description],
       ];
       fields.forEach(([k, v]) => {
         if (v != null && v !== '') {
@@ -1529,7 +1740,10 @@ class PropertyPanel {
       });
 
       // Additional dynamic attributes
-      const skipKeys = new Set(['sys_id', 'product_id', 'name', 'type', 'category', 'description', 'status', 'version', 'characteristics', 'documents', 'children']);
+      const skipKeys = new Set(['sys_id', 'product_id', 'designation', 'name', 'type', 'category', 'description',
+        'status', 'version', 'characteristics', 'documents', 'children', 'attributes',
+        'code1', 'code2', 'product_code', 'formation_type', 'make_or_buy',
+        'product_sys_id', 'product_attributes', 'pdf_attributes']);
       Object.entries(data).forEach(([k, v]) => {
         if (!skipKeys.has(k) && v != null && v !== '' && typeof v !== 'object') {
           html += `<div class="prop-pair"><span class="prop-key">${this._esc(k)}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
@@ -1756,13 +1970,21 @@ class ReportManager {
 
     // Gather params: if the report needs product_id, use current selection
     const params = {};
-    if (report.params && report.params.length) {
+    const paramStr = typeof report.params === 'string' ? report.params : '';
+    if (paramStr.includes('product_id') && propertyPanel.currentItem) {
+      params.product_id = propertyPanel.currentItem.id;
+    } else if (Array.isArray(report.params)) {
       report.params.forEach(p => {
         const paramName = typeof p === 'string' ? p : (p.name || '');
         if (paramName === 'product_id' && propertyPanel.currentItem) {
           params.product_id = propertyPanel.currentItem.id;
         }
       });
+    }
+
+    if (paramStr.includes('product_id') && !params.product_id) {
+      body.innerHTML = '<div style="padding:20px;color:var(--danger);">Выберите изделие перед формированием отчёта</div>';
+      return;
     }
 
     try {

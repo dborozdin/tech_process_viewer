@@ -366,6 +366,84 @@ class ProductsAPI:
             return result['instances']
         return []
 
+    def get_product_full_info(self, pdf_sys_id):
+        """Get full product info: product attrs + PDF attrs + BOM context.
+
+        Returns dict with product designation (id), name, description, code,
+        PDF attributes (code1, code2, formation_type, make_or_buy),
+        and if this product is part of a BOM — quantity, unit, reference_designator.
+        """
+        from tech_process_viewer.api.query_helpers import batch_query_by_ids
+
+        # 1. Load PDF instance
+        pdf_instances = batch_query_by_ids(self.db_api, [pdf_sys_id], "PDF full info")
+        if not pdf_instances:
+            return None
+
+        pdf_inst = pdf_instances[0]
+        pdf_attrs = pdf_inst.get('attributes', {})
+
+        # 2. Resolve product entity (name, id/designation, description, code)
+        of_product = pdf_attrs.get('of_product', {})
+        product_data = {}
+        if isinstance(of_product, dict) and 'id' in of_product:
+            prod_instances = batch_query_by_ids(
+                self.db_api, [of_product['id']], "Product for full info"
+            )
+            if prod_instances:
+                product_data = prod_instances[0].get('attributes', {})
+
+        return {
+            'sys_id': pdf_sys_id,
+            'product_sys_id': of_product.get('id') if isinstance(of_product, dict) else None,
+            # Product-level attrs
+            'designation': product_data.get('id', ''),
+            'name': product_data.get('name', ''),
+            'description': product_data.get('description', ''),
+            'product_code': product_data.get('code', ''),
+            # PDF-level attrs (version)
+            'code1': pdf_attrs.get('code1', ''),
+            'code2': pdf_attrs.get('code2', ''),
+            'formation_type': pdf_attrs.get('formation_type', ''),
+            'make_or_buy': pdf_attrs.get('make_or_buy', ''),
+            # Raw attrs for extensibility
+            'product_attributes': product_data,
+            'pdf_attributes': pdf_attrs,
+        }
+
+    def get_bom_item_details(self, bom_item_sys_id):
+        """Get full BOM item details including resolved unit name.
+
+        Returns dict with quantity, unit_id, unit_name, reference_designator, etc.
+        """
+        from tech_process_viewer.api.query_helpers import batch_query_by_ids
+
+        inst = self.get_bom_item(bom_item_sys_id)
+        if not inst:
+            return None
+
+        attrs = inst.get('attributes', {})
+        unit_ref = attrs.get('unit_component', {})
+        unit_id = unit_ref.get('id') if isinstance(unit_ref, dict) else unit_ref
+
+        # Resolve unit name
+        unit_name = ''
+        if unit_id:
+            unit_instances = batch_query_by_ids(self.db_api, [unit_id], "Unit for BOM item")
+            if unit_instances:
+                unit_name = unit_instances[0].get('attributes', {}).get('id', '')
+
+        return {
+            'bom_sys_id': inst.get('id'),
+            'quantity': attrs.get('value_component', ''),
+            'unit_sys_id': unit_id,
+            'unit_name': unit_name,
+            'reference_designator': attrs.get('reference_designator', ''),
+            'assembly_item_id': attrs.get('assembly_item_id', ''),
+            'description': attrs.get('description', ''),
+            'name': attrs.get('name', ''),
+        }
+
     def set_product_characteristic(self, pdf_sys_id, char_name, char_value, char_type=None):
         """Set a characteristic (property) on a product definition.
 

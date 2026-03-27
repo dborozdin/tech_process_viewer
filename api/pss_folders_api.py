@@ -177,6 +177,10 @@ class FoldersAPI:
     def get_folder_with_content_types(self, folder_sys_id):
         """Get folder content with resolved types for each item.
 
+        Combines two sources:
+        1. Items listed in folder's `content` attribute (products, documents, processes)
+        2. Child folders found via `parent` attribute (subfolder hierarchy)
+
         Returns dict: {folder_id, folder_name, items: [{sys_id, type, category, name, attributes}]}
         """
         query = f"""SELECT NO_CASE
@@ -190,32 +194,96 @@ class FoldersAPI:
 
         folder_inst = result['instances'][0]
         folder_attrs = folder_inst.get('attributes', {})
+        folder_name = folder_attrs.get('name', '')
         content_data = folder_attrs.get('content', [])
 
-        if not content_data:
-            return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': []}
-
-        content_ids = [item.get('id') for item in content_data if item.get('id')]
-        if not content_ids:
-            return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': []}
-
-        from tech_process_viewer.api.query_helpers import batch_query_by_ids
-        instances = batch_query_by_ids(self.db_api, content_ids, "Folder content items")
-
         items = []
-        for inst in instances:
-            item_type = inst.get('type', '')
-            attrs = inst.get('attributes', {})
-            if item_type == 'apl_folder':
-                category, name = 'folder', attrs.get('name', '')
-            elif item_type in ('product', 'apl_product_definition_formation'):
-                category, name = 'product', attrs.get('name', '') or attrs.get('id', '')
-            elif item_type == 'apl_business_process':
-                category, name = 'process', attrs.get('name', '')
-            elif item_type in ('apl_document', 'apl_digital_document'):
-                category, name = 'document', attrs.get('name', '')
-            else:
-                category, name = 'other', attrs.get('name', '') or str(inst.get('id', ''))
-            items.append({'sys_id': inst.get('id'), 'type': item_type, 'category': category, 'name': name, 'attributes': attrs})
+        seen_ids = set()
 
-        return {'folder_id': folder_sys_id, 'folder_name': folder_attrs.get('name', ''), 'items': items}
+        # 1. Resolve items from content attribute
+        content_ids = [item.get('id') for item in content_data if item.get('id')]
+        if content_ids:
+            from tech_process_viewer.api.query_helpers import batch_query_by_ids
+            instances = batch_query_by_ids(self.db_api, content_ids, "Folder content items")
+
+            # Batch-resolve product entities for PDFs (to get name & designation)
+            product_ref_ids = []
+            pdf_to_product = {}
+            for inst in instances:
+                if inst.get('type') in ('apl_product_definition_formation',):
+                    of_product = inst.get('attributes', {}).get('of_product', {})
+                    if isinstance(of_product, dict) and 'id' in of_product:
+                        product_ref_ids.append(of_product['id'])
+                        pdf_to_product[inst.get('id')] = of_product['id']
+
+            product_map = {}
+            if product_ref_ids:
+                prod_instances = batch_query_by_ids(
+                    self.db_api, product_ref_ids, "Products for folder items"
+                )
+                for pinst in prod_instances:
+                    product_map[pinst.get('id')] = pinst.get('attributes', {})
+
+            for inst in instances:
+                item = self._resolve_item(inst, product_map, pdf_to_product)
+                items.append(item)
+                seen_ids.add(item['sys_id'])
+
+        # 2. Find child folders via parent attribute
+        #    Query all folders and filter by parent reference to this folder
+        all_folders = self.get_all_folders()
+        for inst in all_folders:
+            fid = inst.get('id')
+            if fid and fid not in seen_ids:
+                attrs = inst.get('attributes', {})
+                parent_ref = attrs.get('parent')
+                parent_id = None
+                if isinstance(parent_ref, dict):
+                    parent_id = parent_ref.get('id')
+                elif isinstance(parent_ref, (int, float)):
+                    parent_id = int(parent_ref)
+                if parent_id == folder_sys_id:
+                    items.append({
+                        'sys_id': fid,
+                        'type': 'apl_folder',
+                        'category': 'folder',
+                        'name': attrs.get('name', ''),
+                        'attributes': attrs
+                    })
+                    seen_ids.add(fid)
+
+        return {'folder_id': folder_sys_id, 'folder_name': folder_name, 'items': items}
+
+    def _resolve_item(self, inst, product_map=None, pdf_to_product=None):
+        """Resolve a PSS instance to a typed content item."""
+        item_type = inst.get('type', '')
+        attrs = inst.get('attributes', {})
+        result = {'sys_id': inst.get('id'), 'type': item_type, 'attributes': attrs}
+
+        if item_type == 'apl_folder':
+            result['category'] = 'folder'
+            result['name'] = attrs.get('name', '')
+        elif item_type in ('product', 'apl_product_definition_formation'):
+            result['category'] = 'product'
+            # Resolve product name/designation from product entity
+            product_map = product_map or {}
+            pdf_to_product = pdf_to_product or {}
+            prod_id = pdf_to_product.get(inst.get('id'))
+            pattrs = product_map.get(prod_id, {})
+            result['name'] = pattrs.get('name', '') or attrs.get('name', '')
+            result['designation'] = pattrs.get('id', '') or attrs.get('id', '')
+            result['product_code'] = pattrs.get('code', '')
+            result['code1'] = attrs.get('code1', '')
+            result['formation_type'] = attrs.get('formation_type', '')
+            result['make_or_buy'] = attrs.get('make_or_buy', '')
+        elif item_type == 'apl_business_process':
+            result['category'] = 'process'
+            result['name'] = attrs.get('name', '')
+        elif item_type in ('apl_document', 'apl_digital_document'):
+            result['category'] = 'document'
+            result['name'] = attrs.get('name', '')
+        else:
+            result['category'] = 'other'
+            result['name'] = attrs.get('name', '') or str(inst.get('id', ''))
+
+        return result

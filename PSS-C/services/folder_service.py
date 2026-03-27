@@ -31,42 +31,46 @@ class FolderService:
             fid = f.get('id')
             attrs = f.get('attributes', {})
             content = attrs.get('content', [])
-            parent = attrs.get('parent')
-            # Identify child folder IDs
-            child_folder_ids = set()
-            for item in content:
-                if item.get('type') == 'apl_folder':
-                    child_folder_ids.add(item.get('id'))
+            parent_ref = attrs.get('parent')
+            # parent is a reference like {"id": N} or just an int
+            parent_id = None
+            if isinstance(parent_ref, dict):
+                parent_id = parent_ref.get('id')
+            elif isinstance(parent_ref, (int, float)):
+                parent_id = int(parent_ref)
             folder_map[fid] = {
                 'sys_id': fid,
                 'name': attrs.get('name', ''),
-                'has_parent': bool(parent),
-                'child_folder_ids': child_folder_ids,
+                'parent_id': parent_id,
                 'content_count': len(content),
                 'children': []
             }
 
-        # Build tree: attach children
+        # Build tree: attach children via parent reference
         for finfo in folder_map.values():
-            for cfid in finfo['child_folder_ids']:
-                if cfid in folder_map:
-                    finfo['children'].append(folder_map[cfid])
+            pid = finfo['parent_id']
+            if pid and pid in folder_map:
+                folder_map[pid]['children'].append(finfo)
 
-        # Root folders = those with no parent attribute set
+        # Root folders = those with no parent (or parent not in folder_map)
         if root_name:
             roots = [f for f in folder_map.values() if f['name'] == root_name]
         else:
-            roots = [f for f in folder_map.values() if not f.get('has_parent')]
+            roots = [f for f in folder_map.values()
+                     if not f['parent_id'] or f['parent_id'] not in folder_map]
 
         def clean_tree(node):
             return {
                 'sys_id': node['sys_id'],
                 'name': node['name'],
                 'content_count': node['content_count'],
-                'children': [clean_tree(c) for c in node['children']]
+                'children': sorted(
+                    [clean_tree(c) for c in node['children']],
+                    key=lambda x: x['name']
+                )
             }
 
-        return [clean_tree(r) for r in roots]
+        return sorted([clean_tree(r) for r in roots], key=lambda x: x['name'])
 
     @track_performance("get_folder_contents")
     def get_folder_contents(self, folder_sys_id):

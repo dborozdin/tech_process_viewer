@@ -49,19 +49,27 @@ class ProductService:
             tree['depth'] = depth + 1
 
             # One query per level: all children of current level
-            ids_str = ", ".join(f"#{pid}" for pid in current_level)
-            query = f"""SELECT NO_CASE
-            Ext_
-            FROM
-            Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence(.relating_product_definition IN ({ids_str}))}}
-            END_SELECT"""
-            bom_data = query_apl(self.db_api, query, f"BOM level {depth+1}")
+            if len(current_level) == 1:
+                filter_expr = f".relating_product_definition = #{current_level[0]}"
+            else:
+                ids_str = ", ".join(f"#{pid}" for pid in current_level)
+                filter_expr = f".relating_product_definition IN ({ids_str})"
+            query = (
+                "SELECT NO_CASE Ext_ FROM "
+                f"Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence({filter_expr})}}"
+                " END_SELECT"
+            )
+            try:
+                bom_data = query_apl(self.db_api, query, f"BOM level {depth+1}")
+            except Exception:
+                break
 
             if not bom_data.get('instances'):
                 break
 
             # Collect related PDF IDs for batch resolution
             related_ids = set()
+            unit_ids_to_resolve = set()
             bom_items_by_parent = {}
             for inst in bom_data.get('instances', []):
                 attrs = inst.get('attributes', {})
@@ -72,14 +80,28 @@ class ProductService:
 
                 if parent_id and child_id:
                     related_ids.add(child_id)
+                    unit_ref = attrs.get('unit_component', {})
+                    unit_id = unit_ref.get('id') if isinstance(unit_ref, dict) else unit_ref
+                    if unit_id:
+                        unit_ids_to_resolve.add(unit_id)
                     if parent_id not in bom_items_by_parent:
                         bom_items_by_parent[parent_id] = []
                     bom_items_by_parent[parent_id].append({
                         'bom_sys_id': inst.get('id'),
                         'child_pdf_id': child_id,
                         'quantity': attrs.get('value_component', ''),
-                        'unit': attrs.get('unit_component', {})
+                        'unit_id': unit_id,
+                        'reference_designator': attrs.get('reference_designator', ''),
                     })
+
+            # Batch: resolve units
+            unit_map = {}
+            if unit_ids_to_resolve:
+                unit_instances = batch_query_by_ids(
+                    self.db_api, list(unit_ids_to_resolve), f"Units level {depth+1}"
+                )
+                for uinst in unit_instances:
+                    unit_map[uinst.get('id')] = uinst.get('attributes', {}).get('id', '')
 
             # Batch: resolve child product info
             child_info_map = {}
@@ -108,12 +130,16 @@ class ProductService:
                     cid = cinst.get('id')
                     pid = pdf_product_map.get(cid)
                     pattrs = product_map.get(pid, {})
+                    cinst_attrs = cinst.get('attributes', {})
                     child_info_map[cid] = {
                         'sys_id': cid,
                         'product_id': pattrs.get('id', ''),
                         'name': pattrs.get('name', ''),
-                        'code1': cinst.get('attributes', {}).get('code1', ''),
-                        'formation_type': cinst.get('attributes', {}).get('formation_type', ''),
+                        'product_code': pattrs.get('code', ''),
+                        'code1': cinst_attrs.get('code1', ''),
+                        'code2': cinst_attrs.get('code2', ''),
+                        'formation_type': cinst_attrs.get('formation_type', ''),
+                        'make_or_buy': cinst_attrs.get('make_or_buy', ''),
                     }
 
             # Build tree nodes for this level
@@ -129,9 +155,14 @@ class ProductService:
                         'bom_sys_id': item['bom_sys_id'],
                         'product_id': info.get('product_id', ''),
                         'name': info.get('name', ''),
+                        'product_code': info.get('product_code', ''),
                         'code1': info.get('code1', ''),
+                        'code2': info.get('code2', ''),
                         'formation_type': info.get('formation_type', ''),
+                        'make_or_buy': info.get('make_or_buy', ''),
                         'quantity': item['quantity'],
+                        'unit_name': unit_map.get(item.get('unit_id'), ''),
+                        'reference_designator': item.get('reference_designator', ''),
                         'children': []
                     }
                     parent_list.append(node)
@@ -155,38 +186,44 @@ class ProductService:
         if not info:
             return None
 
-        # Characteristics
-        chars = self.db_api.products_api.get_product_characteristics(pdf_sys_id)
-        info['characteristics'] = [{
-            'sys_id': c.get('id'),
-            'name': c.get('attributes', {}).get('name', ''),
-            'value': c.get('attributes', {}).get('value', ''),
-        } for c in chars]
+        # Characteristics (may fail if entity type doesn't exist in this DB)
+        try:
+            chars = self.db_api.products_api.get_product_characteristics(pdf_sys_id)
+            info['characteristics'] = [{
+                'sys_id': c.get('id'),
+                'name': c.get('attributes', {}).get('name', ''),
+                'value': c.get('attributes', {}).get('value', ''),
+            } for c in chars]
+        except Exception:
+            info['characteristics'] = []
 
-        # Documents
-        doc_query = f"""SELECT NO_CASE
-        Ext_
-        FROM
-        Ext_{{apl_document_reference(.item = #{pdf_sys_id})}}
-        END_SELECT"""
-        doc_refs = query_apl(self.db_api, doc_query, "Document refs for product")
-        doc_ids = []
-        for inst in doc_refs.get('instances', []):
-            assigned = inst.get('attributes', {}).get('assigned_document', {})
-            if isinstance(assigned, dict) and 'id' in assigned:
-                doc_ids.append(assigned['id'])
+        # Documents (may fail if entity type doesn't exist in this DB)
+        try:
+            doc_query = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_document_reference(.item = #{pdf_sys_id})}}
+            END_SELECT"""
+            doc_refs = query_apl(self.db_api, doc_query, "Document refs for product")
+            doc_ids = []
+            for inst in doc_refs.get('instances', []):
+                assigned = inst.get('attributes', {}).get('assigned_document', {})
+                if isinstance(assigned, dict) and 'id' in assigned:
+                    doc_ids.append(assigned['id'])
 
-        docs = []
-        if doc_ids:
-            doc_instances = batch_query_by_ids(self.db_api, doc_ids, "Documents for product")
-            for dinst in doc_instances:
-                dattrs = dinst.get('attributes', {})
-                docs.append({
-                    'sys_id': dinst.get('id'),
-                    'name': dattrs.get('name', ''),
-                    'code': dattrs.get('id', ''),
-                })
-        info['documents'] = docs
+            docs = []
+            if doc_ids:
+                doc_instances = batch_query_by_ids(self.db_api, doc_ids, "Documents for product")
+                for dinst in doc_instances:
+                    dattrs = dinst.get('attributes', {})
+                    docs.append({
+                        'sys_id': dinst.get('id'),
+                        'name': dattrs.get('name', ''),
+                        'code': dattrs.get('id', ''),
+                    })
+            info['documents'] = docs
+        except Exception:
+            info['documents'] = []
 
         return info
 
@@ -216,12 +253,18 @@ class ProductService:
                     'name': node.get('name', ''),
                     'code1': node.get('code1', ''),
                     'quantity': node.get('quantity', ''),
+                    'unit_name': node.get('unit_name', ''),
                     'formation_type': node.get('formation_type', ''),
                 })
                 flatten(node.get('children', []), depth + 1)
 
         flatten(tree.get('children', []))
         return flat
+
+    @track_performance("get_product_full_info")
+    def get_product_full_info(self, pdf_sys_id):
+        """Получить полные атрибуты изделия и его версии."""
+        return self.db_api.products_api.get_product_full_info(pdf_sys_id)
 
     def _get_pdf_info(self, pdf_sys_id):
         """Получить базовую информацию о версии изделия."""
@@ -250,6 +293,7 @@ class ProductService:
             'product_id': product_id,
             'name': product_name,
             'code1': pdf_attrs.get('code1', ''),
+            'code2': pdf_attrs.get('code2', ''),
             'formation_type': pdf_attrs.get('formation_type', ''),
             'make_or_buy': pdf_attrs.get('make_or_buy', ''),
             'attributes': pdf_attrs,

@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "pss": {
-      "command": "python",
-      "args": ["-m", "tech_process_viewer.mcp_server.server"],
-      "cwd": "..",
+      "command": "C:\\Python312\\python.exe",
+      "args": ["c:\\python_projects\\express_api\\tech_process_viewer\\mcp_server\\server.py"],
       "env": {
         "PSS_SERVER": "http://localhost:7239",
         "PSS_DB": "pss_moma_08_07_2025",

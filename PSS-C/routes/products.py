@@ -45,6 +45,17 @@ def product_characteristics(product_id):
     return jsonify(result.get('characteristics', []))
 
 
+@bp.route('/<int:product_id>/full')
+def product_full_info(product_id):
+    svc = _service()
+    if not svc:
+        return jsonify({'error': 'Not connected'}), 400
+    result = svc.get_product_full_info(product_id)
+    if result is None:
+        return jsonify({'error': 'Product not found'}), 404
+    return jsonify(result)
+
+
 @bp.route('/search')
 def search_products():
     svc = _service()
