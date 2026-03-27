@@ -182,7 +182,10 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 }
 .data-table tr:hover td { background: var(--hover); }
 .data-table tr.selected td { background: #d0eef4; }
-.data-table .cell-icon { font-size: 15px; }
+.data-table .cell-icon { font-size: 15px; white-space: nowrap; }
+.data-table .cell-icon .tree-badge { font-size: 10px; margin-left: 2px; vertical-align: super; }
+.folder-expand { cursor: pointer; margin-right: 4px; font-size: 10px; color: var(--text-secondary); transition: transform var(--transition); display: inline-flex; }
+.folder-expand:hover { color: var(--primary); }
 .data-table .cell-name { font-weight: 500; }
 .bom-table .cell-name { display: flex; align-items: center; gap: 2px; white-space: nowrap; }
 .bom-table .cell-name .tree-toggle { display: inline-flex; cursor: pointer; }
@@ -1313,7 +1316,9 @@ class ContentView {
       html += `<tr data-id="${item.sys_id}" data-type="${item.type || ''}" data-category="${item.category || ''}" data-name="${this._esc(item.name || '')}" class="content-row">`;
       cols.forEach(c => {
         if (c.key === 'icon') {
-          html += `<td class="cell-icon">${icon}</td>`;
+          const expandIcon = (item.children_count > 0) ? '<span class="tree-toggle folder-expand" title="Раскрыть структуру">▶</span>' : '';
+          const badge = (item.children_count > 0) ? `<span class="tree-badge">${item.children_count}</span>` : '';
+          html += `<td class="cell-icon">${expandIcon}${icon}${badge}</td>`;
         } else if (c.key === 'name') {
           html += `<td class="cell-name">${this._esc(item.name || '')}</td>`;
         } else if (c.key === 'designation') {
@@ -1337,6 +1342,16 @@ class ContentView {
     });
     html += '</tbody></table>';
     this.container.innerHTML = html;
+
+    // Expand arrow click → open BOM
+    this.container.querySelectorAll('.folder-expand').forEach(arrow => {
+      arrow.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const row = arrow.closest('tr');
+        const id = row.dataset.id;
+        bus.emit('product-open', { id });
+      });
+    });
 
     // Row click
     this.container.querySelectorAll('.content-row').forEach(row => {

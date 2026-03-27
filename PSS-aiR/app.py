@@ -49,7 +49,11 @@ def connect():
 
     try:
         _db_api = DatabaseAPI(rest_url, credentials)
-        _db_api.reconnect_db()
+        session_key = _db_api.reconnect_db()
+        if not session_key or not _db_api.connect_data:
+            _db_api = None
+            app.config['db_api'] = None
+            return jsonify({'error': 'Не удалось получить session_key. Проверьте сервер и БД.'}), 500
         app.config['db_api'] = _db_api
         logger.info(f"PSS-aiR connected to {db} as {user}")
         return jsonify({
@@ -61,6 +65,7 @@ def connect():
     except Exception as e:
         logger.error(f"PSS-aiR connection error: {e}")
         _db_api = None
+        app.config['db_api'] = None
         return jsonify({'error': str(e)}), 500
 
 

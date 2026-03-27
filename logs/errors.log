@@ -1,0 +1,45 @@
+2026-03-27 16:58:47,914 - ERROR - Query error: HTTP 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #815889)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:47.912 "
+}
+2026-03-27 16:58:47,915 - ERROR - Query error: 400 Client Error: Bad Request for url: http://localhost:7239/rest/query
+2026-03-27 16:58:47,915 - ERROR - Response status: 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #815889)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:47.912 "
+}
+2026-03-27 16:58:55,593 - ERROR - Query error: HTTP 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #100104)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:55.591 "
+}
+2026-03-27 16:58:55,594 - ERROR - Query error: 400 Client Error: Bad Request for url: http://localhost:7239/rest/query
+2026-03-27 16:58:55,594 - ERROR - Response status: 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #100104)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:55.591 "
+}
+2026-03-27 16:58:57,681 - ERROR - Query error: HTTP 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #815889)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:57.679 "
+}
+2026-03-27 16:58:57,682 - ERROR - Query error: 400 Client Error: Bad Request for url: http://localhost:7239/rest/query
+2026-03-27 16:58:57,684 - ERROR - Response status: 400, body: {
+	"_processingTime":"00:00:00.000",
+	"error_description":[
+		"Throw: Ошибка в тексте запроса в строке 4 позиция 37 :Ожидается имя энтити; Текст запроса:\nSELECT NO_CASE\n        Ext_\n        FROM\n        Ext_{apl_property_definition(.definition = #815889)}\n        END_SELECT"
+	],
+	"_processingStart":"27.03.2026 16:58:57.679 "
+}

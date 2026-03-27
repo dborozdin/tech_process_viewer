@@ -76,10 +76,56 @@ class FolderService:
     def get_folder_contents(self, folder_sys_id):
         """Получить содержимое папки с разрешёнными типами.
 
+        Для изделий дополнительно считает количество входящих компонентов (BOM children).
+
         Returns:
-            dict: {folder_id, folder_name, items: [{sys_id, type, category, name}]}
+            dict: {folder_id, folder_name, items: [{sys_id, type, category, name, children_count?}]}
         """
-        return self.db_api.folders_api.get_folder_with_content_types(folder_sys_id)
+        result = self.db_api.folders_api.get_folder_with_content_types(folder_sys_id)
+        if not result or not result.get('items'):
+            return result
+
+        # Collect product PDF IDs to count BOM children
+        pdf_ids = [item['sys_id'] for item in result['items']
+                   if item.get('category') == 'product' and item.get('sys_id')]
+
+        if pdf_ids:
+            children_counts = self._count_bom_children(pdf_ids)
+            for item in result['items']:
+                if item.get('category') == 'product':
+                    item['children_count'] = children_counts.get(item['sys_id'], 0)
+
+        return result
+
+    def _count_bom_children(self, pdf_ids):
+        """Count BOM children for a list of PDF sys_ids in one query.
+
+        Returns:
+            dict: {pdf_sys_id: count}
+        """
+        if len(pdf_ids) == 1:
+            filter_expr = f".relating_product_definition = #{pdf_ids[0]}"
+        else:
+            ids_str = ", ".join(f"#{pid}" for pid in pdf_ids)
+            filter_expr = f".relating_product_definition IN ({ids_str})"
+
+        query = (
+            "SELECT NO_CASE Ext_ FROM "
+            f"Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence({filter_expr})}}"
+            " END_SELECT"
+        )
+        try:
+            bom_data = query_apl(self.db_api, query, "BOM children count")
+        except Exception:
+            return {}
+
+        counts = {}
+        for inst in bom_data.get('instances', []):
+            relating = inst.get('attributes', {}).get('relating_product_definition', {})
+            parent_id = relating.get('id') if isinstance(relating, dict) else None
+            if parent_id:
+                counts[parent_id] = counts.get(parent_id, 0) + 1
+        return counts
 
     @track_performance("create_folder")
     def create_folder(self, name, parent_id=None):
