@@ -5,3 +5,4 @@ logs/
 logs/app.log
 .env
 *_key
+logs/app.log
