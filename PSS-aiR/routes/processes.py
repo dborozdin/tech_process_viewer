@@ -164,6 +164,18 @@ def process_resources(process_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/<int:process_id>/materials')
+def process_materials(process_id):
+    """Материалы бизнес-процесса (lazy-load)."""
+    svc = _service()
+    if not svc:
+        return jsonify({'error': 'Not connected'}), 400
+    try:
+        return jsonify(svc._get_materials(process_id))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/<int:process_id>/operation-columns')
 def operation_column_data(process_id):
     """Данные динамических колонок для операций техпроцесса."""
@@ -174,7 +186,8 @@ def operation_column_data(process_id):
     if not columns_param:
         return jsonify({})
     column_keys = [k.strip() for k in columns_param.split(',') if k.strip()]
+    self_mode = request.args.get('self', '') == 'true'
     try:
-        return jsonify(svc.get_operation_column_data(process_id, column_keys))
+        return jsonify(svc.get_operation_column_data(process_id, column_keys, self_mode=self_mode))
     except Exception as e:
         return jsonify({'error': str(e)}), 500

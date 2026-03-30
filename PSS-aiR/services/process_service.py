@@ -242,6 +242,10 @@ class ProcessService:
                     elif isinstance(r, (int, str)):
                         resource_ids.append(int(r))
 
+            # Check if process has child elements
+            raw_elements = attrs.get("elements", [])
+            has_children = bool(raw_elements and isinstance(raw_elements, list) and len(raw_elements) > 0)
+
             result.append({
                 parent_element_type: process_id,
                 element_type: bp_id,
@@ -254,6 +258,7 @@ class ProcessService:
                 "process_type": "Customized" if attrs.get("customized", False) else "Typical",
                 "active_version_id": active_version_id,
                 "resource_ids": resource_ids,
+                "has_children": has_children,
             })
 
         return result
@@ -283,33 +288,52 @@ class ProcessService:
         } for d in doc_instances]
 
     def _get_materials(self, tech_proc_id):
-        """Получить материалы для техпроцесса (batch)."""
-        mat_type_id = self.db_api.resources_api.find_resource_type_by_name("Potrošni materijal")
-        if not mat_type_id:
-            return []
+        """Получить материалы для техпроцесса.
 
+        Материал = ресурс процесса, у которого object — это
+        apl_product_definition_formation с formation_type = "kit".
+        Затем загружается состав этого kit (assembly components).
+        """
+        # 1) Все ресурсы процесса (1 запрос)
         query = f"""SELECT NO_CASE
         Ext_
         FROM
-        Ext_{{apl_business_process_resource(.process = #{tech_proc_id} AND .type = #{mat_type_id})}}
+        Ext_{{apl_business_process_resource(.process = #{tech_proc_id})}}
         END_SELECT"""
-        mats_data = query_apl(self.db_api, query, "Material resources")
+        res_data = query_apl(self.db_api, query, "All resources for materials")
 
-        materials = []
-        for inst in mats_data.get("instances", []):
+        # 2) Собрать object IDs, batch-загрузить, отфильтровать kit
+        obj_ids = []
+        res_by_obj = {}
+        for inst in res_data.get("instances", []):
             obj = inst.get("attributes", {}).get("object", {})
-            if not isinstance(obj, dict) or 'id' not in obj:
-                continue
+            if isinstance(obj, dict) and 'id' in obj:
+                obj_ids.append(obj['id'])
+                res_by_obj[obj['id']] = inst
 
-            assembly_pdf_id = obj['id']
+        if not obj_ids:
+            return []
+
+        obj_instances = batch_query_by_ids(self.db_api, list(set(obj_ids)), "Resource objects")
+        kit_pdf_ids = []
+        for oinst in obj_instances:
+            if oinst.get('type') == 'apl_product_definition_formation':
+                if oinst.get('attributes', {}).get('formation_type') == 'kit':
+                    kit_pdf_ids.append(oinst['id'])
+
+        if not kit_pdf_ids:
+            return []
+
+        # 3) Для каждого kit — загрузить состав (assembly components)
+        materials = []
+        for kit_id in kit_pdf_ids:
             query_asm = f"""SELECT NO_CASE
             Ext_
             FROM
-            Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence(.relating_product_definition = #{assembly_pdf_id})}}
+            Ext_{{apl_quantified_assembly_component_usage+next_assembly_usage_occurrence(.relating_product_definition = #{kit_id})}}
             END_SELECT"""
-            asm_data = query_apl(self.db_api, query_asm, "Assemblies")
+            asm_data = query_apl(self.db_api, query_asm, "Kit components")
 
-            # Batch: related PDFs, products, units
             related_ids = []
             unit_ids = []
             asm_map = {}
@@ -327,6 +351,7 @@ class ProcessService:
             if not related_ids:
                 continue
 
+            # Batch: related PDFs → products → names
             related_insts = batch_query_by_ids(self.db_api, related_ids, "Related PDFs")
             product_ids = []
             pdf_map = {}
@@ -334,7 +359,7 @@ class ProcessService:
                 of_product = rinst.get("attributes", {}).get("of_product", {})
                 if isinstance(of_product, dict) and 'id' in of_product:
                     product_ids.append(of_product['id'])
-                    pdf_map[rinst.get("id")] = {
+                    pdf_map[rinst['id']] = {
                         'product_id': of_product['id'],
                         'code1': rinst.get("attributes", {}).get('code1', '')
                     }
@@ -342,12 +367,12 @@ class ProcessService:
             prod_map = {}
             if product_ids:
                 for pinst in batch_query_by_ids(self.db_api, product_ids, "Products"):
-                    prod_map[pinst.get("id")] = pinst.get("attributes", {})
+                    prod_map[pinst['id']] = pinst.get("attributes", {})
 
             unit_map = {}
             if unit_ids:
                 for uinst in batch_query_by_ids(self.db_api, unit_ids, "Units"):
-                    unit_map[uinst.get("id")] = uinst.get("attributes", {}).get("name", "")
+                    unit_map[uinst['id']] = uinst.get("attributes", {}).get("name", "")
 
             for rid, aattrs in asm_map.items():
                 pinfo = pdf_map.get(rid, {})
@@ -409,8 +434,11 @@ class ProcessService:
         return result
 
     @track_performance("get_operation_column_data")
-    def get_operation_column_data(self, tech_proc_id, column_keys):
+    def get_operation_column_data(self, tech_proc_id, column_keys, self_mode=False):
         """Получить данные динамических колонок для операций техпроцесса.
+
+        Args:
+            self_mode: если True — данные для самого процесса (листовой узел без подпроцессов)
 
         Оптимизация: batch-загрузка ресурсов и характеристик.
         - Ресурсы: 1 batch-запрос по resource_ids из подпроцессов → фильтр по типу в Python
@@ -418,9 +446,35 @@ class ProcessService:
         - Версии: 1 batch-запрос
         - Атрибуты: 0 запросов (из данных подпроцессов)
         """
-        operations = self._get_sub_processes(
-            tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id'
-        )
+        if self_mode:
+            # Leaf process: load the process itself as a single "operation"
+            query = f"SELECT NO_CASE Ext_ FROM Ext_{{apl_business_process(.# = #{tech_proc_id})}} END_SELECT"
+            data = query_apl(self.db_api, query, "Self process for columns")
+            if not data or not data.get('instances'):
+                return {}
+            inst = data['instances'][0]
+            attrs = inst.get('attributes', {})
+            raw_resources = attrs.get('resources', [])
+            resource_ids = []
+            if isinstance(raw_resources, list):
+                for r in raw_resources:
+                    rid = r.get('id') if isinstance(r, dict) else r
+                    if rid:
+                        resource_ids.append(int(rid) if not isinstance(rid, int) else rid)
+            av_obj = attrs.get('active_version', {})
+            operations = [{
+                'operation_id': tech_proc_id,
+                'designation': attrs.get('id', ''),
+                'original_name': attrs.get('name', ''),
+                'type_name': '',
+                'process_type': 'Customized' if attrs.get('customized', False) else 'Typical',
+                'active_version_id': av_obj.get('id') if isinstance(av_obj, dict) else None,
+                'resource_ids': resource_ids,
+            }]
+        else:
+            operations = self._get_sub_processes(
+                tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id'
+            )
         op_ids = [op['operation_id'] for op in operations]
         if not op_ids:
             return {}

@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PSS-aiR</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <style>
 /* ===== Reset & Base ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -164,6 +166,11 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .tree-toggle.expanded { transform: rotate(90deg); }
 .tree-toggle.leaf { visibility: hidden; }
 .tree-icon { margin-right: 6px; font-size: 15px; flex-shrink: 0; }
+.icon-process {
+  display: inline-block; width: 16px; height: 16px; vertical-align: middle;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M38.2 4.7l2.3 5.6a23 23 0 0 1 5.4 3.1l6-.8a2 2 0 0 1 1.8.9l4.2 7.3a2 2 0 0 1-.3 2.2l-3.7 4.8a23 23 0 0 1 0 6.2l3.7 4.8a2 2 0 0 1 .3 2.2l-4.2 7.3a2 2 0 0 1-1.8.9l-6-.8a23 23 0 0 1-5.4 3.1l-2.3 5.6a2 2 0 0 1-1.8 1.2h-8.4a2 2 0 0 1-1.8-1.2l-2.3-5.6a23 23 0 0 1-5.4-3.1l-6 .8a2 2 0 0 1-1.8-.9l-4.2-7.3a2 2 0 0 1 .3-2.2l3.7-4.8a23 23 0 0 1 0-6.2l-3.7-4.8a2 2 0 0 1-.3-2.2l4.2-7.3a2 2 0 0 1 1.8-.9l6 .8a23 23 0 0 1 5.4-3.1l2.3-5.6A2 2 0 0 1 28.2 3.5h8.4a2 2 0 0 1 1.6 1.2z' fill='none' stroke='%23006878' stroke-width='3'/%3E%3Cpath d='M26 32a6 6 0 0 1 6-6' fill='none' stroke='%23006878' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M38 32a6 6 0 0 1-6 6' fill='none' stroke='%23006878' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M32 26l3-3-3-1' fill='none' stroke='%23006878' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M32 38l-3 3 3 1' fill='none' stroke='%23006878' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center/contain;
+}
+.icon-process.lg { width: 48px; height: 48px; }
 .tree-label { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-badge {
   background: var(--border); color: var(--text-secondary); font-size: 10px;
@@ -554,7 +561,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
           </div>
           <div id="processTreeContainer">
             <div class="tree-empty">
-              <div class="tree-empty-icon">⚙️</div>
+              <div class="tree-empty-icon"><span class="icon-process lg"></span></div>
               <div>Выберите изделие для отображения техпроцессов</div>
             </div>
           </div>
@@ -682,7 +689,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 </div>
 
 <script src="/shared/js/db-connection.js"></script>
-<script src="/static/xlsx.full.min.js"></script>
+<script src="/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
    PSS-aiR — Single Page Application
@@ -765,9 +772,13 @@ class API {
   processHierarchy(id) { return this._fetch(`/api/processes/${id}/hierarchy`); }
   processDetails(id) { return this._fetch(`/api/processes/${id}/details`); }
   operationColumnTypes() { return this._fetch('/api/processes/column-types'); }
-  operationColumnData(id, columns) { return this._fetch(`/api/processes/${id}/operation-columns?columns=${columns.join(',')}`); }
+  operationColumnData(id, columns, selfMode) {
+    const params = `columns=${columns.join(',')}${selfMode ? '&self=true' : ''}`;
+    return this._fetch(`/api/processes/${id}/operation-columns?${params}`);
+  }
   processChars(id) { return this._fetch(`/api/processes/${id}/characteristics`); }
   processResources(id) { return this._fetch(`/api/processes/${id}/resources`); }
+  processMaterials(id) { return this._fetch(`/api/processes/${id}/materials`); }
 
   // Documents
   documents(itemId) { return this._fetch(`/api/documents/${itemId}`); }
@@ -1279,7 +1290,7 @@ class ProcessTreeView {
     bus.on('context-product-cleared', () => {
       this.contextName.textContent = '-';
       this.clear();
-      this._showEmpty('⚙️', 'Выберите изделие для отображения техпроцессов');
+      this._showEmpty('<span class="icon-process lg"></span>', 'Выберите изделие для отображения техпроцессов');
     });
 
     bus.on('disconnected', () => this.clear());
@@ -1303,7 +1314,7 @@ class ProcessTreeView {
     try {
       const processes = await api.processes(productPdfId);
       if (!processes || !processes.length) {
-        this._showEmpty('⚙️', 'Техпроцессы не найдены');
+        this._showEmpty('<span class="icon-process lg"></span>', 'Техпроцессы не найдены');
         return;
       }
       this.container.innerHTML = '';
@@ -1312,7 +1323,7 @@ class ProcessTreeView {
         fragment.appendChild(this._createNode({
           id: proc.process_id,
           name: proc.name || '#' + proc.process_id,
-          icon: '⚙️',
+          icon: 'process',
           hasChildren: true,
           data: proc
         }, 0));
@@ -1350,7 +1361,11 @@ class ProcessTreeView {
 
     const icon = document.createElement('span');
     icon.className = 'tree-icon';
-    icon.textContent = node.icon || '📋';
+    if (node.icon === 'process') {
+      icon.innerHTML = '<span class="icon-process"></span>';
+    } else {
+      icon.textContent = node.icon || '';
+    }
 
     const label = document.createElement('span');
     label.className = 'tree-label';
@@ -1416,8 +1431,8 @@ class ProcessTreeView {
         fragment.appendChild(this._createNode({
           id: childId,
           name: child.name || '#' + childId,
-          icon: '📋',
-          hasChildren: true,
+          icon: 'process',
+          hasChildren: child.has_children !== false,
           data: child,
           _parentId: nodeId
         }, state.depth + 1));
@@ -1656,7 +1671,7 @@ class ContentView {
     this._currentView = 'folder';
     this._updateColBtn();
     const cols = this._getVisibleColumns();
-    const typeIcons = { product: '📦', process: '⚙️', document: '📄', folder: '📁' };
+    const typeIcons = { product: '📦', process: '<span class="icon-process"></span>', document: '📋', folder: '📁' };
 
     let html = '<table class="data-table"><thead><tr>';
     cols.forEach(c => {
@@ -2009,9 +2024,22 @@ class ContentView {
       // Load column types BEFORE rendering so saved columns appear in thead
       await this._ensureOpsColumnTypes();
       const details = await api.processDetails(processId);
+      // For leaf processes (no operations), show the process itself as single row
+      const isLeaf = !details.operations || !details.operations.length;
+      details._isLeaf = isLeaf;
+      details._displayOps = isLeaf ? [{
+        operation_id: details.sys_id,
+        name: details.name || '',
+        original_name: details.name || '',
+        designation: details.id || '',
+        type_name: details.type_name || '',
+        process_type: details.process_type || '',
+        org_unit: details.org_unit || '',
+        description: details.description || '',
+      }] : details.operations;
       this._lastProcessDetails = details;
       this._renderProcessDetails(details);
-      // Lazy-load only non-attribute dynamic columns (res_*, char_*)
+      // Lazy-load dynamic columns (res_*, char_*, attr_version)
       await this._loadDynOpsColumns(processId, details);
     } catch (err) {
       toaster.show('Ошибка загрузки техпроцесса: ' + err.message, 'error');
@@ -2025,7 +2053,8 @@ class ContentView {
     const visibleKeys = this._getOpsVisibleColumns();
     const dynCols = this._opsColumnTypesCache || [];
     const enabledDyn = dynCols.filter(c => visibleKeys.includes(c.key));
-    if (!enabledDyn.length || !details.operations || !details.operations.length) return;
+    const ops = details._displayOps || details.operations || [];
+    if (!enabledDyn.length || !ops.length) return;
 
     // Split: attr_* columns filled client-side, res_*/char_* need API call
     const attrCols = enabledDyn.filter(c => c.key.startsWith('attr_'));
@@ -2042,7 +2071,7 @@ class ContentView {
         const field = ATTR_FIELD_MAP[c.key];
         if (field) {
           const colVals = {};
-          details.operations.forEach(op => {
+          (details._displayOps || details.operations || []).forEach(op => {
             const val = op[field];
             if (val) colVals[String(op.operation_id)] = [{ value: String(val) }];
           });
@@ -2050,7 +2079,7 @@ class ContentView {
         }
         // attr_version handled server-side (needs version resolution)
       });
-      this._fillDynColumns(details.operations, attrCols.filter(c => c.key in attrData), attrData);
+      this._fillDynColumns(details._displayOps || details.operations || [], attrCols.filter(c => c.key in attrData), attrData);
     }
 
     // Only call server for res_*/char_*/attr_version columns
@@ -2059,9 +2088,9 @@ class ContentView {
     if (!serverKeys.length) return;
 
     try {
-      const colData = await api.operationColumnData(processId, serverKeys);
+      const colData = await api.operationColumnData(processId, serverKeys, details._isLeaf);
       const serverAndVersionCols = enabledDyn.filter(c => serverKeys.includes(c.key));
-      this._fillDynColumns(details.operations, serverAndVersionCols, colData);
+      this._fillDynColumns(details._displayOps || details.operations || [], serverAndVersionCols, colData);
     } catch (err) {
       console.error('Error loading dynamic columns:', err);
     }
@@ -2115,40 +2144,42 @@ class ContentView {
     const dynCols = (this._opsColumnTypesCache || []).filter(c => visibleKeys.includes(c.key));
     const baseCols = ContentView.OPS_BASE_COLUMNS.filter(c => visibleKeys.includes(c.key));
 
+    const displayOps = details._displayOps || details.operations || [];
+    const isLeaf = !details.operations || !details.operations.length;
+    const activeDynCols = dynCols;
+    const title = isLeaf
+      ? `Процесс: ${this._esc(details.name || '')}`
+      : 'Входящие процессы';
+
     let html = '<div class="process-details">';
 
-    // Входящие процессы (sub-processes table) — no "Общие сведения" (shown in right panel)
-    if (details.operations && details.operations.length) {
-      html += '<div class="process-section">';
-      html += '<div class="process-section-title">Входящие процессы <button class="ops-col-btn" id="btnOpsColumns">⚙️ Колонки</button></div>';
+    html += '<div class="process-section">';
+    html += `<div class="process-section-title">${title} <button class="ops-col-btn" id="btnOpsColumns">⚙️ Колонки</button></div>`;
 
-      // Build thead
-      html += '<table class="data-table" id="opsTable"><thead><tr>';
+    // Build thead
+    html += '<table class="data-table" id="opsTable"><thead><tr>';
+    baseCols.forEach(c => {
+      const w = c.width ? ` style="width:${c.width}"` : '';
+      html += `<th${w}>${c.label}</th>`;
+    });
+    activeDynCols.forEach(c => html += `<th>${this._esc(c.label)}</th>`);
+    html += '</tr></thead><tbody>';
+
+    // Build rows (clickable — selects subprocess in tree + shows properties)
+    displayOps.forEach((op, i) => {
+      const opId = op.operation_id;
+      html += `<tr class="ops-row" data-op-id="${opId}">`;
       baseCols.forEach(c => {
-        const w = c.width ? ` style="width:${c.width}"` : '';
-        html += `<th${w}>${c.label}</th>`;
+        if (c.key === 'index') html += `<td>${i + 1}</td>`;
+        else if (c.key === 'name') html += `<td>${this._esc(op.name || '')}</td>`;
       });
-      dynCols.forEach(c => html += `<th>${this._esc(c.label)}</th>`);
-      html += '</tr></thead><tbody>';
-
-      // Build rows (clickable — selects subprocess in tree + shows properties)
-      details.operations.forEach((op, i) => {
-        const opId = op.operation_id;
-        html += `<tr class="ops-row" data-op-id="${opId}">`;
-        baseCols.forEach(c => {
-          if (c.key === 'index') html += `<td>${i + 1}</td>`;
-          else if (c.key === 'name') html += `<td>${this._esc(op.name || '')}</td>`;
-        });
-        // Dynamic column placeholders (filled by _fillDynColumns)
-        dynCols.forEach(c => {
-          html += `<td data-op="${opId}" data-col="${c.key}">⏳</td>`;
-        });
-        html += '</tr>';
+      // Dynamic column placeholders (filled by _fillDynColumns)
+      activeDynCols.forEach(c => {
+        html += `<td data-op="${opId}" data-col="${c.key}">⏳</td>`;
       });
-      html += '</tbody></table></div>';
-    } else {
-      html += '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Входящие процессы отсутствуют</div></div>';
-    }
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
 
     html += '</div>';
     this.container.innerHTML = html;
@@ -2169,7 +2200,7 @@ class ContentView {
         row.classList.add('selected');
         const opId = row.dataset.opId;
         // Find operation data from cached details (avoid re-fetching)
-        const op = details.operations.find(o => String(o.operation_id) === String(opId));
+        const op = displayOps.find(o => String(o.operation_id) === String(opId));
         bus.emit('process-node-select', opId);
         bus.emit('item-selected', {
           id: opId, type: 'process',
@@ -2533,12 +2564,8 @@ class PropertyPanel {
     if (!item) return;
     showSpinner(this.contentContainer);
     try {
-      // Materials are in process details
-      if (!this.cache.attrs) {
-        const data = await api.processDetails(item.id);
-        this.cache.attrs = data;
-      }
-      this.cache.materials = (this.cache.attrs && this.cache.attrs.materials) || [];
+      const materials = await api.processMaterials(item.id);
+      this.cache.materials = Array.isArray(materials) ? materials : [];
       this._displayMaterials(this.cache.materials);
     } catch {
       this.contentContainer.innerHTML = '<div class="property-empty"><div>Материалы не найдены</div></div>';
