@@ -41,6 +41,17 @@ class ProcessService:
         END_SELECT"""
         proc_data = query_apl(self.db_api, query_bp, "Business processes")
 
+        # Batch: resolve type names
+        type_ids = []
+        for inst in proc_data.get("instances", []):
+            type_obj = inst.get("attributes", {}).get("type", {})
+            if isinstance(type_obj, dict) and "id" in type_obj:
+                type_ids.append(type_obj["id"])
+        type_map = {}
+        if type_ids:
+            for tinst in batch_query_by_ids(self.db_api, list(set(type_ids)), "BP types"):
+                type_map[tinst.get("id")] = tinst.get("attributes", {}).get("name", "")
+
         res_type_id = self.db_api.resources_api.find_resource_type_by_name("Vreme rada")
 
         result = []
@@ -49,10 +60,16 @@ class ProcessService:
             bp_id = proc.get("id")
             org_unit = resolve_org_unit(self.db_api, bp_id, res_type_id)
 
+            type_obj = attrs.get("type", {})
+            type_id = type_obj.get("id") if isinstance(type_obj, dict) else None
+            resolved_type_name = type_map.get(type_id, "") if type_id else ""
+
             result.append({
                 "process_id": bp_id,
                 "product_id": product_pdf_id,
                 "name": attrs.get("name"),
+                "designation": attrs.get("id", ""),
+                "type_name": resolved_type_name,
                 "org_unit": org_unit,
                 "process_type": "Customized" if attrs.get("customized", False) else "Typical",
             })
@@ -81,11 +98,35 @@ class ProcessService:
         res_type_id = self.db_api.resources_api.find_resource_type_by_name("Vreme rada")
         org_unit = resolve_org_unit(self.db_api, tech_proc_id, res_type_id)
 
+        # Resolve type name
+        type_name = ""
+        type_obj = tp_attrs.get("type", {})
+        if isinstance(type_obj, dict) and "id" in type_obj:
+            type_instances = batch_query_by_ids(self.db_api, [type_obj["id"]], "BP type")
+            if type_instances:
+                type_name = type_instances[0].get("attributes", {}).get("name", "")
+
+        # Resolve vreme rada for the process itself
+        man_hours = ""
+        if res_type_id:
+            resource_id = self.db_api.resources_api.find_resource_by_bp_and_type(
+                tech_proc_id, res_type_id
+            )
+            if resource_id:
+                resource_data = self.db_api.resources_api.find_resource_data_by_id(resource_id)
+                if resource_data and resource_data.get('instances'):
+                    value = resource_data['instances'][0].get('attributes', {}).get("value_component", "")
+                    man_hours = str(value) if value else ""
+
         result = {
             'sys_id': tech_proc_id,
+            'id': tp_attrs.get('id', ''),
             'name': tp_attrs.get('name'),
+            'description': tp_attrs.get('description', ''),
             'org_unit': org_unit,
+            'type_name': type_name,
             'process_type': "Customized" if tp_attrs.get("customized", False) else "Typical",
+            'man_hours': man_hours,
         }
 
         # Operations
@@ -166,6 +207,11 @@ class ProcessService:
             attrs = proc.get("attributes", {})
             bp_id = proc.get("id")
 
+            # Resolve type name
+            type_obj = attrs.get("type", {})
+            type_id = type_obj.get("id") if isinstance(type_obj, dict) else None
+            resolved_type_name = type_map.get(type_id, "") if type_id else ""
+
             # Display name
             if element_type == 'tech_proc_id':
                 display_name = f"{attrs.get('id', '')} : {attrs.get('name')}"
@@ -174,10 +220,7 @@ class ProcessService:
                 oper_id = bp_id_attr.split()[-1] if bp_id_attr else ""
                 display_name = f"{oper_id} : {attrs.get('name')}"
             else:
-                type_obj = attrs.get("type", {})
-                type_id = type_obj.get("id") if isinstance(type_obj, dict) else None
-                type_name = type_map.get(type_id, "") if type_id else ""
-                display_name = f"{type_name} : {attrs.get('name')}" if type_name else attrs.get("name")
+                display_name = f"{resolved_type_name} : {attrs.get('name')}" if resolved_type_name else attrs.get("name")
 
             org_unit = resolve_org_unit(self.db_api, bp_id, res_type_id)
 
@@ -186,6 +229,8 @@ class ProcessService:
                 element_type: bp_id,
                 "name": display_name,
                 "original_name": attrs.get("name"),
+                "designation": attrs.get("id", ""),
+                "type_name": resolved_type_name,
                 "description": attrs.get("description", ""),
                 "org_unit": org_unit,
                 "process_type": "Customized" if attrs.get("customized", False) else "Typical",
@@ -298,3 +343,151 @@ class ProcessService:
                 })
 
         return materials
+
+    @track_performance("get_operation_column_types")
+    def get_operation_column_types(self):
+        """Получить доступные типы динамических колонок для таблицы операций.
+
+        Returns:
+            list: [{category, key, label, sys_id?}]
+        """
+        result = []
+
+        # Resource types from DB
+        res_types = self.db_api.resources_api.list_resource_types(limit=200)
+        if res_types and 'instances' in res_types:
+            for inst in res_types['instances']:
+                attrs = inst.get('attributes', {})
+                result.append({
+                    'category': 'resource',
+                    'key': f"res_{inst['id']}",
+                    'label': attrs.get('name', f"Ресурс #{inst['id']}"),
+                    'sys_id': inst['id']
+                })
+
+        # Documents — fixed synthetic entry
+        result.append({
+            'category': 'document',
+            'key': 'documents',
+            'label': 'Документы'
+        })
+
+        return result
+
+    @track_performance("get_operation_column_data")
+    def get_operation_column_data(self, tech_proc_id, column_keys):
+        """Получить данные динамических колонок для операций техпроцесса.
+
+        Args:
+            tech_proc_id: sys_id техпроцесса
+            column_keys: list строк вида ["res_815000", "documents"]
+
+        Returns:
+            dict: {column_key: {operation_id_str: [{value, unit?} or {name, code}]}}
+        """
+        # Get operation IDs first
+        operations = self._get_sub_processes(
+            tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id'
+        )
+        op_ids = [op['operation_id'] for op in operations]
+        if not op_ids:
+            return {}
+
+        result = {}
+        for col_key in column_keys:
+            if col_key.startswith('res_'):
+                result[col_key] = self._get_resource_column(op_ids, col_key)
+            elif col_key == 'documents':
+                result[col_key] = self._get_document_column(op_ids)
+
+        return result
+
+    def _get_resource_column(self, op_ids, col_key):
+        """Batch-запрос ресурсов одного типа для всех операций."""
+        res_type_id = int(col_key.replace('res_', ''))
+        ids_str = ", ".join(f"#{oid}" for oid in op_ids)
+
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_business_process_resource(.process IN ({ids_str}) AND .type = #{res_type_id})}}
+        END_SELECT"""
+        data = query_apl(self.db_api, query, f"Resources col {col_key}")
+
+        # Collect unit IDs for batch resolution
+        unit_ids = []
+        for inst in data.get('instances', []):
+            unit_obj = inst.get('attributes', {}).get('unit_component', {})
+            if isinstance(unit_obj, dict) and 'id' in unit_obj:
+                unit_ids.append(unit_obj['id'])
+
+        unit_map = {}
+        if unit_ids:
+            for uinst in batch_query_by_ids(self.db_api, list(set(unit_ids)), "Units"):
+                unit_map[uinst.get('id')] = uinst.get('attributes', {}).get('name', '')
+
+        # Group by process (operation) ID
+        grouped = {}
+        for inst in data.get('instances', []):
+            attrs = inst.get('attributes', {})
+            proc_ref = attrs.get('process', {})
+            proc_id = proc_ref.get('id') if isinstance(proc_ref, dict) else None
+            if proc_id is None:
+                continue
+
+            unit_obj = attrs.get('unit_component', {})
+            unit_id = unit_obj.get('id') if isinstance(unit_obj, dict) else None
+
+            value = attrs.get('value_component', '')
+            entry = {
+                'value': str(value) if value else '',
+                'unit': unit_map.get(unit_id, '')
+            }
+            grouped.setdefault(str(proc_id), []).append(entry)
+
+        return grouped
+
+    def _get_document_column(self, op_ids):
+        """Batch-запрос документов для всех операций."""
+        ids_str = ", ".join(f"#{oid}" for oid in op_ids)
+
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{apl_document_reference(.item IN ({ids_str}))}}
+        END_SELECT"""
+        refs = query_apl(self.db_api, query, "Doc refs for operations")
+
+        # Collect doc IDs and map ref → operation
+        doc_ids = []
+        ref_to_op = {}  # doc_id → op_id
+        for inst in refs.get('instances', []):
+            attrs = inst.get('attributes', {})
+            item_ref = attrs.get('item', {})
+            op_id = item_ref.get('id') if isinstance(item_ref, dict) else None
+            assigned = attrs.get('assigned_document', {})
+            doc_id = assigned.get('id') if isinstance(assigned, dict) else None
+            if op_id and doc_id:
+                doc_ids.append(doc_id)
+                ref_to_op.setdefault(doc_id, []).append(op_id)
+
+        if not doc_ids:
+            return {}
+
+        # Batch resolve document names
+        doc_map = {}
+        for dinst in batch_query_by_ids(self.db_api, list(set(doc_ids)), "Docs batch"):
+            dattrs = dinst.get('attributes', {})
+            doc_map[dinst.get('id')] = {
+                'name': dattrs.get('name', ''),
+                'code': dattrs.get('id', '')
+            }
+
+        # Group by operation ID
+        grouped = {}
+        for doc_id, op_ids_list in ref_to_op.items():
+            doc_info = doc_map.get(doc_id, {'name': '', 'code': ''})
+            for op_id in op_ids_list:
+                grouped.setdefault(str(op_id), []).append(doc_info)
+
+        return grouped

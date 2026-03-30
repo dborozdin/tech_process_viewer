@@ -57,6 +57,7 @@ def details():
     return render_template('technical_process_details.html')
 
 
+
 # ========== Business Logic ==========
 
 @track_performance("fetch_aircrafts_from_folder")

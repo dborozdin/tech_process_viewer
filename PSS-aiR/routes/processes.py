@@ -36,3 +36,25 @@ def process_details(process_id):
     if result is None:
         return jsonify({'error': 'Process not found'}), 404
     return jsonify(result)
+
+
+@bp.route('/column-types')
+def operation_column_types():
+    """Доступные типы динамических колонок для таблицы операций."""
+    svc = _service()
+    if not svc:
+        return jsonify({'error': 'Not connected'}), 400
+    return jsonify(svc.get_operation_column_types())
+
+
+@bp.route('/<int:process_id>/operation-columns')
+def operation_column_data(process_id):
+    """Данные динамических колонок для операций техпроцесса."""
+    svc = _service()
+    if not svc:
+        return jsonify({'error': 'Not connected'}), 400
+    columns_param = request.args.get('columns', '')
+    if not columns_param:
+        return jsonify({})
+    column_keys = [k.strip() for k in columns_param.split(',') if k.strip()]
+    return jsonify(svc.get_operation_column_data(process_id, column_keys))

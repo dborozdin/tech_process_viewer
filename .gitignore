@@ -5,4 +5,5 @@ logs/
 logs/app.log
 .env
 *_key
-logs/app.log
+api/routes/__pycache__/__init__.cpython-312.pyc
+logs/errors.log

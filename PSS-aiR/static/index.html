@@ -99,6 +99,38 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 }
 .panel-header-actions button:hover { opacity: 1; }
 
+/* Left panel tabs */
+.left-tabs {
+  display: flex; border-bottom: 2px solid var(--border);
+  background: var(--bg); flex-shrink: 0;
+}
+.left-tab {
+  padding: 8px 12px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; color: var(--text-secondary);
+  transition: all var(--transition); text-transform: uppercase;
+  letter-spacing: 0.3px; white-space: nowrap; flex: 1; text-align: center;
+}
+.left-tab:hover { color: var(--text); background: var(--hover); }
+.left-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-white); }
+.left-tab.disabled { opacity: 0.4; cursor: not-allowed; }
+.left-tab-content { flex: 1; overflow: hidden; position: relative; }
+.left-tab-pane { position: absolute; inset: 0; overflow: auto; display: none; padding: 4px 0; }
+.left-tab-pane.active { display: block; }
+
+/* Context bar (above process tree) */
+.context-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; background: var(--hover); border-bottom: 1px solid var(--border);
+  font-size: 12px; flex-shrink: 0;
+}
+.context-bar-name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.context-bar-clear {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1px 6px; cursor: pointer; font-size: 11px; color: var(--text-secondary); flex-shrink: 0;
+}
+.context-bar-clear:hover { background: var(--bg-white); color: var(--text); }
+
 .tree-container { flex: 1; overflow: auto; padding: 4px 0; }
 
 /* ===== Tree Nodes ===== */
@@ -125,6 +157,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 }
 .tree-children { display: none; }
 .tree-children.open { display: block; }
+.tree-loading { font-size: 12px; color: var(--text-secondary); padding: 6px 26px; font-style: italic; }
+.tree-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px; }
+.tree-empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
 
 /* ===== Center Panel ===== */
 .panel-center {
@@ -234,6 +269,21 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   gap: 6px 12px; font-size: 13px;
 }
 .process-info-label { color: var(--text-secondary); font-weight: 600; }
+
+/* Operations column config button */
+.ops-col-btn {
+  float: right; background: none; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 2px 10px; cursor: pointer; font-size: 12px; color: var(--text-secondary);
+  text-transform: none; font-weight: 400; letter-spacing: 0;
+}
+.ops-col-btn:hover { background: var(--hover); color: var(--text); }
+
+/* Multi-value cells */
+.cell-multi { padding: 4px 12px !important; }
+.cell-multi .multi-val { line-height: 1.5; padding: 1px 0; border-bottom: 1px dotted var(--border-light); }
+.cell-multi .multi-val:last-child { border-bottom: none; }
+.cell-multi .multi-more { color: var(--primary); cursor: pointer; font-size: 11px; display: inline-block; margin-top: 2px; }
+.cell-multi .multi-more:hover { text-decoration: underline; }
 
 /* ===== Right Panel (Properties) ===== */
 .panel-right {
@@ -453,10 +503,31 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
           <button id="btnCollapseAll" title="Свернуть все">&#x25b2;</button>
         </div>
       </div>
-      <div class="tree-container" id="treeContainer">
-        <div class="empty-state">
-          <div class="empty-state-icon">📂</div>
-          <div class="empty-state-text">Подключитесь к базе данных для загрузки дерева папок</div>
+      <div class="left-tabs">
+        <div class="left-tab active" data-tab="folders">Структура</div>
+        <div class="left-tab disabled" data-tab="processes">Техпроцессы</div>
+      </div>
+      <div class="left-tab-content">
+        <div class="left-tab-pane active" data-tab="folders" id="folderTabPane">
+          <div id="treeContainer">
+            <div class="empty-state">
+              <div class="empty-state-icon">📂</div>
+              <div class="empty-state-text">Подключитесь к базе данных для загрузки дерева папок</div>
+            </div>
+          </div>
+        </div>
+        <div class="left-tab-pane" data-tab="processes" id="processTabPane">
+          <div class="context-bar" id="processContextBar">
+            <span>📦</span>
+            <span class="context-bar-name" id="processContextName">-</span>
+            <button class="context-bar-clear" id="btnClearContext" title="Очистить контекст">✕</button>
+          </div>
+          <div id="processTreeContainer">
+            <div class="tree-empty">
+              <div class="tree-empty-icon">⚙️</div>
+              <div>Выберите изделие для отображения техпроцессов</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -669,6 +740,8 @@ class API {
   processes(productId) { return this._fetch(`/api/processes/${productId}`); }
   processHierarchy(id) { return this._fetch(`/api/processes/${id}/hierarchy`); }
   processDetails(id) { return this._fetch(`/api/processes/${id}/details`); }
+  operationColumnTypes() { return this._fetch('/api/processes/column-types'); }
+  operationColumnData(id, columns) { return this._fetch(`/api/processes/${id}/operation-columns?columns=${columns.join(',')}`); }
 
   // Documents
   documents(itemId) { return this._fetch(`/api/documents/${itemId}`); }
@@ -1105,6 +1178,242 @@ class FolderTreeView {
   }
 }
 
+// ===== Left Panel Tabs =====
+class LeftPanelTabs {
+  constructor() {
+    this.tabs = document.querySelectorAll('.left-tab');
+    this.panes = document.querySelectorAll('.left-tab-pane');
+    this.processTab = document.querySelector('.left-tab[data-tab="processes"]');
+    this.contextProduct = null;
+
+    this.tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (tab.classList.contains('disabled')) return;
+        this._activate(tab.dataset.tab);
+      });
+    });
+
+    // Enable/disable processes tab based on context
+    bus.on('context-product-set', (product) => {
+      this.contextProduct = product;
+      if (this.processTab) {
+        this.processTab.classList.remove('disabled');
+      }
+      // Auto-switch to processes tab
+      this._activate('processes');
+    });
+
+    bus.on('context-product-cleared', () => {
+      this.contextProduct = null;
+      if (this.processTab) {
+        this.processTab.classList.add('disabled');
+      }
+      this._activate('folders');
+    });
+
+    bus.on('disconnected', () => {
+      this.contextProduct = null;
+      if (this.processTab) this.processTab.classList.add('disabled');
+      this._activate('folders');
+    });
+  }
+
+  _activate(tabId) {
+    this.tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    this.panes.forEach(p => p.classList.toggle('active', p.dataset.tab === tabId));
+  }
+}
+
+// ===== Process Tree View =====
+class ProcessTreeView {
+  constructor(containerId) {
+    this.container = document.getElementById(containerId);
+    this.contextName = document.getElementById('processContextName');
+    this.clearBtn = document.getElementById('btnClearContext');
+    this.selectedId = null;
+    this.nodeElements = {}; // id -> { row, childContainer, toggle, loaded, node, depth }
+
+    this.clearBtn.addEventListener('click', () => {
+      bus.emit('context-product-cleared');
+    });
+
+    bus.on('context-product-set', (product) => {
+      this.contextName.textContent = product.name || '#' + product.id;
+      this.contextName.title = product.name || '';
+      this.load(product.id);
+    });
+
+    bus.on('context-product-cleared', () => {
+      this.contextName.textContent = '-';
+      this.clear();
+      this._showEmpty('⚙️', 'Выберите изделие для отображения техпроцессов');
+    });
+
+    bus.on('disconnected', () => this.clear());
+  }
+
+  async load(productPdfId) {
+    this.clear();
+    showSpinner(this.container);
+    try {
+      const processes = await api.processes(productPdfId);
+      if (!processes || !processes.length) {
+        this._showEmpty('⚙️', 'Техпроцессы не найдены');
+        return;
+      }
+      this.container.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      processes.forEach(proc => {
+        fragment.appendChild(this._createNode({
+          id: proc.process_id,
+          name: proc.name || '#' + proc.process_id,
+          icon: '⚙️',
+          hasChildren: true,
+          data: proc
+        }, 0));
+      });
+      this.container.appendChild(fragment);
+    } catch (err) {
+      this._showEmpty('⚠️', 'Ошибка загрузки: ' + err.message);
+    } finally {
+      removeSpinner(this.container);
+    }
+  }
+
+  clear() {
+    this.selectedId = null;
+    this.nodeElements = {};
+    this.container.innerHTML = '';
+  }
+
+  _showEmpty(icon, text) {
+    this.container.innerHTML = `<div class="tree-empty"><div class="tree-empty-icon">${icon || ''}</div><div>${text || ''}</div></div>`;
+  }
+
+  _createNode(node, depth) {
+    const el = document.createElement('div');
+    el.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-node-row';
+    row.style.paddingLeft = (8 + depth * 18) + 'px';
+    row.dataset.id = node.id;
+
+    const toggle = document.createElement('span');
+    toggle.className = 'tree-toggle' + (node.hasChildren ? '' : ' leaf');
+    toggle.textContent = '▶';
+
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon';
+    icon.textContent = node.icon || '📋';
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = node.name;
+    label.title = node.name;
+
+    row.appendChild(toggle);
+    row.appendChild(icon);
+    row.appendChild(label);
+    el.appendChild(row);
+
+    const childContainer = document.createElement('div');
+    childContainer.className = 'tree-children';
+    el.appendChild(childContainer);
+
+    const state = { row, childContainer, toggle, loaded: false, node, depth, parentId: node._parentId || null };
+    this.nodeElements[node.id] = state;
+
+    if (node.hasChildren) {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._toggleNode(node.id);
+      });
+    }
+
+    row.addEventListener('click', () => {
+      this._selectNode(node.id);
+    });
+
+    return el;
+  }
+
+  _toggleNode(nodeId) {
+    const state = this.nodeElements[nodeId];
+    if (!state) return;
+    const isOpen = state.childContainer.classList.contains('open');
+    if (isOpen) {
+      state.childContainer.classList.remove('open');
+      state.toggle.classList.remove('expanded');
+    } else {
+      if (!state.loaded) this._lazyLoad(nodeId);
+      state.childContainer.classList.add('open');
+      state.toggle.classList.add('expanded');
+    }
+  }
+
+  async _lazyLoad(nodeId) {
+    const state = this.nodeElements[nodeId];
+    if (!state || state.loaded) return;
+
+    state.childContainer.innerHTML = '<div class="tree-loading">Загрузка...</div>';
+    try {
+      const children = await api.processHierarchy(nodeId);
+      state.loaded = true;
+      state.childContainer.innerHTML = '';
+      if (!children || !children.length) {
+        state.toggle.classList.add('leaf');
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      children.forEach(child => {
+        const childId = child.phase_id || child.tech_proc_id || child.operation_id || child.child_id;
+        fragment.appendChild(this._createNode({
+          id: childId,
+          name: child.name || '#' + childId,
+          icon: '📋',
+          hasChildren: true,
+          data: child,
+          _parentId: nodeId
+        }, state.depth + 1));
+      });
+      state.childContainer.appendChild(fragment);
+    } catch {
+      state.childContainer.innerHTML = '';
+      state.toggle.classList.add('leaf');
+    }
+  }
+
+  _selectNode(nodeId) {
+    const prev = this.container.querySelector('.tree-node-row.selected');
+    if (prev) prev.classList.remove('selected');
+    const state = this.nodeElements[nodeId];
+    if (state) {
+      state.row.classList.add('selected');
+      this.selectedId = nodeId;
+      bus.emit('item-selected', { id: nodeId, type: 'process' });
+      // Build full breadcrumb path from root to this node
+      const bcrPath = this._buildBreadcrumbPath(nodeId);
+      bus.emit('process-open', { id: nodeId, breadcrumb_path: bcrPath });
+    }
+  }
+
+  _buildBreadcrumbPath(nodeId) {
+    // Walk up the parent chain to build the full path
+    const path = [];
+    let currentId = nodeId;
+    while (currentId && this.nodeElements[currentId]) {
+      const st = this.nodeElements[currentId];
+      const d = st.node.data || {};
+      // Label: type_name → original_name → designation → node name
+      const label = d.type_name || d.original_name || d.designation || st.node.name;
+      path.unshift(label);
+      currentId = st.parentId;
+    }
+    return path;
+  }
+}
+
 // ===== Breadcrumb =====
 class BreadcrumbNav {
   constructor(containerId) {
@@ -1361,6 +1670,10 @@ class ContentView {
         const id = row.dataset.id;
         const type = row.dataset.type;
         bus.emit('item-selected', { id, type });
+        // Set context product for process tree
+        if (row.dataset.category === 'product') {
+          bus.emit('context-product-set', { id, name: row.dataset.name || '' });
+        }
       });
       row.addEventListener('dblclick', () => {
         const id = row.dataset.id;
@@ -1371,7 +1684,7 @@ class ContentView {
         } else if (category === 'product') {
           bus.emit('product-open', { id });
         } else if (category === 'process') {
-          bus.emit('process-open', { id });
+          bus.emit('process-open', { id, name });
         }
       });
     });
@@ -1545,11 +1858,109 @@ class ContentView {
     });
   }
 
+  // ===== Operations Column Config =====
+  static OPS_BASE_COLUMNS = [
+    { key: 'index',     label: '#',            width: '40px',  always: true,  default: true },
+    { key: 'name',      label: 'Наименование', width: null,    always: true,  default: true },
+  ];
+
+  _opsColumnTypesCache = null;
+  _lastProcessDetails = null;
+  _lastProcessId = null;
+
+  async _ensureOpsColumnTypes() {
+    if (this._opsColumnTypesCache) return this._opsColumnTypesCache;
+    try {
+      this._opsColumnTypesCache = await api.operationColumnTypes();
+    } catch { this._opsColumnTypesCache = []; }
+    return this._opsColumnTypesCache;
+  }
+
+  _getOpsVisibleColumns() {
+    try {
+      const saved = localStorage.getItem('pssc_operations_columns');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return ContentView.OPS_BASE_COLUMNS.filter(c => c.default).map(c => c.key);
+  }
+
+  _saveOpsVisibleColumns(keys) {
+    localStorage.setItem('pssc_operations_columns', JSON.stringify(keys));
+  }
+
+  async _showOpsColumnConfig() {
+    const dynCols = await this._ensureOpsColumnTypes();
+    const visible = this._getOpsVisibleColumns();
+
+    let html = '<div class="col-config-overlay"><div class="col-config-dialog"><div class="col-config-title">Колонки таблицы</div><div class="col-config-list">';
+
+    // Dynamic columns by category
+    const resCols = dynCols.filter(c => c.category === 'resource');
+    const docCols = dynCols.filter(c => c.category === 'document');
+
+    if (resCols.length) {
+      html += '<div style="font-size:11px;color:var(--text-secondary);margin:8px 0 4px;text-transform:uppercase;">Ресурсы</div>';
+      resCols.forEach(c => {
+        const checked = visible.includes(c.key) ? 'checked' : '';
+        html += `<label class="col-config-item"><input type="checkbox" value="${c.key}" ${checked}> ${this._esc(c.label)}</label>`;
+      });
+    }
+    if (docCols.length) {
+      html += '<div style="font-size:11px;color:var(--text-secondary);margin:8px 0 4px;text-transform:uppercase;">Документы</div>';
+      docCols.forEach(c => {
+        const checked = visible.includes(c.key) ? 'checked' : '';
+        html += `<label class="col-config-item"><input type="checkbox" value="${c.key}" ${checked}> ${this._esc(c.label)}</label>`;
+      });
+    }
+
+    html += '</div><div class="col-config-actions"><button class="btn btn-sm btn-primary col-config-apply">Применить</button><button class="btn btn-sm col-config-cancel">Отмена</button></div></div></div>';
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const overlay = wrapper.firstElementChild;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.col-config-apply').addEventListener('click', () => {
+      const keys = [...overlay.querySelectorAll('input:checked')].map(cb => cb.value);
+      // Always include 'always' columns
+      ContentView.OPS_BASE_COLUMNS.filter(c => c.always).forEach(c => { if (!keys.includes(c.key)) keys.unshift(c.key); });
+      this._saveOpsVisibleColumns(keys);
+      overlay.remove();
+      // Re-render with saved details
+      if (this._lastProcessDetails && this._lastProcessId) {
+        this._renderProcessDetails(this._lastProcessDetails);
+        this._loadDynOpsColumns(this._lastProcessId, this._lastProcessDetails);
+      }
+    });
+    overlay.querySelector('.col-config-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
+
+  _renderMultiValueCell(values, formatFn) {
+    if (!values || !values.length) return '<td></td>';
+    const MAX = 5;
+    if (values.length === 1) return `<td>${formatFn(values[0])}</td>`;
+    let html = '<td class="cell-multi">';
+    const show = values.slice(0, MAX);
+    show.forEach(v => { html += `<div class="multi-val">${formatFn(v)}</div>`; });
+    if (values.length > MAX) {
+      html += `<a class="multi-more" data-hidden="${values.length - MAX}">...ещё ${values.length - MAX}</a>`;
+      values.slice(MAX).forEach(v => { html += `<div class="multi-val" style="display:none">${formatFn(v)}</div>`; });
+    }
+    html += '</td>';
+    return html;
+  }
+
+  // ===== Process Details =====
   async loadProcessDetails(processId) {
+    this._lastProcessId = processId;
     showSpinner(this.container);
     try {
       const details = await api.processDetails(processId);
+      this._lastProcessDetails = details;
       this._renderProcessDetails(details);
+      // Lazy-load dynamic columns
+      await this._loadDynOpsColumns(processId, details);
     } catch (err) {
       toaster.show('Ошибка загрузки техпроцесса: ' + err.message, 'error');
       this.showEmpty('Ошибка загрузки техпроцесса');
@@ -1558,63 +1969,117 @@ class ContentView {
     }
   }
 
+  async _loadDynOpsColumns(processId, details) {
+    const visibleKeys = this._getOpsVisibleColumns();
+    const dynCols = await this._ensureOpsColumnTypes();
+    const enabledDyn = dynCols.filter(c => visibleKeys.includes(c.key));
+    if (!enabledDyn.length || !details.operations || !details.operations.length) return;
+
+    const dynKeys = enabledDyn.map(c => c.key);
+    try {
+      const colData = await api.operationColumnData(processId, dynKeys);
+      this._fillDynColumns(details.operations, enabledDyn, colData);
+    } catch (err) {
+      console.error('Error loading dynamic columns:', err);
+    }
+  }
+
+  _fillDynColumns(operations, dynCols, colData) {
+    // Fill <td> placeholders in already-rendered table
+    operations.forEach(op => {
+      const opId = String(op.operation_id);
+      dynCols.forEach(col => {
+        const cell = this.container.querySelector(`td[data-op="${opId}"][data-col="${col.key}"]`);
+        if (!cell) return;
+        const values = (colData[col.key] || {})[opId] || [];
+        if (!values.length) { cell.textContent = ''; return; }
+
+        let formatFn;
+        if (col.category === 'resource') {
+          formatFn = v => this._esc((v.value || '') + (v.unit ? ' ' + v.unit : ''));
+        } else if (col.category === 'document') {
+          formatFn = v => `${this._esc(v.code || '')} ${this._esc(v.name || '')}`;
+        } else {
+          formatFn = v => this._esc(v.value || '');
+        }
+
+        if (values.length === 1) {
+          cell.innerHTML = formatFn(values[0]);
+        } else {
+          cell.className = 'cell-multi';
+          const MAX = 5;
+          let html = '';
+          values.slice(0, MAX).forEach(v => { html += `<div class="multi-val">${formatFn(v)}</div>`; });
+          if (values.length > MAX) {
+            const hiddenHtml = values.slice(MAX).map(v => `<div class="multi-val" style="display:none">${formatFn(v)}</div>`).join('');
+            html += `<a class="multi-more">...ещё ${values.length - MAX}</a>${hiddenHtml}`;
+          }
+          cell.innerHTML = html;
+        }
+      });
+    });
+
+    // Wire up "...ещё N" expand links
+    this.container.querySelectorAll('.multi-more').forEach(link => {
+      link.addEventListener('click', () => {
+        const cell = link.closest('.cell-multi');
+        cell.querySelectorAll('.multi-val[style*="display:none"]').forEach(el => el.style.display = '');
+        link.remove();
+      });
+    });
+  }
+
   _renderProcessDetails(details) {
+    const visibleKeys = this._getOpsVisibleColumns();
+    const dynCols = (this._opsColumnTypesCache || []).filter(c => visibleKeys.includes(c.key));
+    const baseCols = ContentView.OPS_BASE_COLUMNS.filter(c => visibleKeys.includes(c.key));
+
     let html = '<div class="process-details">';
 
-    // Header info
-    html += '<div class="process-section">';
-    html += '<div class="process-section-title">Общие сведения</div>';
-    html += '<div class="process-info-grid">';
-    html += `<span class="process-info-label">Наименование</span><span>${this._esc(details.name || '')}</span>`;
-    html += `<span class="process-info-label">Подразделение</span><span>${this._esc(details.org_unit || '')}</span>`;
-    html += '</div></div>';
-
-    // Operations
+    // Входящие процессы (sub-processes table) — no "Общие сведения" (shown in right panel)
     if (details.operations && details.operations.length) {
       html += '<div class="process-section">';
-      html += '<div class="process-section-title">Операции</div>';
-      html += '<table class="data-table"><thead><tr><th>#</th><th>Наименование</th><th>Подразделение</th></tr></thead><tbody>';
+      html += '<div class="process-section-title">Входящие процессы <button class="ops-col-btn" id="btnOpsColumns">⚙️ Колонки</button></div>';
+
+      // Build thead
+      html += '<table class="data-table" id="opsTable"><thead><tr>';
+      baseCols.forEach(c => {
+        const w = c.width ? ` style="width:${c.width}"` : '';
+        html += `<th${w}>${c.label}</th>`;
+      });
+      dynCols.forEach(c => html += `<th>${this._esc(c.label)}</th>`);
+      html += '</tr></thead><tbody>';
+
+      // Build rows
       details.operations.forEach((op, i) => {
-        html += `<tr>
-          <td>${i + 1}</td>
-          <td>${this._esc(op.name || '')}</td>
-          <td>${this._esc(op.org_unit || '')}</td>
-        </tr>`;
+        const opId = op.operation_id;
+        html += '<tr>';
+        baseCols.forEach(c => {
+          if (c.key === 'index') html += `<td>${i + 1}</td>`;
+          else if (c.key === 'name') html += `<td>${this._esc(op.name || '')}</td>`;
+        });
+        // Dynamic column placeholders (filled by _fillDynColumns)
+        dynCols.forEach(c => {
+          html += `<td data-op="${opId}" data-col="${c.key}">⏳</td>`;
+        });
+        html += '</tr>';
       });
       html += '</tbody></table></div>';
-    }
-
-    // Documents
-    if (details.documents && details.documents.length) {
-      html += '<div class="process-section">';
-      html += '<div class="process-section-title">Документы</div>';
-      html += '<table class="data-table"><thead><tr><th>Наименование</th><th>Код</th><th>Тип</th></tr></thead><tbody>';
-      details.documents.forEach(doc => {
-        html += `<tr>
-          <td>${this._esc(doc.name || '')}</td>
-          <td class="cell-id">${this._esc(doc.code || '')}</td>
-          <td>${this._esc(doc.type || '')}</td>
-        </tr>`;
-      });
-      html += '</tbody></table></div>';
-    }
-
-    // Materials
-    if (details.materials && details.materials.length) {
-      html += '<div class="process-section">';
-      html += '<div class="process-section-title">Материалы</div>';
-      html += '<table class="data-table"><thead><tr><th>Наименование</th><th>Количество</th></tr></thead><tbody>';
-      details.materials.forEach(mat => {
-        html += `<tr>
-          <td>${this._esc(mat.name || '')}</td>
-          <td>${mat.quantity != null ? mat.quantity : ''}</td>
-        </tr>`;
-      });
-      html += '</tbody></table></div>';
+    } else {
+      html += '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Входящие процессы отсутствуют</div></div>';
     }
 
     html += '</div>';
     this.container.innerHTML = html;
+
+    // Wire up column config button
+    const colBtn = this.container.querySelector('#btnOpsColumns');
+    if (colBtn) {
+      colBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._showOpsColumnConfig();
+      });
+    }
   }
 
   showSearchResults(results) {
@@ -1695,8 +2160,20 @@ class PropertyPanel {
     this.currentItem = item;
     this.cache = {};
     this.currentTab = 'attrs';
-    this.tabsContainer.querySelectorAll('.property-tab').forEach(t => t.classList.remove('active'));
-    this.tabsContainer.querySelector('[data-tab="attrs"]').classList.add('active');
+
+    // Dynamic tabs based on item type
+    const isProcess = item.type === 'process' || item.type === 'Process';
+    if (isProcess) {
+      this.tabsContainer.innerHTML =
+        '<div class="property-tab active" data-tab="attrs">Атрибуты</div>' +
+        '<div class="property-tab" data-tab="docs">Документы</div>' +
+        '<div class="property-tab" data-tab="materials">Материалы</div>';
+    } else {
+      this.tabsContainer.innerHTML =
+        '<div class="property-tab active" data-tab="attrs">Атрибуты</div>' +
+        '<div class="property-tab" data-tab="chars">Характеристики</div>' +
+        '<div class="property-tab" data-tab="docs">Документы</div>';
+    }
 
     await this._loadAttributes(item);
   }
@@ -1744,6 +2221,8 @@ class PropertyPanel {
       await this._renderCharacteristics();
     } else if (this.currentTab === 'docs') {
       await this._renderDocuments();
+    } else if (this.currentTab === 'materials') {
+      await this._renderMaterials();
     }
   }
 
@@ -1783,24 +2262,20 @@ class PropertyPanel {
       });
     } else if (this.currentItem.type === 'process' || this.currentItem.type === 'Process') {
       const fields = [
+        ['Системный ID', data.sys_id],
+        ['Обозначение', data.id],
         ['Наименование', data.name],
+        ['Тип', data.type_name],
         ['Подразделение', data.org_unit],
-        ['Тип процесса', data.process_type],
+        ['Вид', data.process_type],
+        ['Трудоёмкость', data.man_hours],
+        ['Описание', data.description],
       ];
       fields.forEach(([k, v]) => {
         if (v != null && v !== '') {
           html += `<div class="prop-pair"><span class="prop-key">${k}</span><span class="prop-value">${this._esc(String(v))}</span></div>`;
         }
       });
-
-      if (data.operations && data.operations.length) {
-        html += '<div style="margin-top:12px;"><div class="prop-key" style="margin-bottom:6px;">Операции</div>';
-        html += '<table class="prop-table"><thead><tr><th>#</th><th>Операция</th></tr></thead><tbody>';
-        data.operations.forEach((op, i) => {
-          html += `<tr><td>${i + 1}</td><td>${this._esc(op.name || '')}</td></tr>`;
-        });
-        html += '</tbody></table></div>';
-      }
     } else {
       Object.entries(data).forEach(([k, v]) => {
         if (v != null && v !== '' && typeof v !== 'object') {
@@ -1889,6 +2364,47 @@ class PropertyPanel {
         <td>${this._esc(d.name || '')}</td>
         <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
         <td>${this._esc(d.type || '')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    this.contentContainer.innerHTML = html;
+  }
+
+  async _renderMaterials() {
+    if (this.cache.materials) {
+      this._displayMaterials(this.cache.materials);
+      return;
+    }
+    const item = this.currentItem;
+    if (!item) return;
+    showSpinner(this.contentContainer);
+    try {
+      // Materials are in process details
+      if (!this.cache.attrs) {
+        const data = await api.processDetails(item.id);
+        this.cache.attrs = data;
+      }
+      this.cache.materials = (this.cache.attrs && this.cache.attrs.materials) || [];
+      this._displayMaterials(this.cache.materials);
+    } catch {
+      this.contentContainer.innerHTML = '<div class="property-empty"><div>Материалы не найдены</div></div>';
+    } finally {
+      removeSpinner(this.contentContainer);
+    }
+  }
+
+  _displayMaterials(materials) {
+    if (!materials || !materials.length) {
+      this.contentContainer.innerHTML = '<div class="property-empty"><div>Материалы отсутствуют</div></div>';
+      return;
+    }
+    let html = '<table class="prop-table"><thead><tr><th>Наименование</th><th>Код</th><th>Кол-во</th><th>Ед.</th></tr></thead><tbody>';
+    materials.forEach(m => {
+      html += `<tr>
+        <td>${this._esc(m.name || '')}</td>
+        <td class="text-mono" style="font-size:12px;">${this._esc(m.code || m.id || '')}</td>
+        <td>${this._esc(String(m.quantity || ''))}</td>
+        <td>${this._esc(m.uom || '')}</td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -2145,6 +2661,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Components
   const conn = new ConnectionManager();
   const tree = new FolderTreeView('treeContainer');
+  const leftTabs = new LeftPanelTabs();
+  const processTree = new ProcessTreeView('processTreeContainer');
   breadcrumb = new BreadcrumbNav('breadcrumbBar');
   contentView = new ContentView('contentArea');
   breadcrumb.addButton(contentView._colBtn);
@@ -2167,9 +2685,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Process open (double-click in table)
+  // Process open (from tree click or table double-click)
   bus.on('process-open', async (data) => {
-    breadcrumb.push('Техпроцесс');
+    if (data.breadcrumb_path && data.breadcrumb_path.length) {
+      // Full path from tree — use set() to replace breadcrumbs entirely
+      const crumbs = data.breadcrumb_path.map((label, i) => {
+        if (i < data.breadcrumb_path.length - 1) {
+          return { label, action: () => {} };
+        }
+        return { label, action: null };
+      });
+      breadcrumb.set(crumbs);
+    } else {
+      // Fallback (e.g., from table double-click)
+      breadcrumb.push(data.name || 'Процесс');
+    }
     contentView.loadProcessDetails(data.id);
   });
 
