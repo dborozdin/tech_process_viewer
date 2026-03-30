@@ -602,6 +602,49 @@ TOOLS = [
             "required": [],
         },
     ),
+    # ── Характеристики (apl_characteristic / apl_characteristic_value) ──
+    Tool(
+        name="pdm_list_characteristic_types",
+        description=(
+            "[PDM] Список типов характеристик (apl_characteristic). "
+            "Каждая характеристика — это определение (название, ед. измерения), "
+            "которое может быть назначено объектам (процессам, изделиям). "
+            "Значения характеристик хранятся в apl_characteristic_value."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Макс. результатов (по умолч. 500)",
+                    "default": 500,
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="pdm_get_characteristic_values",
+        description=(
+            "[PDM] Получить значения характеристик (apl_characteristic_value) "
+            "для заданного объекта. apl_characteristic_value — супертип: "
+            "возвращаемые экземпляры будут конкретных подтипов "
+            "(apl_descriptive_characteristic_value, apl_measured_characteristic_value, "
+            "apl_enumeration_characteristic_value и др.). "
+            "Поле scope содержит отображаемое значение. "
+            "Поле characteristic ссылается на тип (apl_characteristic)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "item_id": {
+                    "type": "integer",
+                    "description": "sys_id объекта, к которому привязаны значения характеристик",
+                },
+            },
+            "required": ["item_id"],
+        },
+    ),
 ]
 
 
@@ -672,6 +715,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_get_process_resources(arguments)
         elif name == "pdm_list_units":
             return _handle_pdm_list_units(arguments)
+        elif name == "pdm_list_characteristic_types":
+            return _handle_pdm_list_characteristic_types(arguments)
+        elif name == "pdm_get_characteristic_values":
+            return _handle_pdm_get_characteristic_values(arguments)
         else:
             return _error_response(f"Unknown tool: {name}")
     except ConnectionError as e:
@@ -1014,6 +1061,61 @@ def _handle_pdm_get_characteristics(arguments: dict) -> list[TextContent]:
         "product_id": product_id,
         "count": len(result),
         "characteristics": result,
+    })
+
+
+def _handle_pdm_list_characteristic_types(arguments: dict) -> list[TextContent]:
+    """Список типов характеристик (apl_characteristic)."""
+    limit = arguments.get("limit", 500)
+    db_api = _get_db_api()
+    instances = db_api.characteristic_api.list_characteristics(limit=limit)
+
+    result = []
+    for inst in instances:
+        attrs = inst.get("attributes", {})
+        unit_ref = attrs.get("unit", {})
+        result.append({
+            "sys_id": inst.get("id"),
+            "id": attrs.get("id", ""),
+            "name": attrs.get("name", ""),
+            "description": attrs.get("description", ""),
+            "code": attrs.get("code", ""),
+            "unit_sys_id": unit_ref.get("id") if isinstance(unit_ref, dict) else None,
+        })
+
+    return _json_response({
+        "count": len(result),
+        "characteristic_types": result,
+    })
+
+
+def _handle_pdm_get_characteristic_values(arguments: dict) -> list[TextContent]:
+    """Значения характеристик (apl_characteristic_value) для заданного объекта."""
+    item_id = arguments.get("item_id")
+    if item_id is None:
+        return _error_response("item_id is required")
+
+    db_api = _get_db_api()
+    instances = db_api.characteristic_api.get_values_for_item(int(item_id))
+
+    result = []
+    for inst in instances:
+        parsed = db_api.characteristic_api._extract_display_value(inst)
+        attrs = inst.get("attributes", {})
+        char_ref = attrs.get("characteristic", {})
+        result.append({
+            "sys_id": inst.get("id"),
+            "subtype": inst.get("type", ""),
+            "characteristic_sys_id": char_ref.get("id") if isinstance(char_ref, dict) else None,
+            "scope": parsed["scope"],
+            "value": parsed["value"],
+            "unit": parsed["unit"],
+        })
+
+    return _json_response({
+        "item_id": item_id,
+        "count": len(result),
+        "characteristic_values": result,
     })
 
 

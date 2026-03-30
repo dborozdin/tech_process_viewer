@@ -9,6 +9,7 @@ from .pss_orgs_api import OrganizationsAPI
 from .pss_resources_api import ResourcesAPI
 from .pss_units_api import UnitsAPI
 from .pss_docs_api import DocumentsAPI
+from .pss_characteristic_api import CharacteristicAPI
 from tech_process_viewer.globals import logger
 
 class DatabaseAPI:
@@ -27,6 +28,7 @@ class DatabaseAPI:
         self.resources_api= ResourcesAPI(self)
         self.units_api= UnitsAPI(self)
         self.docs_api=DocumentsAPI(self)
+        self.characteristic_api=CharacteristicAPI(self)
 
     def disconnect_db(self):
         """disconnect to the database."""

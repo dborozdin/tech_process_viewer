@@ -52,17 +52,29 @@ class ProcessService:
             for tinst in batch_query_by_ids(self.db_api, list(set(type_ids)), "BP types"):
                 type_map[tinst.get("id")] = tinst.get("attributes", {}).get("name", "")
 
-        res_type_id = self.db_api.resources_api.find_resource_type_by_name("Vreme rada")
+        # Batch resolve organization names
+        org_ids = []
+        for inst in proc_data.get("instances", []):
+            org_obj = inst.get("attributes", {}).get("organization", {})
+            if isinstance(org_obj, dict) and "id" in org_obj:
+                org_ids.append(org_obj["id"])
+        org_map = {}
+        if org_ids:
+            for oinst in batch_query_by_ids(self.db_api, list(set(org_ids)), "Org units"):
+                org_map[oinst["id"]] = oinst.get("attributes", {}).get("id", "")
 
         result = []
         for proc in proc_data.get("instances", []):
             attrs = proc.get("attributes", {})
             bp_id = proc.get("id")
-            org_unit = resolve_org_unit(self.db_api, bp_id, res_type_id)
 
             type_obj = attrs.get("type", {})
             type_id = type_obj.get("id") if isinstance(type_obj, dict) else None
             resolved_type_name = type_map.get(type_id, "") if type_id else ""
+
+            org_obj = attrs.get("organization", {})
+            org_id = org_obj.get("id") if isinstance(org_obj, dict) else None
+            org_unit = org_map.get(org_id, "") if org_id else ""
 
             result.append({
                 "process_id": bp_id,
@@ -83,7 +95,11 @@ class ProcessService:
 
     @track_performance("get_process_details")
     def get_process_details(self, tech_proc_id):
-        """Получить детали техпроцесса с операциями, документами, материалами."""
+        """Получить атрибуты процесса и список операций.
+
+        Документы, материалы, man_hours НЕ загружаются — они доступны
+        через отдельные эндпоинты (lazy-load при открытии вкладки).
+        """
         query_tp = f"""SELECT NO_CASE
         Ext_
         FROM
@@ -95,10 +111,8 @@ class ProcessService:
             return None
 
         tp_attrs = tp_data["instances"][0]["attributes"]
-        res_type_id = self.db_api.resources_api.find_resource_type_by_name("Vreme rada")
-        org_unit = resolve_org_unit(self.db_api, tech_proc_id, res_type_id)
 
-        # Resolve type name
+        # Resolve type name (batch — 1 query)
         type_name = ""
         type_obj = tp_attrs.get("type", {})
         if isinstance(type_obj, dict) and "id" in type_obj:
@@ -106,17 +120,13 @@ class ProcessService:
             if type_instances:
                 type_name = type_instances[0].get("attributes", {}).get("name", "")
 
-        # Resolve vreme rada for the process itself
-        man_hours = ""
-        if res_type_id:
-            resource_id = self.db_api.resources_api.find_resource_by_bp_and_type(
-                tech_proc_id, res_type_id
-            )
-            if resource_id:
-                resource_data = self.db_api.resources_api.find_resource_data_by_id(resource_id)
-                if resource_data and resource_data.get('instances'):
-                    value = resource_data['instances'][0].get('attributes', {}).get("value_component", "")
-                    man_hours = str(value) if value else ""
+        # Org unit from process attributes (no extra query if already in attrs)
+        org_unit = ""
+        org_obj = tp_attrs.get("organization", {})
+        if isinstance(org_obj, dict) and "id" in org_obj:
+            org_instances = batch_query_by_ids(self.db_api, [org_obj["id"]], "Org unit")
+            if org_instances:
+                org_unit = org_instances[0].get("attributes", {}).get("id", "")
 
         result = {
             'sys_id': tech_proc_id,
@@ -126,31 +136,13 @@ class ProcessService:
             'org_unit': org_unit,
             'type_name': type_name,
             'process_type': "Customized" if tp_attrs.get("customized", False) else "Typical",
-            'man_hours': man_hours,
         }
 
-        # Operations
+        # Operations (sub-processes) — batch load
         operations = self._get_sub_processes(
             tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id'
         )
-        for op in operations:
-            op['man_hours'] = ""
-            if res_type_id:
-                resource_id = self.db_api.resources_api.find_resource_by_bp_and_type(
-                    op['operation_id'], res_type_id
-                )
-                if resource_id:
-                    resource_data = self.db_api.resources_api.find_resource_data_by_id(resource_id)
-                    if resource_data and 'instances' in resource_data and resource_data['instances']:
-                        value = resource_data['instances'][0]['attributes'].get("value_component", "")
-                        op['man_hours'] = str(value) if value else ""
         result['operations'] = operations
-
-        # Documents (batch)
-        result['documents'] = self._get_documents(tech_proc_id)
-
-        # Materials
-        result['materials'] = self._get_materials(tech_proc_id)
 
         return result
 
@@ -198,7 +190,18 @@ class ProcessService:
             for tinst in type_instances:
                 type_map[tinst.get("id")] = tinst.get("attributes", {}).get("name", "")
 
-        res_type_id = self.db_api.resources_api.find_resource_type_by_name("Vreme rada")
+        # Batch resolve organization names (from process 'organization' attr)
+        org_ids = []
+        for proc in proc_data.get("instances", []):
+            if proc.get("type") != "apl_business_process":
+                continue
+            org_obj = proc.get("attributes", {}).get("organization", {})
+            if isinstance(org_obj, dict) and "id" in org_obj:
+                org_ids.append(org_obj["id"])
+        org_map = {}
+        if org_ids:
+            for oinst in batch_query_by_ids(self.db_api, list(set(org_ids)), "Org units"):
+                org_map[oinst["id"]] = oinst.get("attributes", {}).get("id", "")
 
         result = []
         for proc in proc_data.get("instances", []):
@@ -222,7 +225,22 @@ class ProcessService:
             else:
                 display_name = f"{resolved_type_name} : {attrs.get('name')}" if resolved_type_name else attrs.get("name")
 
-            org_unit = resolve_org_unit(self.db_api, bp_id, res_type_id)
+            org_obj = attrs.get("organization", {})
+            org_id = org_obj.get("id") if isinstance(org_obj, dict) else None
+            org_unit = org_map.get(org_id, "") if org_id else ""
+
+            av_obj = attrs.get("active_version", {})
+            active_version_id = av_obj.get("id") if isinstance(av_obj, dict) else None
+
+            # Extract resource IDs from aggregated list
+            raw_resources = attrs.get("resources", [])
+            resource_ids = []
+            if isinstance(raw_resources, list):
+                for r in raw_resources:
+                    if isinstance(r, dict) and 'id' in r:
+                        resource_ids.append(r['id'])
+                    elif isinstance(r, (int, str)):
+                        resource_ids.append(int(r))
 
             result.append({
                 parent_element_type: process_id,
@@ -234,6 +252,8 @@ class ProcessService:
                 "description": attrs.get("description", ""),
                 "org_unit": org_unit,
                 "process_type": "Customized" if attrs.get("customized", False) else "Typical",
+                "active_version_id": active_version_id,
+                "resource_ids": resource_ids,
             })
 
         return result
@@ -353,10 +373,20 @@ class ProcessService:
         """
         result = []
 
-        # Resource types from DB
+        # 1) Process attribute columns (static, no DB query needed for data)
+        result.extend([
+            {'category': 'attribute', 'key': 'attr_designation',   'label': 'Обозначение'},
+            {'category': 'attribute', 'key': 'attr_original_name', 'label': 'Наименование'},
+            {'category': 'attribute', 'key': 'attr_type',          'label': 'Тип процесса'},
+            {'category': 'attribute', 'key': 'attr_customized',    'label': 'Типовой / Кастомизированный'},
+            {'category': 'attribute', 'key': 'attr_version',       'label': 'Версия'},
+        ])
+
+        # 2) Resource types from DB
+        # list_resource_types() returns a list (not dict with 'instances')
         res_types = self.db_api.resources_api.list_resource_types(limit=200)
-        if res_types and 'instances' in res_types:
-            for inst in res_types['instances']:
+        if res_types:
+            for inst in res_types:
                 attrs = inst.get('attributes', {})
                 result.append({
                     'category': 'resource',
@@ -365,12 +395,16 @@ class ProcessService:
                     'sys_id': inst['id']
                 })
 
-        # Documents — fixed synthetic entry
-        result.append({
-            'category': 'document',
-            'key': 'documents',
-            'label': 'Документы'
-        })
+        # 3) Characteristics from DB (via CharacteristicAPI)
+        char_instances = self.db_api.characteristic_api.list_characteristics()
+        for inst in char_instances:
+            attrs = inst.get('attributes', {})
+            result.append({
+                'category': 'characteristic',
+                'key': f"char_{inst['id']}",
+                'label': attrs.get('name', f"Характеристика #{inst['id']}"),
+                'sys_id': inst['id']
+            })
 
         return result
 
@@ -378,14 +412,12 @@ class ProcessService:
     def get_operation_column_data(self, tech_proc_id, column_keys):
         """Получить данные динамических колонок для операций техпроцесса.
 
-        Args:
-            tech_proc_id: sys_id техпроцесса
-            column_keys: list строк вида ["res_815000", "documents"]
-
-        Returns:
-            dict: {column_key: {operation_id_str: [{value, unit?} or {name, code}]}}
+        Оптимизация: batch-загрузка ресурсов и характеристик.
+        - Ресурсы: 1 batch-запрос по resource_ids из подпроцессов → фильтр по типу в Python
+        - Характеристики: 1 batch по active_version → 1 batch char_value_versions → фильтр
+        - Версии: 1 batch-запрос
+        - Атрибуты: 0 запросов (из данных подпроцессов)
         """
-        # Get operation IDs first
         operations = self._get_sub_processes(
             tech_proc_id, element_type='operation_id', parent_element_type='tech_proc_id'
         )
@@ -393,101 +425,183 @@ class ProcessService:
         if not op_ids:
             return {}
 
+        # Determine what data we need to batch-load
+        res_keys = [k for k in column_keys if k.startswith('res_')]
+        char_keys = [k for k in column_keys if k.startswith('char_')]
+        need_version = 'attr_version' in column_keys
+
+        # --- Batch load resources (1 query for ALL resources of ALL operations) ---
+        resource_cache = {}  # {op_id_str: [instance, ...]}
+        if res_keys:
+            all_res_ids = []
+            op_by_res_id = {}  # resource_id -> op_id
+            for op in operations:
+                op_id = op['operation_id']
+                for rid in op.get('resource_ids', []):
+                    all_res_ids.append(rid)
+                    op_by_res_id[rid] = op_id
+
+            if all_res_ids:
+                res_instances = batch_query_by_ids(
+                    self.db_api, list(set(all_res_ids)), "All resources batch"
+                )
+                # Collect unit IDs
+                unit_ids = set()
+                for inst in res_instances:
+                    u = inst.get('attributes', {}).get('unit_component', {})
+                    if isinstance(u, dict) and 'id' in u:
+                        unit_ids.add(u['id'])
+                unit_map = {}
+                if unit_ids:
+                    for uinst in batch_query_by_ids(self.db_api, list(unit_ids), "Units"):
+                        unit_map[uinst['id']] = uinst.get('attributes', {}).get('name', '')
+
+                for inst in res_instances:
+                    rid = inst.get('id')
+                    op_id = op_by_res_id.get(rid)
+                    if op_id is None:
+                        continue
+                    resource_cache.setdefault(str(op_id), []).append((inst, unit_map))
+
+        # --- Batch load characteristic values via versions (2 queries total) ---
+        char_cache = {}  # {op_id_str: [{characteristic_id, value}, ...]}
+        if char_keys:
+            # 1) Batch load active_versions → get characteristic_value_versions
+            version_ids = [op['active_version_id'] for op in operations if op.get('active_version_id')]
+            if version_ids:
+                ver_instances = batch_query_by_ids(
+                    self.db_api, list(set(version_ids)), "BP versions for chars"
+                )
+                ver_to_op = {}
+                for op in operations:
+                    if op.get('active_version_id'):
+                        ver_to_op[op['active_version_id']] = op['operation_id']
+
+                # Collect all characteristic_value_version IDs
+                cvv_ids = []
+                cvv_to_op = {}
+                for vinst in ver_instances:
+                    vid = vinst.get('id')
+                    op_id = ver_to_op.get(vid)
+                    cvv_list = vinst.get('attributes', {}).get('characteristic_value_versions', [])
+                    if isinstance(cvv_list, list):
+                        for cvv in cvv_list:
+                            cvv_id = cvv.get('id') if isinstance(cvv, dict) else cvv
+                            if cvv_id:
+                                cvv_ids.append(int(cvv_id) if not isinstance(cvv_id, int) else cvv_id)
+                                cvv_to_op[cvv_id] = op_id
+
+                # 2) Batch load all characteristic_value_versions
+                if cvv_ids:
+                    cvv_instances = batch_query_by_ids(
+                        self.db_api, list(set(cvv_ids)), "Char value versions batch"
+                    )
+                    # Collect ref IDs for apl_reference_value resolution
+                    ref_ids_to_resolve = []
+                    for inst in cvv_instances:
+                        attrs = inst.get('attributes', {})
+                        char_ref = attrs.get('characteristic', {})
+                        char_id = char_ref.get('id') if isinstance(char_ref, dict) else None
+                        cvv_id = inst.get('id')
+                        op_id = cvv_to_op.get(cvv_id)
+                        scope = attrs.get('scope', '')
+                        # For reference values, scope may be empty
+                        val_ref = attrs.get('val', {})
+                        ref_id = None
+                        if not scope and isinstance(val_ref, dict) and 'id' in val_ref:
+                            ref_id = val_ref['id']
+                            ref_ids_to_resolve.append(ref_id)
+                        char_cache.setdefault(str(op_id), []).append({
+                            'characteristic_id': char_id,
+                            'value': str(scope) if scope else '',
+                            '_ref_id': ref_id,
+                        })
+
+                    # Resolve reference values in one batch
+                    if ref_ids_to_resolve:
+                        ref_map = {}
+                        for rinst in batch_query_by_ids(
+                            self.db_api, list(set(ref_ids_to_resolve)), "Char ref values"
+                        ):
+                            rattrs = rinst.get('attributes', {})
+                            ref_map[rinst['id']] = rattrs.get('name', rattrs.get('id', ''))
+                        for op_values in char_cache.values():
+                            for cv in op_values:
+                                if not cv['value'] and cv.get('_ref_id') in ref_map:
+                                    cv['value'] = ref_map[cv['_ref_id']]
+
+        # --- Batch load version numbers (1 query) ---
+        version_cache = {}  # {op_id_str: version_number}
+        if need_version:
+            ver_ids = []
+            ver_to_op = {}
+            for op in operations:
+                av_id = op.get('active_version_id')
+                if av_id:
+                    ver_ids.append(av_id)
+                    ver_to_op[av_id] = str(op['operation_id'])
+            if ver_ids:
+                for vinst in batch_query_by_ids(self.db_api, list(set(ver_ids)), "BP versions"):
+                    vid = vinst.get('id')
+                    op_id = ver_to_op.get(vid)
+                    num = vinst.get('attributes', {}).get('number', '')
+                    if op_id and num is not None and num != '':
+                        version_cache[op_id] = str(num)
+
+        # --- Build result from caches ---
         result = {}
         for col_key in column_keys:
-            if col_key.startswith('res_'):
-                result[col_key] = self._get_resource_column(op_ids, col_key)
-            elif col_key == 'documents':
-                result[col_key] = self._get_document_column(op_ids)
+            if col_key.startswith('attr_') and col_key != 'attr_version':
+                # Attributes from already-loaded operations (0 queries)
+                FIELD_MAP = {
+                    'attr_designation': 'designation',
+                    'attr_original_name': 'original_name',
+                    'attr_type': 'type_name',
+                    'attr_customized': 'process_type',
+                }
+                field = FIELD_MAP.get(col_key)
+                grouped = {}
+                if field:
+                    for op in operations:
+                        v = op.get(field, '')
+                        if v:
+                            grouped[str(op['operation_id'])] = [{'value': str(v)}]
+                result[col_key] = grouped
+
+            elif col_key == 'attr_version':
+                result[col_key] = {
+                    oid: [{'value': v}] for oid, v in version_cache.items()
+                }
+
+            elif col_key.startswith('res_'):
+                res_type_id = int(col_key.replace('res_', ''))
+                grouped = {}
+                for op_id_str, res_list in resource_cache.items():
+                    for inst, unit_map in res_list:
+                        attrs = inst.get('attributes', {})
+                        type_ref = attrs.get('type', {})
+                        tid = type_ref.get('id') if isinstance(type_ref, dict) else None
+                        if tid != res_type_id:
+                            continue
+                        u = attrs.get('unit_component', {})
+                        uid = u.get('id') if isinstance(u, dict) else None
+                        val = attrs.get('value_component', '')
+                        grouped.setdefault(op_id_str, []).append({
+                            'value': str(val) if val else '',
+                            'unit': unit_map.get(uid, '')
+                        })
+                result[col_key] = grouped
+
+            elif col_key.startswith('char_'):
+                char_id = int(col_key.replace('char_', ''))
+                grouped = {}
+                for op_id_str, cv_list in char_cache.items():
+                    for cv in cv_list:
+                        if cv.get('characteristic_id') == char_id and cv.get('value'):
+                            grouped.setdefault(op_id_str, []).append({
+                                'value': cv['value']
+                            })
+                result[col_key] = grouped
 
         return result
 
-    def _get_resource_column(self, op_ids, col_key):
-        """Batch-запрос ресурсов одного типа для всех операций."""
-        res_type_id = int(col_key.replace('res_', ''))
-        ids_str = ", ".join(f"#{oid}" for oid in op_ids)
-
-        query = f"""SELECT NO_CASE
-        Ext_
-        FROM
-        Ext_{{apl_business_process_resource(.process IN ({ids_str}) AND .type = #{res_type_id})}}
-        END_SELECT"""
-        data = query_apl(self.db_api, query, f"Resources col {col_key}")
-
-        # Collect unit IDs for batch resolution
-        unit_ids = []
-        for inst in data.get('instances', []):
-            unit_obj = inst.get('attributes', {}).get('unit_component', {})
-            if isinstance(unit_obj, dict) and 'id' in unit_obj:
-                unit_ids.append(unit_obj['id'])
-
-        unit_map = {}
-        if unit_ids:
-            for uinst in batch_query_by_ids(self.db_api, list(set(unit_ids)), "Units"):
-                unit_map[uinst.get('id')] = uinst.get('attributes', {}).get('name', '')
-
-        # Group by process (operation) ID
-        grouped = {}
-        for inst in data.get('instances', []):
-            attrs = inst.get('attributes', {})
-            proc_ref = attrs.get('process', {})
-            proc_id = proc_ref.get('id') if isinstance(proc_ref, dict) else None
-            if proc_id is None:
-                continue
-
-            unit_obj = attrs.get('unit_component', {})
-            unit_id = unit_obj.get('id') if isinstance(unit_obj, dict) else None
-
-            value = attrs.get('value_component', '')
-            entry = {
-                'value': str(value) if value else '',
-                'unit': unit_map.get(unit_id, '')
-            }
-            grouped.setdefault(str(proc_id), []).append(entry)
-
-        return grouped
-
-    def _get_document_column(self, op_ids):
-        """Batch-запрос документов для всех операций."""
-        ids_str = ", ".join(f"#{oid}" for oid in op_ids)
-
-        query = f"""SELECT NO_CASE
-        Ext_
-        FROM
-        Ext_{{apl_document_reference(.item IN ({ids_str}))}}
-        END_SELECT"""
-        refs = query_apl(self.db_api, query, "Doc refs for operations")
-
-        # Collect doc IDs and map ref → operation
-        doc_ids = []
-        ref_to_op = {}  # doc_id → op_id
-        for inst in refs.get('instances', []):
-            attrs = inst.get('attributes', {})
-            item_ref = attrs.get('item', {})
-            op_id = item_ref.get('id') if isinstance(item_ref, dict) else None
-            assigned = attrs.get('assigned_document', {})
-            doc_id = assigned.get('id') if isinstance(assigned, dict) else None
-            if op_id and doc_id:
-                doc_ids.append(doc_id)
-                ref_to_op.setdefault(doc_id, []).append(op_id)
-
-        if not doc_ids:
-            return {}
-
-        # Batch resolve document names
-        doc_map = {}
-        for dinst in batch_query_by_ids(self.db_api, list(set(doc_ids)), "Docs batch"):
-            dattrs = dinst.get('attributes', {})
-            doc_map[dinst.get('id')] = {
-                'name': dattrs.get('name', ''),
-                'code': dattrs.get('id', '')
-            }
-
-        # Group by operation ID
-        grouped = {}
-        for doc_id, op_ids_list in ref_to_op.items():
-            doc_info = doc_map.get(doc_id, {'name': '', 'code': ''})
-            for op_id in op_ids_list:
-                grouped.setdefault(str(op_id), []).append(doc_info)
-
-        return grouped
