@@ -1,0 +1,1301 @@
+openapi: "3.0.3"
+
+info:
+  title: REST API A-YATZK / PSS
+  version: "2.4"
+  description: |
+    REST API сервера приложений A-YATZK и PSS для работы с объектами (инстансами) базы данных.
+    Аналог C++ API: CaplNetStepData / CaplPgStepData.
+
+    Базовый путь всех запросов: `/rest/`
+
+    ## Аутентификация
+    **Метод 1 (A-YATZK + PSS):** явная сессия через `GET /rest/connect`.
+    Возвращает `session_key`, который должен передаваться при следующих запросах одним из трёх способов:
+    1. Заголовок HTTP: `X-Apl-SessionKey: <key>` (канонический способ; заголовок регистронезависим)
+    2. Кука: `X-Apl-SessionKey=<key>` (сервер устанавливает сам при connect через Set-Cookie; браузер передаёт автоматически)
+    3. URI-параметр в блоке rest: `GET /rest&session_key=<key>&.../`
+    Сессия завершается командой `/rest/disconnect` или автоматически через 15 минут бездействия.
+
+    **Метод 2 (только A-YATZK):** HTTP Basic или HTTP Negotiate (Kerberos/ALD).
+    Настраивается через `http=` в `AplTransport.ini`, см Работа сервера приложений в режиме веб-сервера.docx
+
+    ## Пагинация и сортировка (для load, find, query)
+    Параметры можно передавать двумя способами:
+    - Традиционный: `GET /rest/.../load/...?sort=name&start=0&size=100`
+    - Старый PSS: `GET /rest&sort=name&start=0&size=100/.../load/...`
+
+    ## Различия A-YATZK и PSS (проверено на живых серверах)
+
+    | Аспект | A-YATZK | PSS |
+    |--------|---------|-----|
+    | `Server` заголовок ответа | `A-YATZK Server 4.4` | `PSS Server 4.4` |
+    | `Content-Type` ответа | `application/json; charset=UTF-8` | `application/json` (без charset) |
+    | Доп. заголовок ответа | — | `WWW-Authenticate: X-PSS` |
+    | `Keep-Alive` timeout | 900 сек | 31 536 000 сек (год) |
+    | `session_key` формат | hex-строка, напр. `0x735B4041E44A741` | длинная Base32-строка, напр. `EDGCDGAGAEL...` |
+    | `_applicationName` в connect | присутствует | отсутствует |
+    | `_processingStart` формат | `"26.03.2026 21:18:45.098"` | `"26.03.2026 21:37:11.292 "` (пробел в конце) |
+    | `curr_user` в connect/get_current_user | сохраняет регистр (`Administrator`) | всегда lowercase (`administrator`) |
+    | `/rest/version` содержимое | дата и время сборки | версия из `*.ver` файла |
+    | `/rest/get_current_db` | работает | работает (вопреки документации) |
+    | `/rest/get_current_user` | работает | работает (вопреки документации) |
+    | Пустой `POST /rest/upload` | HTTP 500 | HTTP 400 |
+
+    ## Важно
+    - В строке запроса допустим **один пробел** — только после `GET` или `POST`
+    - Спецсимволы в параметрах кодируются URL-encoding (%XX, UTF-8)
+
+servers:
+  - url: "http://{host}:{port}"
+    description: Сервер A-YATZK / PSS
+    variables:
+      host:
+        default: localhost
+        description: Адрес сервера
+      port:
+        default: "7239"
+        description: Порт сервера
+
+security:
+  - sessionKeyHeader: []
+  - sessionKeyCookie: []
+
+tags:
+  - name: session
+    description: Управление сессией и подключением к БД
+  - name: read
+    description: Чтение инстансов и атрибутов
+  - name: write
+    description: Сохранение и удаление данных
+  - name: blob
+    description: Работа с БЛОБами (телами документов)
+
+components:
+  securitySchemes:
+    sessionKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Apl-SessionKey
+      description: |
+        Код сессии, полученный от /rest/connect/.
+        Каноническое имя заголовка: X-Apl-SessionKey (регистр важен для документации; HTTP-стек регистронезависим).
+    sessionKeyCookie:
+      type: apiKey
+      in: cookie
+      name: X-Apl-SessionKey
+      description: Код сессии в куке X-Apl-SessionKey (устанавливается сервером в Set-Cookie при connect; браузер передаёт автоматически)
+    httpBasic:
+      type: http
+      scheme: basic
+      description: "HTTP Basic или HTTP Negotiate (Kerberos) — только A-YATZK; PSS не поддерживает"
+
+  parameters:
+    sort:
+      name: sort
+      in: query
+      description: Имя атрибута (или его числовой ID) для сортировки результата
+      required: false
+      schema:
+        type: string
+    sort_desc:
+      name: sort_desc
+      in: query
+      description: "Сортировка по убыванию (true/false). По умолчанию: false"
+      required: false
+      schema:
+        type: boolean
+        default: false
+    start:
+      name: start
+      in: query
+      description: "Начальный индекс в массиве результатов (с 0). По умолчанию: 0"
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+    size:
+      name: size
+      in: query
+      description: "Размер порции. По умолчанию: 100. Максимум: 500"
+      required: false
+      schema:
+        type: integer
+        default: 100
+        maximum: 500
+    all_attrs:
+      name: all_attrs
+      in: query
+      description: "Возвращать все атрибуты инстансов (true/false). По умолчанию: true"
+      required: false
+      schema:
+        type: boolean
+        default: true
+
+  schemas:
+    AplBuffer:
+      type: object
+      description: Универсальный буфер данных — формат ответов и запросов
+      required:
+        - format
+        - dictionary
+      properties:
+        format:
+          type: string
+          enum: ["apl_json_1"]
+          description: Версия формата буфера
+        dictionary:
+          type: string
+          example: "apl_pss_a"
+          description: Имя основного словаря данных
+        count_all:
+          type: integer
+          description: Полное количество найденных инстансов (до разбиения на порции)
+        portion_from:
+          type: integer
+          description: Индекс первого инстанса в текущей порции
+        _processingStart:
+          type: string
+          description: Локальное время сервера на момент получения запроса
+          example: "26.03.2026 21:18:45.098"
+        _processingTime:
+          type: string
+          description: Время выполнения запроса
+          example: "00:00:00.031"
+        instances:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstanceObject"
+        error_description:
+          type: array
+          items:
+            type: string
+          description: Описания ошибок или предупреждений
+
+    InstanceObject:
+      type: object
+      description: |
+        Описание одного инстанса и его атрибутов.
+        При сохранении новых инстансов: `id=0`, заполнить `index`.
+        Для удаления: `type=null`.
+      required:
+        - id
+        - type
+      properties:
+        id:
+          type: integer
+          description: Числовой ID инстанса в БД. 0 для новых инстансов
+          example: 13184
+        index:
+          type: integer
+          description: Клиентский временный ID нового инстанса (уникален в рамках одного save)
+        type:
+          type: string
+          nullable: true
+          description: Имя энтити (тип инстанса). null — удалить инстанс
+          example: "apl_product_instance"
+        access:
+          type: string
+          enum: ["RO", "RW", "OWN", "NA"]
+          description: |
+            Уровень доступа текущего пользователя к инстансу.
+            RO — только чтение, RW — чтение и запись, OWN — владелец, NA — нет доступа
+        attributes:
+          type: object
+          description: |
+            Атрибуты инстанса. Ключи — имена атрибутов.
+            Типы значений: string, integer, number, boolean, null, или вложенный InstanceObject (для атрибутов-ссылок).
+            Пустые атрибуты не передаются с сервера; умолчания: string="", integer/real=0, bool=false, ссылка=null.
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        error_description:
+          type: array
+          items:
+            type: string
+          description: Список описаний ошибок
+
+    ConnectResponse:
+      type: object
+      properties:
+        session_key:
+          type: string
+          description: Код сессии для последующих запросов
+          example: "0x735B4041E44A741"
+        curr_user:
+          type: string
+          description: Логин пользователя, открывшего сессию
+          example: "Administrator"
+        curr_db:
+          type: string
+          description: Имя БД, к которой выполнено подключение
+          example: "DEMO"
+        error_description:
+          type: array
+          items:
+            type: string
+          description: Предупреждения при успешном подключении (например, режим только-чтение)
+        _serverVersion:
+          $ref: "#/components/schemas/VersionResponse"
+        _serverVerDict:
+          type: string
+          description: Версия словаря БД
+          example: "1423"
+        _serverPort:
+          type: string
+          description: Порт сервера
+          example: "7239"
+        _applicationName:
+          type: string
+          description: "Название и конфигурация сервера (только A-YATZK; PSS это поле не возвращает)"
+          example: "Платформа: Сервер приложений Lite (debug)"
+        _processingStart:
+          type: string
+          description: Локальное время сервера на момент получения запроса
+        _processingTime:
+          type: string
+          description: Время выполнения запроса
+
+    DbListResponse:
+      type: object
+      properties:
+        dblist:
+          type: array
+          items:
+            type: string
+          description: Список имён доступных БД, отсортированный по возрастанию
+          example: ["LSA-SERVER", "SWH11", "SWH_115", "VS-TEST2"]
+
+    VersionResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          description: |
+            Версия сервера. A-YATZK — содержимое version.txt;
+            PSS — содержимое *.ver; если файла нет — дата и время сборки.
+          example: "5.231_ru"
+
+    CurrentDbResponse:
+      type: object
+      properties:
+        curr_db:
+          type: string
+          description: Имя текущей БД
+
+    CurrentUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID инстанса текущего пользователя в формате "#<число>"
+          example: "#3902"
+        curr_user:
+          type: string
+          description: Логин пользователя
+        fullname:
+          type: string
+          description: "Полное имя: «Описание (логин)» или «Логин» если описания нет"
+        description:
+          type: string
+          description: Описание пользователя
+
+    LoadSubquery:
+      type: object
+      description: |
+        Один подзапрос цепочки load.
+        Параметры передаются в сегменте URL: `q=<num>&t=<type>&id=<id>&ent=<ent>&attr=<attr>&all_attrs=<bool>`
+
+        Типы подзапросов (`t`):
+        - `a` — добавить инстанс по ID (`id` обязателен)
+        - `i` — значение атрибута инстанса (`id`, `attr` обязательны)
+        - `e` — все инстансы энтити (`ent` обязателен); обычно для словарей
+        - `b` — инстансы, ссылающиеся на данный инстанс обратной ссылкой (`id`, `attr` обязательны)
+        - `d` — атрибуты инстансов из предыдущего подзапроса (`id`=номер подзапроса, `attr` обязательны)
+        - `r` — инстансы типа `ent`, ссылающиеся на результаты подзапроса `id` (`id`, `ent`, `attr` обязательны)
+        - `u` — объединить подзапрос `id` в виртуальную группу для адресации одним номером
+      properties:
+        q:
+          type: integer
+          description: Номер подзапроса. Если не задан — предыдущий + 1 (с 0)
+        t:
+          type: string
+          enum: ["a", "i", "e", "b", "d", "r", "u"]
+          description: Тип подзапроса
+        id:
+          type: integer
+          description: ID инстанса или номер предыдущего подзапроса
+        ent:
+          type: string
+          description: Имя или числовой ID энтити
+        attr:
+          type: string
+          description: Имя или числовой ID атрибута
+        all_attrs:
+          type: boolean
+          default: true
+          description: "Возвращать все атрибуты (true) или только запрошенные (false)"
+
+paths:
+
+  /rest/dblist:
+    get:
+      tags: [session]
+      summary: Список доступных БД
+      description: Возвращает список имён БД, доступных на сервере. Сессия не требуется.
+      operationId: getDbList
+      security: []
+      responses:
+        "200":
+          description: Список БД
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DbListResponse"
+              example:
+                dblist: ["LSA-SERVER", "SWH11", "SWH_115"]
+
+  /rest/version:
+    get:
+      tags: [session]
+      summary: Версия сервера
+      description: Возвращает строку версии сервера. Сессия не требуется.
+      operationId: getVersion
+      security: []
+      responses:
+        "200":
+          description: Версия сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+
+  /rest/connect:
+    get:
+      tags: [session]
+      summary: Соединение с БД
+      description: |
+        Аутентификация и авторизация в БД. Возвращает `session_key`.
+        Код сессии так же записывается в куку `X-Apl-SessionKey`.
+
+        Пример: `GET /rest/connect?user=Test0&pass=1234&db=testdb&lic=ILS`
+        Старый вариант PSS: `GET /rest/connect/user=Test0&pass=1234&db=testdb&lic=ILS`
+      operationId: connect
+      security: []
+      parameters:
+        - name: user
+          in: query
+          description: Логин пользователя
+          required: true
+          schema:
+            type: string
+        - name: pass
+          in: query
+          description: Пароль (не шифруется). Можно опустить если пустой.
+          required: false
+          schema:
+            type: string
+        - name: db
+          in: query
+          description: Имя БД
+          required: true
+          schema:
+            type: string
+        - name: lic
+          in: query
+          description: Тип лицензии (например ILS, RO, RW)
+          required: false
+          schema:
+            type: string
+            default: REST
+      responses:
+        "200":
+          description: Успешное подключение (возможно с предупреждением в X-APL-Warning)
+          headers:
+            X-APL-Warning:
+              description: "1 если есть предупреждения (например режим только-чтение)"
+              schema:
+                type: integer
+                enum: [1]
+            Set-Cookie:
+              description: "Кука сессии: X-Apl-SessionKey=<session_key>; path=/; httponly; SameSite=Strict"
+              schema:
+                type: string
+                example: "X-Apl-SessionKey=0x735B4041E44A741; path=/; httponly; SameSite=Strict"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectResponse"
+        "400":
+          description: Неверные параметры запроса (например неизвестный параметр)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Неверный логин/пароль или нет прав доступа
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: БД недоступна или заблокирована администратором
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/disconnect:
+    get:
+      tags: [session]
+      summary: Завершение сессии
+      description: |
+        Завершает сессию. Код сессии передаётся через заголовок `X-Apl-SessionKey`,
+        куку `X-Apl-SessionKey` или параметром URL: `GET /rest&session_key=<key>/disconnect`
+      operationId: disconnect
+      responses:
+        "204":
+          description: Сессия завершена (или уже не существовала)
+
+  /rest/get_current_db:
+    get:
+      tags: [session]
+      summary: Имя текущей БД
+      operationId: getCurrentDb
+      responses:
+        "200":
+          description: Имя текущей БД
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentDbResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/get_current_user:
+    get:
+      tags: [session]
+      summary: Данные текущего пользователя
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Данные текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/rest/i={id}":
+    get:
+      tags: [read]
+      summary: Прочитать инстанс с атрибутами по идентификатору инстанса
+      description: |
+        Возвращает один инстанс со всеми атрибутами.
+        Ключ `i=` можно опускать: `/rest/13184` эквивалентно `/rest/i=13184`.
+
+        Пример: `GET /rest/i=13184`
+      operationId: getInstanceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Числовой идентификатор инстанса
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Инстанс найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Инстанс не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/rest/ent={name}":
+    get:
+      tags: [read]
+      summary: Все инстансы энтити
+      description: |
+        Возвращает список всех инстансов указанного типа (энтити).
+        Поддерживает пагинацию (`start`, `size`) и сортировку (`sort`).
+
+        Пример: `GET /rest/ent=apl_folder?sort=name`
+      operationId: getInstancesByEntity
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Имя энтити
+          schema:
+            type: string
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/sort_desc"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/size"
+      responses:
+        "200":
+          description: Список инстансов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Энтити не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/load/{queries}:
+    get:
+      tags: [read]
+      summary: Цепочка запросов CaplLoadData
+      description: |
+        Аналог `CaplLoadData` из C++ API. Позволяет загружать цепочки
+        инстансов и атрибутов по прямым и обратным ссылкам.
+
+        ## Формат URL
+        `GET /rest/load/<q0>/<q1>/.../<qN>`
+
+        Каждый подзапрос — сегмент URL:
+        `q=<num>&t=<type>&id=<id>&ent=<entity>&attr=<attr>&all_attrs=<bool>`
+
+        ## Параметры подзапроса
+        | Параметр | Тип | Описание |
+        |----------|-----|----------|
+        | `q` | int | Номер подзапроса (если не задан — предыдущий+1, с 0) |
+        | `t` | char | Тип: `a`, `i`, `e`, `b`, `d`, `r`, `u` |
+        | `id` | int | ID инстанса или номер предыдущего подзапроса |
+        | `ent` | string | Имя или ID энтити |
+        | `attr` | string | Имя или ID атрибута |
+        | `all_attrs` | bool | Возвращать все атрибуты (default: true) |
+
+        ## Типы подзапросов
+        | Тип | Описание | Обязательные поля |
+        |-----|----------|-------------------|
+        | `a` | Инстанс по ID | `id` |
+        | `i` | Атрибут инстанса (прямой) | `id`, `attr` |
+        | `e` | Все инстансы энтити | `ent` |
+        | `b` | Инстансы, ссылающиеся на данный (обратный по инстансу) | `id`, `attr` |
+        | `d` | Атрибуты результатов подзапроса (прямой по подзапросу) | `id`(номер), `attr` |
+        | `r` | Инстансы типа `ent`, ссылающиеся на результаты подзапроса `id` | `id`, `ent`, `attr` |
+        | `u` | Объединить подзапрос `id` в группу | `id` |
+
+        ## Примеры
+        ```
+        # Загрузить инстанс 13184
+        GET /rest/load/t=a&id=13184
+
+        # Загрузить инстанс 13184 и его атрибут formation, и у formation — of_product
+        GET /rest/load/t=a&id=13184/t=d&id=0&attr=formation/t=d&id=1&attr=of_product
+
+        # Все папки, только атрибуты name и description
+        GET /rest/load/t=e&ent=apl_folder&all_attrs=false/t=d&id=0&attr=name/t=d&id=0&attr=description
+        ```
+
+        ## Особенности сортировки
+        - Сортируются только инстансы верхнего уровня (типы `a`, `e`)
+        - Инстансы `b`, `r` добавляются в конец и сортируются по ID
+        - Порции делятся только по верхнему уровню
+      operationId: loadData
+      parameters:
+        - name: queries
+          in: path
+          required: true
+          description: Цепочка подзапросов через /
+          schema:
+            type: string
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/sort_desc"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/size"
+      responses:
+        "200":
+          description: Данные загружены (возможен X-APL-Warning:1 при предупреждениях)
+          headers:
+            X-APL-Warning:
+              description: "1 если параметры подзапроса частично не применимы"
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "400":
+          description: Неверные параметры подзапроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/find/{params}:
+    get:
+      tags: [read]
+      summary: Поиск инстансов по значениям атрибутов
+      description: |
+        Аналог `NET_FindInstancesWithAttrValues` из C++ API.
+
+        ## Формат URL
+        `GET /rest/find/ent=<энтити>&sub=<bool>&case=<bool>&mode=<mode>&all_attrs=<bool>/<attr1>=<val1>/.../<attrN>=<valN>`
+
+        ## Параметры поиска
+        | Параметр | Тип | Описание | Умолч. |
+        |----------|-----|----------|--------|
+        | `ent` | string | Имя или ID энтити (обязательный) | — |
+        | `sub` | bool | Искать как подстроку | true |
+        | `case` | bool | Учитывать регистр | false |
+        | `mode` | string | Позиция подстроки: `left`, `mid`, `right` | mid |
+        | `all_attrs` | bool | Возвращать все атрибуты | true |
+
+        Значения атрибутов: `<имя_атрибута>=<значение>`. Спецсимволы кодировать URL-encoding.
+
+        ## Пример
+        ```
+        # Папки, у которых name начинается с fam15 (любой регистр), сортировка по name
+        GET /rest/find/ent=apl_folder&sub=true&mode=left/name=fam15
+        ```
+      operationId: findInstances
+      parameters:
+        - name: params
+          in: path
+          required: true
+          description: Параметры поиска и значения атрибутов
+          schema:
+            type: string
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/sort_desc"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/size"
+      responses:
+        "200":
+          description: Результаты поиска
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "400":
+          description: Неверные параметры (нет энтити или неверное имя атрибута)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/query:
+    post:
+      tags: [read]
+      summary: Запрос на языке STEP_QL (рекомендуется POST)
+      description: |
+        Выполняет запрос на языке STEP_QL. Тело запроса — текст запроса в UTF-8 (Content-Type: text/plain).
+
+        Поддерживаются оба ключевых слова `SELECT` и `SELECT_LOAD_ALL`, однако в REST-варианте
+        поведение всегда как у `SELECT` — полнота атрибутов управляется параметром `all_attrs`.
+
+        Модификатор `NO_CASE` поддерживается: делает сравнение строк в `=` и `!=` нечувствительным
+        к регистру (в `LIKE`/`LIKE_LEFT`/`LIKE_RIGHT` регистр не учитывается всегда).
+
+        Запрос состоит из двух частей:
+        - `SELECT … FROM` — выходная секция (объединение/пересечение подзапросов; уточнение атрибутом)
+        - `FROM … END_SELECT` — определение подзапросов (энтити + условия, списки, объединения)
+        
+        ## Примеры
+
+        **Найти все версии изделий, у которых есть статусы:**
+        ```
+        POST /rest/query
+        Content-Type: text/plain
+
+        SELECT Ext_1 FROM
+          Ext_1{ apl_approval_person_organization
+            .item->product_definition_formation
+          }.item
+        END_SELECT
+        ```
+
+        **Найти изделия с характеристикой «Масса» < 100 и названием, начинающимся с «Втулка» и идентификатором «ВТК1234»:**
+        ```
+        SELECT Ext_1.item FROM
+          Ext_1{ apl_measured_characteristic_value
+            (.val < 100 AND
+             .characteristic->apl_characteristic.name = 'МАССА' AND
+             .item->product(.name LIKE 'ВТУЛКА' AND .id = 'ВТК1234')
+            )
+          }
+        END_SELECT
+        ```
+
+        **Найти документы, взятые на редактирование текущим сотрудником:**
+        ```
+        SELECT Ext FROM
+          Ext{ apl_digital_document.author = #current_person }.of_document
+        END_SELECT
+        ```
+      operationId: queryStepQL
+      parameters:
+        - $ref: "#/components/parameters/all_attrs"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/sort_desc"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/size"
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              description: Текст запроса STEP_QL (UTF-8)
+      responses:
+        "200":
+          description: Результаты запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "400":
+          description: Ошибка в тексте запроса или неверный параметр
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  "/rest/query/{query}":
+    get:
+      tags: [read]
+      summary: Запрос STEP_QL через GET (не рекомендуется)
+      description: |
+        Альтернативный способ — запрос помещается в URL. Все символы, кроме ASCII,
+        должны быть URL-encoded. Использовать только при крайней необходимости.
+
+        Формат: `GET /rest/query/<текст запроса в urlencode>`
+      operationId: queryStepQLGet
+      parameters:
+        - name: query
+          in: path
+          required: true
+          description: Текст запроса STEP_QL в URL-encoding
+          schema:
+            type: string
+        - $ref: "#/components/parameters/all_attrs"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/sort_desc"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/size"
+      responses:
+        "200":
+          description: Результаты запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "400":
+          description: Ошибка в запросе
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/save:
+    post:
+      tags: [write]
+      summary: Сохранение инстансов и атрибутов
+      description: |
+        Создаёт, изменяет и удаляет инстансы и их атрибуты в БД.
+
+        ## Правила формирования тела запроса
+        - Формат: универсальный буфер `AplBuffer` с обязательными `format` и `dictionary`
+        - Инстансы задаются линейным списком или деревом (как в ответе load)
+        - **Новый инстанс**: `"id": 0`, заполнить `"index"` (уникальный в рамках save)
+        - **Удаление**: `"type": null`
+        - **Изменение**: указывать только изменяемые атрибуты; не указанные — не меняются
+        - **Очистка атрибута**: явно указать пустое значение (`""`, `null`, `0`, `false`)
+        - Уровень доступа (`access`) при сохранении игнорируется
+
+        ## Ответ
+        Возвращает буфер с параметрами созданных инстансов: `id`, `index`, `type`.
+        Массив `instances` присутствует только если были созданы новые инстансы (id=0 в запросе).
+
+        ## Пример
+        ```
+        POST /rest/save
+        Content-Type: application/json
+
+        {
+          "format": "apl_json_1",
+          "dictionary": "apl_pss_a",
+          "instances": [
+            { "id": 0, "index": 1, "type": "apl_folder", "attributes": { "name": "Новая папка" } },
+            { "id": 18694, "type": "product", "attributes": { "name": "новое наименование", "description": "" } },
+            { "id": 20186, "type": null }
+          ]
+        }
+        ```
+      operationId: saveData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AplBuffer"
+      responses:
+        "200":
+          description: Данные сохранены. В instances — информация о созданных инстансах.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "400":
+          description: Неверный формат буфера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Нет прав на изменение некоторых инстансов (нужен RW или OWN)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/rest/{ids}":
+    delete:
+      tags: [write]
+      summary: Удаление инстансов
+      description: |
+        Удаляет один или несколько инстансов. Требует уровня доступа `OWN` на каждый.
+
+        ## Рекомендуемый формат (query string)
+        `DELETE /rest/<id1>,<id2>?blob=<имя_атрибута>`
+
+        ## Старый формат (поддерживается)
+        `DELETE /rest/<id1>&blob=source,<id2>&blob=source`
+
+        В новом формате параметр `blob` применяется ко всем перечисленным инстансам.
+        Если у разных инстансов нужны разные blob-атрибуты, используйте отдельные запросы.
+
+        ## Примеры
+        ```
+        # Новый формат: удалить инстансы и их blob-атрибут source
+        DELETE /rest/1186,1187?blob=source
+
+        # Без удаления БЛОБов
+        DELETE /rest/1186,1187
+
+        # Старый формат
+        DELETE /rest/1188&blob=source,1262&blob=source
+        ```
+      operationId: deleteInstances
+      parameters:
+        - name: ids
+          in: path
+          required: true
+          description: Идентификаторы инстансов через запятую
+          schema:
+            type: string
+          example: "1186,1187"
+        - name: blob
+          in: query
+          required: false
+          description: |
+            Имя blob-атрибута для удаления вместе с инстансом (например, `source`).
+            Применяется ко всем перечисленным инстансам.
+          schema:
+            type: string
+          example: "source"
+      responses:
+        "204":
+          description: Инстансы удалены
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Нет прав на удаление (нужен OWN)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Один или несколько инстансов не найдены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/getblob:
+    get:
+      tags: [blob]
+      summary: Чтение БЛОБа (тела документа)
+      description: |
+        Возвращает тело документа (БЛОБ), хранящегося в атрибуте инстанса.
+
+        ## Рекомендуемый формат (query string)
+        `GET /rest/getblob?id=<id>&attr=<attr>&name=<filename_urlencode>`
+
+        ## Старый формат (поддерживается)
+        `GET /rest/getblob/id=<id>&attr=<attr>/<filename>`
+
+        ## Смешанный формат
+        `GET /rest/getblob/id=<id>&attr=<attr>?name=<filename_urlencode>`
+
+        Если параметр `name` указан, формируется заголовок `Content-Disposition`
+        по RFC 6266 + RFC 5987. Для не-ASCII символов добавляется `filename*=UTF-8''...`.
+
+        Если `name` не указан и атрибут = `source` (attr_id=357, `apl_stored_document`),
+        имя берётся из атрибута `file_name` инстанса.
+
+        Content-Type ответа определяется сервером автоматически по расширению файла.
+
+        ## Примеры
+        ```
+        # Рекомендуемый формат с именем файла
+        GET /rest/getblob?id=5970&attr=source&name=logo.jpg
+
+        # Без имени файла (имя берётся из атрибута file_name)
+        GET /rest/getblob?id=5970&attr=source
+
+        # Старый формат
+        GET /rest/getblob/id=4526&attr=source/info.txt
+        ```
+      operationId: getBlob
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Идентификатор инстанса
+          schema:
+            type: integer
+          example: 5970
+        - name: attr
+          in: query
+          required: true
+          description: Имя атрибута, содержащего БЛОБ (например, `source`)
+          schema:
+            type: string
+          example: "source"
+        - name: name
+          in: query
+          required: false
+          description: |
+            Имя файла (URL-encoded). Если указано, формируется заголовок
+            `Content-Disposition: attachment; filename="..."; filename*=UTF-8''...`
+          schema:
+            type: string
+          example: "document.pdf"
+      responses:
+        "200":
+          description: Содержимое файла
+          headers:
+            Content-Disposition:
+              description: "Имя файла (если указан параметр `name` или атрибут `file_name`)"
+              schema:
+                type: string
+              example: 'attachment; filename="document.pdf"'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Нет доступа к инстансу
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Инстанс, атрибут или БЛОБ не найден; атрибут пуст
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Ошибка чтения из БД
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/putblob:
+    post:
+      tags: [blob]
+      summary: Запись БЛОБа (тела документа)
+      description: |
+        Загружает файл на сервер и привязывает к атрибуту инстанса.
+        Автоматически удаляет предыдущий БЛОБ из атрибута (если был).
+
+        ## Рекомендуемый формат (query string)
+        `POST /rest/putblob?id=<id>&attr=<attr>&name=<filename_urlencode>`
+
+        ## Старый формат (поддерживается)
+        `POST /rest/putblob/id=<id>&attr=<attr>`
+
+        ## Смешанный формат
+        `POST /rest/putblob/id=<id>&attr=<attr>?name=<filename_urlencode>`
+
+        Тело запроса: файл как `multipart/form-data` (один файл) или как бинарное тело
+        (`application/octet-stream`).
+
+        Если параметр `name` указан и атрибут = `source` (attr_id=357, `apl_stored_document`),
+        имя файла автоматически сохраняется в атрибут `file_name` инстанса.
+
+        ## Порядок выполнения
+        1. Файл загружается в БД, получает новый ID БЛОБа
+        2. Из атрибута инстанса читается старый ID БЛОБа, старый БЛОБ удаляется
+        3. В атрибут записывается новый ID БЛОБа
+        4. Если указан `name` и attr_id=357, записывается `file_name`
+        5. Выполняется commit в БД
+
+        ## Примеры
+        ```
+        # Рекомендуемый формат с именем файла
+        POST /rest/putblob?id=4742&attr=source&name=document.pdf
+
+        # Старый формат
+        POST /rest/putblob/id=4742&attr=source
+        ```
+      operationId: putBlob
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Идентификатор инстанса
+          schema:
+            type: integer
+          example: 4742
+        - name: attr
+          in: query
+          required: true
+          description: Имя атрибута для привязки БЛОБа (например, `source`)
+          schema:
+            type: string
+          example: "source"
+        - name: name
+          in: query
+          required: false
+          description: |
+            Имя файла (URL-encoded). Если указано и атрибут = `source` (attr_id=357, `apl_stored_document`),
+            сохраняется в атрибут `file_name` инстанса.
+          schema:
+            type: string
+          example: "document.pdf"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: БЛОБ загружен и привязан к иснтансу.
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Нет доступа к инстансу
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Инстанс или атрибут не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Ошибка сохранения в БД
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rest/upload:
+    post:
+      tags: [blob, write]
+      summary: Пакетная загрузка файлов и инстансов
+      description: |
+        Одновременная загрузка тел нескольких документов и описания инстансов.
+        Используется при создании документов.
+
+        ## Формат
+        `POST /rest/upload/`
+        `Content-Type: multipart/form-data; boundary=...`
+
+        ## Блоки multipart
+        - **Файлы**: `Content-Disposition: form-data; name="<blob_id>"; filename="<имя_файла>"`
+          — произвольный идентификатор БЛОБа (сквозной, используется для привязки)
+        - **JSON**: `Content-Disposition: form-data; name="json"`
+          — один (и только один) блок с данными инстансов в формате AplBuffer.
+          В атрибутах инстансов, куда нужно поместить БЛОБ, указывается сквозной идентификатор.
+
+        ## Порядок выполнения
+        1. Файлы загружаются в БД; сквозные идентификаторы заменяются ID БЛОБов в БД
+        2. Инстансы сохраняются
+        3. Возвращается JSON с параметрами созданных инстансов
+
+        ## Пример тела запроса
+        ```
+        ------boundary
+        Content-Disposition: form-data; name="blob1"; filename="doc1.pdf"
+        Content-Type: application/octet-stream
+
+        <бинарное содержимое файла>
+        ------boundary
+        Content-Disposition: form-data; name="json"
+
+        {
+          "format": "apl_json_1",
+          "dictionary": "apl_pss_a",
+          "instances": [
+            { "index": 0, "type": "apl_stored_document",
+              "attributes": { "file_name": "doc1.pdf", "source": "blob1" } }
+          ]
+        }
+        ------boundary--
+        ```
+      operationId: upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              description: Файлы БЛОБов + один JSON-блок с именем "json"
+              additionalProperties: true
+      responses:
+        "200":
+          description: Файлы загружены. Если в json есть новые инстансы — возвращает их параметры.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AplBuffer"
+        "401":
+          description: Нет активной сессии
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Нет прав на изменение инстансов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Инстанс или атрибут не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

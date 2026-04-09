@@ -5,8 +5,8 @@
       "Bash(C:/Python312/python.exe \"c:/python_projects/express_api/tech_process_viewer/mcp_server/server.py\")"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "pss"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

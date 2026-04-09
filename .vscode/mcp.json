@@ -1,0 +1,16 @@
+{
+    "servers": {
+        "pss": {
+            "type": "stdio",
+            "command": "F:\\python_projects\\express_api\\.venv\\Scripts\\python.exe",
+            "args": ["-m", "mcp_server.server"],
+            "cwd": "F:\\python_projects\\express_api\\tech_process_viewer",
+            "env": {
+                "PSS_SERVER": "http://localhost:7239",
+                "PSS_DB": "pss_moma_08_07_2025",
+                "PSS_USER": "Administrator",
+                "PSS_PASSWORD": ""
+            }
+        }
+    }
+}
