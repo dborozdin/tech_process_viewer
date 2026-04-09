@@ -38,6 +38,8 @@ if _EXPRESS_API_ROOT not in sys.path:
 
 from ILS_reports_agent.pss.api_client import PSSClient
 from ILS_reports_agent.pss.schema import get_schema
+from api.ils_logstruct_api import ILSLogStructAPI
+from api.ils_tasks_api import ILSTasksAPI
 
 logger = logging.getLogger("mcp.pss")
 
@@ -61,6 +63,8 @@ HTML_SCHEMA_PATH = os.path.join(_PROJECT_ROOT, "db_schema_doc", "apl_pss_a_1419_
 _client: PSSClient | None = None
 _schema = None
 _db_api = None  # DatabaseAPI instance for high-level operations
+_ils_logstruct_api: ILSLogStructAPI | None = None
+_ils_tasks_api: ILSTasksAPI | None = None
 
 server = Server("pss-database")
 
@@ -98,6 +102,24 @@ def _get_db_api():
     return _db_api
 
 
+def _get_ils_logstruct_api() -> ILSLogStructAPI:
+    """Get or create ILSLogStructAPI instance."""
+    global _ils_logstruct_api
+    if _ils_logstruct_api is None:
+        _ils_logstruct_api = ILSLogStructAPI(_get_client())
+        logger.info("ILSLogStructAPI initialized")
+    return _ils_logstruct_api
+
+
+def _get_ils_tasks_api() -> ILSTasksAPI:
+    """Get or create ILSTasksAPI instance."""
+    global _ils_tasks_api
+    if _ils_tasks_api is None:
+        _ils_tasks_api = ILSTasksAPI(_get_client())
+        logger.info("ILSTasksAPI initialized")
+    return _ils_tasks_api
+
+
 def _json_response(data) -> list[TextContent]:
     """Wrap data as MCP TextContent JSON response."""
     return [TextContent(type="text", text=json.dumps(data, ensure_ascii=False, indent=2))]
@@ -132,19 +154,12 @@ TOOLS = [
     # ==================== connection — Server/DB connection ====================
     Tool(
         name="connection_status",
-        description=(
-            "[Подключение] Проверить текущее состояние подключения к БД PSS. "
-            "Возвращает: подключён ли сервер, имя БД, пользователь, адрес сервера."
-        ),
+        description="Проверить состояние подключения к БД.",
         inputSchema={"type": "object", "properties": {}, "required": []},
     ),
     Tool(
         name="connect",
-        description=(
-            "[Подключение] Подключиться к базе данных PSS (или переподключиться к другой). "
-            "Все параметры опциональны — если не указаны, используются значения из env "
-            "(PSS_SERVER, PSS_DB, PSS_USER). При переподключении старая сессия закрывается."
-        ),
+        description="Подключиться к базе данных PSS или переподключиться к другой.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -172,20 +187,12 @@ TOOLS = [
     # ==================== schema_* — Metadata ====================
     Tool(
         name="schema_list_categories",
-        description=(
-            "[Схема] Просмотр категорий данных PSS. "
-            "Возвращает разделы схемы (PDM, ILS, общие) с перечнем типов сущностей. "
-            "Используй как отправную точку для изучения модели данных."
-        ),
+        description="Список категорий сущностей в схеме данных.",
         inputSchema={"type": "object", "properties": {}, "required": []},
     ),
     Tool(
         name="schema_search",
-        description=(
-            "[Схема] Поиск типов сущностей по ключевому слову. "
-            "Ищет по имени, описанию, разделу и атрибутам. "
-            "Примеры: 'изделие', 'документ', 'organization', 'BOM', 'техпроцесс'."
-        ),
+        description="Поиск типов сущностей по ключевому слову.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -199,11 +206,7 @@ TOOLS = [
     ),
     Tool(
         name="schema_get_entity",
-        description=(
-            "[Схема] Получить полную схему сущности: атрибуты, типы данных, "
-            "связи с другими сущностями, унаследованные атрибуты. "
-            "Используй перед написанием APL-запросов, чтобы знать имена полей."
-        ),
+        description="Полная схема сущности: атрибуты, типы, связи.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -217,10 +220,7 @@ TOOLS = [
     ),
     Tool(
         name="schema_describe",
-        description=(
-            "[Схема] Описание сущности на русском языке: назначение, "
-            "ключевые атрибуты, связи, примеры использования."
-        ),
+        description="Описание сущности на русском языке.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -236,12 +236,7 @@ TOOLS = [
     # ==================== data_* — Low-level data access ====================
     Tool(
         name="data_query",
-        description=(
-            "[Данные] Запросить экземпляры сущности с опциональными фильтрами APL. "
-            "Примеры фильтров: '.name LIKE \"деталь*\"', '.id = \"ABC-123\"', "
-            "'.# = #12345' (по sys_id). "
-            "Для сложных запросов используй data_apl_query."
-        ),
+        description="Запросить экземпляры сущности с фильтром.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -264,10 +259,7 @@ TOOLS = [
     ),
     Tool(
         name="data_get_instance",
-        description=(
-            "[Данные] Получить один экземпляр по sys_id. "
-            "Возвращает все атрибуты включая ссылки на связанные объекты."
-        ),
+        description="Получить один экземпляр по sys_id со всеми атрибутами.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -281,15 +273,7 @@ TOOLS = [
     ),
     Tool(
         name="data_apl_query",
-        description=(
-            "[Данные] Выполнить произвольный APL SELECT-запрос. "
-            "Только чтение; модификация данных запрещена. "
-            "Синтаксис: SELECT NO_CASE Ext_ FROM Ext_{тип_сущности(.фильтр)} END_SELECT. "
-            "Примеры:\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{organization} END_SELECT\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{product(.name LIKE \"Самолёт*\")} END_SELECT\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = \"ABC\")} END_SELECT"
-        ),
+        description="Выполнить произвольный APL SELECT-запрос к базе данных.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -305,11 +289,7 @@ TOOLS = [
     # ==================== pdm_* — High-level PDM operations ====================
     Tool(
         name="pdm_search_products",
-        description=(
-            "[PDM] Поиск изделий по обозначению (id) или наименованию (name). "
-            "Ищет среди сущностей product с LIKE. "
-            "Возвращает список найденных изделий с sys_id, id, name."
-        ),
+        description="Найти изделия PDM по обозначению или наименованию.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -328,11 +308,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_product",
-        description=(
-            "[PDM] Получить полную информацию об изделии: "
-            "атрибуты product_definition_formation (обозначение, тип, make_or_buy), "
-            "характеристики (properties), связанные документы."
-        ),
+        description="Получить полную информацию об изделии по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -346,11 +322,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_bom",
-        description=(
-            "[PDM] Получить структуру входимости изделия (BOM — Bill of Materials). "
-            "Возвращает компоненты первого уровня: дочерние изделия с количествами и единицами измерения. "
-            "Для рекурсивного обхода вызывай повторно для каждого дочернего изделия."
-        ),
+        description="Состав изделия (BOM) — дочерние компоненты с количествами.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -364,11 +336,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_folders",
-        description=(
-            "[PDM] Получить список папок из базы PSS. "
-            "Папки организуют объекты (изделия, документы, процессы) в иерархию. "
-            "Без фильтра возвращает все папки; с фильтром — по имени."
-        ),
+        description="Список папок в базе, с опциональным фильтром по имени.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -382,10 +350,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_folder_contents",
-        description=(
-            "[PDM] Получить содержимое папки: вложенные папки, изделия, документы, процессы. "
-            "Возвращает список объектов с их sys_id и типами."
-        ),
+        description="Содержимое папки: вложенные папки, изделия, документы.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -399,10 +364,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_documents",
-        description=(
-            "[PDM] Получить документы, привязанные к объекту (изделию, процессу и т.д.) "
-            "через связку apl_document_reference. Возвращает список документов с атрибутами."
-        ),
+        description="Документы, привязанные к объекту по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -416,11 +378,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_characteristics",
-        description=(
-            "[PDM] Получить характеристики (свойства) изделия. "
-            "Характеристики расширяют базовый набор атрибутов изделия "
-            "(вес, габариты, материал и т.д.) через сущность apl_property_definition."
-        ),
+        description="Характеристики (свойства) изделия по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -434,10 +392,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_find_product_by_code",
-        description=(
-            "[PDM] Найти изделие по точному обозначению (code1). "
-            "Возвращает sys_id найденного apl_product_definition_formation или null."
-        ),
+        description="Найти изделие по точному обозначению (code1).",
         inputSchema={
             "type": "object",
             "properties": {
@@ -452,12 +407,7 @@ TOOLS = [
 
     Tool(
         name="pdm_get_product_full_info",
-        description=(
-            "[PDM] Получить полные атрибуты изделия и его версии (formation). "
-            "Возвращает: обозначение (designation), наименование (name), описание, "
-            "коды изделия (product_code) и версии (code1, code2), тип формирования, "
-            "make_or_buy. Полезно для получения всех данных об одном изделии."
-        ),
+        description="Все атрибуты изделия и его версии по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -473,11 +423,7 @@ TOOLS = [
     # ==================== pdm_* — Tech Processes, Organizations, Resources ====================
     Tool(
         name="pdm_get_processes",
-        description=(
-            "[PDM] Получить список техпроцессов (бизнес-процессов) для изделия. "
-            "Возвращает процессы (apl_action_method) привязанные к указанному изделию "
-            "через apl_applied_action. Каждый процесс содержит имя, тип и организацию."
-        ),
+        description="Список техпроцессов для изделия по его sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -491,11 +437,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_hierarchy",
-        description=(
-            "[PDM] Получить иерархию техпроцесса: процесс → фазы → операции. "
-            "Возвращает дочерние элементы процесса (подпроцессы, фазы, операции) "
-            "через атрибут elements. Для рекурсивного обхода вызывай повторно для дочерних."
-        ),
+        description="Иерархия техпроцесса: фазы и операции.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -509,11 +451,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_details",
-        description=(
-            "[PDM] Полные детали техпроцесса: атрибуты, операции (с нормами времени), "
-            "документы, материалы (ресурсы). Возвращает всё необходимое для отображения "
-            "карточки техпроцесса."
-        ),
+        description="Детали техпроцесса: операции, документы, ресурсы.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -527,11 +465,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_list_organizations",
-        description=(
-            "[PDM] Список организаций (organization) в базе данных. "
-            "Организации — это предприятия, цеха, подразделения, "
-            "участвующие в производственных процессах."
-        ),
+        description="Список организаций в базе данных.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -550,10 +484,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_organization",
-        description=(
-            "[PDM] Получить детали организации по sys_id: имя, id, описание, "
-            "связанные организации."
-        ),
+        description="Детали организации по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -567,11 +498,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_resources",
-        description=(
-            "[PDM] Получить ресурсы техпроцесса: материалы, нормы расхода, "
-            "единицы измерения. Ресурсы (apl_action_resource) привязаны к процессу "
-            "и содержат тип ресурса, количество и единицу измерения."
-        ),
+        description="Ресурсы техпроцесса: материалы и нормы расхода.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -585,11 +512,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_list_units",
-        description=(
-            "[PDM] Список единиц измерения (apl_unit) в базе данных. "
-            "Используются в BOM (количество компонентов), ресурсах (нормы расхода), "
-            "характеристиках изделий."
-        ),
+        description="Список единиц измерения в базе.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -605,12 +528,7 @@ TOOLS = [
     # ── Характеристики (apl_characteristic / apl_characteristic_value) ──
     Tool(
         name="pdm_list_characteristic_types",
-        description=(
-            "[PDM] Список типов характеристик (apl_characteristic). "
-            "Каждая характеристика — это определение (название, ед. измерения), "
-            "которое может быть назначено объектам (процессам, изделиям). "
-            "Значения характеристик хранятся в apl_characteristic_value."
-        ),
+        description="Список типов характеристик в базе.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -625,15 +543,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_characteristic_values",
-        description=(
-            "[PDM] Получить значения характеристик (apl_characteristic_value) "
-            "для заданного объекта. apl_characteristic_value — супертип: "
-            "возвращаемые экземпляры будут конкретных подтипов "
-            "(apl_descriptive_characteristic_value, apl_measured_characteristic_value, "
-            "apl_enumeration_characteristic_value и др.). "
-            "Поле scope содержит отображаемое значение. "
-            "Поле characteristic ссылается на тип (apl_characteristic)."
-        ),
+        description="Значения характеристик для объекта по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -643,6 +553,63 @@ TOOLS = [
                 },
             },
             "required": ["item_id"],
+        },
+    ),
+    # ==================== ILS — Logistic structure ====================
+    Tool(
+        name="ils_find_final_products",
+        description="Найти финальные изделия по наименованию или обозначению.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "search_text": {
+                    "type": "string",
+                    "description": (
+                        "Текст для фильтрации по наименованию (name_rus) "
+                        "или обозначению (id). "
+                        "Если не указан — возвращаются все финальные изделия."
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Макс. количество результатов (по умолч. 50)",
+                    "default": 50,
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="ils_get_logistic_structure",
+        description="Дерево логистической структуры компонента по sys_id.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "integer",
+                    "description": "sys_id компонента (apl_lss3_component)",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Максимальная глубина обхода дерева (по умолч. 10)",
+                    "default": 10,
+                },
+            },
+            "required": ["component_id"],
+        },
+    ),
+    Tool(
+        name="ils_get_tasks",
+        description="Технологические карты (работы) для компонента по sys_id.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "integer",
+                    "description": "sys_id компонента (apl_lss3_component)",
+                },
+            },
+            "required": ["component_id"],
         },
     ),
 ]
@@ -719,6 +686,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_list_characteristic_types(arguments)
         elif name == "pdm_get_characteristic_values":
             return _handle_pdm_get_characteristic_values(arguments)
+        # ILS tools
+        elif name == "ils_find_final_products":
+            return _handle_ils_find_final_products(arguments)
+        elif name == "ils_get_logistic_structure":
+            return _handle_ils_get_logistic_structure(arguments)
+        elif name == "ils_get_tasks":
+            return _handle_ils_get_tasks(arguments)
         else:
             return _error_response(f"Unknown tool: {name}")
     except ConnectionError as e:
@@ -732,7 +706,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 def _reconnect(server_url: str, db: str, user: str, password: str):
     """Disconnect existing sessions and reconnect with new parameters."""
-    global _client, _db_api, PSS_SERVER, PSS_DB, PSS_USER, PSS_PASSWORD
+    global _client, _db_api, _ils_logstruct_api, _ils_tasks_api, PSS_SERVER, PSS_DB, PSS_USER, PSS_PASSWORD
 
     # Disconnect existing client
     if _client is not None:
@@ -749,6 +723,9 @@ def _reconnect(server_url: str, db: str, user: str, password: str):
         except Exception:
             pass
         _db_api = None
+
+    _ils_logstruct_api = None
+    _ils_tasks_api = None
 
     # Update globals
     PSS_SERVER = server_url
@@ -1407,6 +1384,38 @@ def _handle_pdm_list_units(arguments: dict) -> list[TextContent]:
         "count": len(simplified),
         "units": simplified,
     })
+
+
+# ==================== ILS — Logistic structure handlers ====================
+
+def _handle_ils_find_final_products(arguments: dict) -> list[TextContent]:
+    api = _get_ils_logstruct_api()
+    result = api.find_final_products(
+        search_text=arguments.get("search_text", ""),
+        limit=arguments.get("limit", 50),
+    )
+    return _json_response(result)
+
+
+def _handle_ils_get_logistic_structure(arguments: dict) -> list[TextContent]:
+    component_id = arguments.get("component_id")
+    if component_id is None:
+        return _error_response("component_id is required")
+    api = _get_ils_logstruct_api()
+    result = api.get_logistic_structure(
+        sys_id=int(component_id),
+        max_depth=arguments.get("max_depth", 10),
+    )
+    return _json_response(result)
+
+
+def _handle_ils_get_tasks(arguments: dict) -> list[TextContent]:
+    component_id = arguments.get("component_id")
+    if component_id is None:
+        return _error_response("component_id is required")
+    api = _get_ils_tasks_api()
+    result = api.get_tasks(int(component_id))
+    return _json_response(result)
 
 
 # ---------------------------------------------------------------------------

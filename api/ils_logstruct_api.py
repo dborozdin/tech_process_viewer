@@ -62,10 +62,10 @@ _ELEMENT_ATTRS = [
 
 
 # ---------------------------------------------------------------------------
-# LogStructAPI
+# ILSLogStructAPI
 # ---------------------------------------------------------------------------
 
-class LogStructAPI:
+class ILSLogStructAPI:
     """Fetches and assembles the logistic structure tree for a component."""
 
     # Safety limits
@@ -160,6 +160,54 @@ class LogStructAPI:
                 "Уточните запрос или уменьшите max_depth."
             )
         return result
+
+    def find_final_products(self, search_text: str = "",
+                            limit: int = 50) -> dict:
+        """Find final products (apl_lss3_component with is_fi=true).
+
+        Args:
+            search_text: Optional filter by name_rus or id (substring match).
+            limit: Maximum number of results (default 50).
+
+        Returns:
+            {"count": N, "components": [{sys_id, id, name_rus, ...}, ...]}
+        """
+        # LIKE with Cyrillic doesn't work in PSS APL — fetch all FI
+        # components and filter in Python
+        q = ("SELECT NO_CASE Ext_ FROM "
+             "Ext_{apl_lss3_component(.is_fi = true)} END_SELECT")
+
+        all_instances = []
+        start = 0
+        fetch_limit = max(limit, 200)  # fetch enough to filter
+        while len(all_instances) < fetch_limit:
+            page_size = min(self.PAGE_SIZE, fetch_limit - len(all_instances))
+            result = self._q.query_apl(q, start=start, size=page_size)
+            if result.get("error"):
+                logger.warning("find_final_products query error: %s",
+                               result["error"])
+                break
+            instances = result.get("instances", [])
+            all_instances.extend(instances)
+            count_all = result.get("count_all", 0)
+            if len(all_instances) >= count_all or len(instances) < page_size:
+                break
+            start += page_size
+
+        components = [self._simplify_component(inst) for inst in all_instances]
+
+        # Filter by search_text in Python (case-insensitive substring)
+        if search_text:
+            text_lower = search_text.lower()
+            components = [
+                c for c in components
+                if text_lower in (c.get("name_rus") or "").lower()
+                or text_lower in (c.get("id") or "").lower()
+                or text_lower in (c.get("name_eng") or "").lower()
+            ]
+
+        components = components[:limit]
+        return {"count": len(components), "components": components}
 
     # ------------------------------------------------------------------
     # Component search

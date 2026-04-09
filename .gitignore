@@ -5,5 +5,8 @@ logs/
 logs/app.log
 .env
 *_key
+*_key.txt
 api/routes/__pycache__/__init__.cpython-312.pyc
 logs/errors.log
+/ILS_reports_agent/data/recordings
+test_*.png

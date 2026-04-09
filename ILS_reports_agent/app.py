@@ -11,15 +11,17 @@ import time
 
 from flask import Flask, request, jsonify, Response, send_from_directory
 
+import atexit
+
 from ILS_reports_agent.config import Config
 from ILS_reports_agent.pss.api_client import PSSClient
+from ILS_reports_agent.pss.mcp_bridge import MCPBridge
 from ILS_reports_agent.pss.schema import get_schema
 from ILS_reports_agent.agent.llm_client import LLMClient
 from ILS_reports_agent.agent.mock_llm_client import LLMRecorder, MockLLMClient
 from ILS_reports_agent.agent.tool_executor import ToolExecutor
 from ILS_reports_agent.agent.knowledge import KnowledgeStore
 from ILS_reports_agent.agent.orchestrator import Agent
-from ILS_reports_agent.agent.prompts import SYSTEM_PROMPT
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -57,6 +59,7 @@ TOOL_SUPPORT_CACHE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'tool_
 HISTORY_MAX = 100
 schema = None
 agent = None
+mcp_bridge = None
 
 # ---------------------------------------------------------------------------
 # LLM provider presets and runtime config
@@ -68,6 +71,13 @@ LLM_PROVIDERS = {
         "base_url": "https://openrouter.ai/api/v1",
         "api_key": Config.LLM_API_KEY,
         "model": Config.LLM_MODEL,
+        "needs_api_key": True,
+    },
+    "nvidia": {
+        "label": "NVIDIA API (free)",
+        "base_url": "https://integrate.api.nvidia.com/v1",
+        "api_key": "",
+        "model": "deepseek-ai/deepseek-v3.2",
         "needs_api_key": True,
     },
     "ollama": {
@@ -86,6 +96,12 @@ LLM_PROVIDERS = {
     },
 }
 
+# Load NVIDIA API key from file if not set via env
+_NVIDIA_KEY_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'nvidia_key.txt')
+if os.path.exists(_NVIDIA_KEY_PATH):
+    with open(_NVIDIA_KEY_PATH, 'r') as f:
+        LLM_PROVIDERS["nvidia"]["api_key"] = f.read().strip()
+
 def _load_llm_config() -> dict:
     """Load saved LLM config from file, falling back to Ollama defaults."""
     defaults = {
@@ -103,6 +119,11 @@ def _load_llm_config() -> dict:
             # Validate provider exists
             if saved.get("provider") in LLM_PROVIDERS:
                 defaults.update(saved)
+                # api_key is never saved to disk — restore from provider preset
+                prov = saved["provider"]
+                preset_key = LLM_PROVIDERS[prov].get("api_key", "")
+                if preset_key:
+                    defaults["api_key"] = preset_key
                 logger.info(f"LLM config loaded: {saved.get('provider')}/{saved.get('model')}")
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"Failed to load LLM config: {e}")
@@ -155,12 +176,33 @@ def _init_schema():
 RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'recordings')
 
 
+def _init_mcp_bridge():
+    """Initialize MCPBridge (direct import of MCP server module)."""
+    global mcp_bridge
+    if mcp_bridge is not None:
+        return mcp_bridge
+
+    pss_server = pss_client.rest_url.rsplit('/rest', 1)[0]
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    mcp_bridge = MCPBridge(
+        pss_server=pss_server,
+        pss_db=Config.PSS_DB_NAME,
+        pss_user=Config.PSS_DB_USER,
+        pss_password=Config.PSS_DB_PASSWORD,
+        project_root=project_root,
+    )
+    mcp_bridge.start()
+    atexit.register(mcp_bridge.stop)
+    logger.info("MCPBridge started with %d tools", len(mcp_bridge.tool_names))
+    return mcp_bridge
+
+
 def _init_agent():
     global agent
     if agent is not None:
         return agent
 
-    _init_schema()
+    _init_mcp_bridge()
 
     if llm_config["provider"] == "mock":
         llm = MockLLMClient(RECORDINGS_DIR, model_label=llm_config["model"])
@@ -174,10 +216,8 @@ def _init_agent():
         )
         llm = LLMRecorder(real_llm, RECORDINGS_DIR)
 
-    executor = ToolExecutor(pss_client, schema, knowledge=knowledge_store)
-    agent = Agent(llm, executor, schema, knowledge=knowledge_store,
-                  max_iterations=Config.AGENT_MAX_ITERATIONS,
-                  custom_instructions_path=CUSTOM_INSTRUCTIONS_PATH)
+    executor = ToolExecutor(mcp_bridge)
+    agent = Agent(llm, executor, mcp_bridge=mcp_bridge)
     return agent
 
 
@@ -206,6 +246,12 @@ def connect():
 
     try:
         session_key = pss_client.connect(db_name, user, password)
+        # Reset MCP bridge and agent so they reconnect with new params
+        global mcp_bridge, agent
+        if mcp_bridge is not None:
+            mcp_bridge.stop()
+            mcp_bridge = None
+        agent = None
         _init_agent()
         return jsonify({
             "connected": True,
@@ -294,13 +340,13 @@ def llm_switch():
     llm_config["temperature"] = float(data.get("temperature", llm_config["temperature"]))
     llm_config["max_tokens"] = int(data.get("max_tokens", llm_config["max_tokens"]))
 
-    # Update API key: for openrouter allow override, for others use preset
-    if provider == "openrouter" and data.get("api_key"):
+    # Update API key: user override > preset > keep existing
+    if data.get("api_key"):
         llm_config["api_key"] = data["api_key"]
-    elif provider not in ("openrouter",):
+    elif preset.get("api_key"):
         llm_config["api_key"] = preset["api_key"]
 
-    # Force agent re-creation
+    # Force agent re-creation (MCPBridge persists)
     agent = None
     _save_llm_config()
 
@@ -394,6 +440,23 @@ def llm_models_list():
             return jsonify({"models": result})
         except Exception as e:
             return jsonify({"models": [], "error": str(e)})
+
+    elif provider == "nvidia":
+        # NVIDIA free-tier models with tool use support
+        return jsonify({"models": [
+            {"name": "qwen/qwen3-coder-480b-a35b-instruct", "recommended": True,
+             "note": "Qwen3 Coder 480B MoE, tools"},
+            {"name": "moonshotai/kimi-k2-instruct",
+             "note": "Kimi K2, tools"},
+            {"name": "stepfun-ai/step-3.5-flash",
+             "note": "Step 3.5 Flash, tools"},
+            {"name": "deepseek-ai/deepseek-v3.2",
+             "note": "DeepSeek V3.2, tools"},
+            {"name": "z-ai/glm4.7",
+             "note": "GLM-4.7, tools"},
+            {"name": "mistralai/devstral-2-123b-instruct-2512",
+             "note": "Devstral 2 123B, tools"},
+        ]})
 
     elif provider == "openrouter":
         # Curated list of useful free/popular models
@@ -561,7 +624,9 @@ def get_custom_prompt():
     if os.path.exists(CUSTOM_INSTRUCTIONS_PATH):
         with open(CUSTOM_INSTRUCTIONS_PATH, 'r', encoding='utf-8') as f:
             text = f.read()
-    return jsonify({"custom_instructions": text, "base_prompt": SYSTEM_PROMPT})
+    from ILS_reports_agent.agent.prompts import STEP1_PROMPT, STEP2_PROMPT
+    return jsonify({"custom_instructions": text,
+                    "base_prompt": f"Step 1: {STEP1_PROMPT}\n\nStep 2: {STEP2_PROMPT}"})
 
 
 @app.route('/api/settings/prompt', methods=['POST'])
@@ -758,6 +823,17 @@ def schema_search():
         return jsonify({"error": "Missing 'q' parameter"}), 400
     _init_schema()
     return jsonify(schema.search_entities(keyword))
+
+
+@app.route('/api/tools')
+def list_tools():
+    """List available MCP tools with descriptions."""
+    _init_mcp_bridge()
+    tools = [
+        {"name": t["function"]["name"], "description": t["function"]["description"]}
+        for t in mcp_bridge.tools
+    ]
+    return jsonify({"count": len(tools), "tools": tools})
 
 
 # ---------------------------------------------------------------------------

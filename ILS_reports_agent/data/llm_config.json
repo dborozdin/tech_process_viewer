@@ -1,7 +1,7 @@
 {
-  "provider": "ollama",
-  "base_url": "http://bolt.cals.ru:38386/v1",
-  "model": "gpt-oss:20b",
+  "provider": "nvidia",
+  "base_url": "https://integrate.api.nvidia.com/v1",
+  "model": "qwen/qwen3-coder-480b-a35b-instruct",
   "temperature": 0.1,
   "max_tokens": 16384
 }
