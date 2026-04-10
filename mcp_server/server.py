@@ -555,6 +555,53 @@ TOOLS = [
             "required": ["item_id"],
         },
     ),
+    # ── CRUD характеристик ──
+    Tool(
+        name="pdm_create_characteristic_value",
+        description="Создать значение характеристики для объекта.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "integer", "description": "sys_id объекта"},
+                "characteristic_id": {"type": "integer", "description": "sys_id определения характеристики"},
+                "value": {"type": "string", "description": "Значение характеристики"},
+                "subtype": {
+                    "type": "string",
+                    "description": "Подтип значения (по умолч. apl_descriptive_characteristic_value)",
+                    "default": "apl_descriptive_characteristic_value",
+                },
+            },
+            "required": ["item_id", "characteristic_id", "value"],
+        },
+    ),
+    Tool(
+        name="pdm_update_characteristic_value",
+        description="Обновить значение характеристики.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "value_id": {"type": "integer", "description": "sys_id значения характеристики"},
+                "value": {"type": "string", "description": "Новое значение"},
+                "subtype": {
+                    "type": "string",
+                    "description": "Подтип значения",
+                    "default": "apl_descriptive_characteristic_value",
+                },
+            },
+            "required": ["value_id", "value"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_characteristic_value",
+        description="Удалить значение характеристики.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "value_id": {"type": "integer", "description": "sys_id значения характеристики"},
+            },
+            "required": ["value_id"],
+        },
+    ),
     # ==================== ILS — Logistic structure ====================
     Tool(
         name="ils_find_final_products",
@@ -686,6 +733,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_list_characteristic_types(arguments)
         elif name == "pdm_get_characteristic_values":
             return _handle_pdm_get_characteristic_values(arguments)
+        elif name == "pdm_create_characteristic_value":
+            return _handle_pdm_create_characteristic_value(arguments)
+        elif name == "pdm_update_characteristic_value":
+            return _handle_pdm_update_characteristic_value(arguments)
+        elif name == "pdm_delete_characteristic_value":
+            return _handle_pdm_delete_characteristic_value(arguments)
         # ILS tools
         elif name == "ils_find_final_products":
             return _handle_ils_find_final_products(arguments)
@@ -1094,6 +1147,58 @@ def _handle_pdm_get_characteristic_values(arguments: dict) -> list[TextContent]:
         "count": len(result),
         "characteristic_values": result,
     })
+
+
+def _handle_pdm_create_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Создать значение характеристики."""
+    item_id = arguments.get("item_id")
+    char_id = arguments.get("characteristic_id")
+    value = arguments.get("value", "")
+    subtype = arguments.get("subtype", "apl_descriptive_characteristic_value")
+
+    if item_id is None or char_id is None:
+        return _error_response("item_id and characteristic_id are required")
+
+    db_api = _get_db_api()
+    result = db_api.characteristic_api.create_characteristic_value(
+        int(item_id), int(char_id), value, subtype
+    )
+
+    if result:
+        return _json_response({
+            "success": True,
+            "sys_id": result.get("id") if isinstance(result, dict) else None,
+        })
+    return _error_response("Failed to create characteristic value")
+
+
+def _handle_pdm_update_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Обновить значение характеристики."""
+    value_id = arguments.get("value_id")
+    new_value = arguments.get("value", "")
+    subtype = arguments.get("subtype", "apl_descriptive_characteristic_value")
+
+    if value_id is None:
+        return _error_response("value_id is required")
+
+    db_api = _get_db_api()
+    success = db_api.characteristic_api.update_characteristic_value(
+        int(value_id), new_value, subtype
+    )
+
+    return _json_response({"success": bool(success), "value_id": value_id})
+
+
+def _handle_pdm_delete_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Удалить значение характеристики."""
+    value_id = arguments.get("value_id")
+    if value_id is None:
+        return _error_response("value_id is required")
+
+    db_api = _get_db_api()
+    success = db_api.characteristic_api.delete_characteristic_value(int(value_id))
+
+    return _json_response({"success": bool(success), "value_id": value_id})
 
 
 def _handle_pdm_find_by_code(arguments: dict) -> list[TextContent]:

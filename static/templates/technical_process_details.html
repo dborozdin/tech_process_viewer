@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../css/styles.css">
     <script src="../js/jquery-3.7.1.min.js"></script>
     <script src="../js/common.js"></script>
+    <script src="../js/crud-ui.js"></script>
     <script src="../js/tech-processes.js"></script>
     <script src="../js/technical_process_details.js"></script>
 </head>
@@ -18,24 +19,28 @@
             <h2>Technical process details</h2>
             <div id="tech-proc-info"></div>
             <h3>Operations</h3>
+            <div id="operations-toolbar"></div>
             <table id="operations-table">
                 <thead>
                     <tr>
                         <th>Name</th>
                         <th>Description</th>
                         <th>Man Hours</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
             </table>
             <div id="steps-container"></div>
             <h3>Documents</h3>
+            <div id="documents-toolbar"></div>
             <table id="documents-table">
                 <thead>
                     <tr>
                         <th>Name</th>
                         <th>Code</th>
                         <th>Type</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -49,6 +54,19 @@
                         <th>ID</th>
                         <th>Quantity</th>
                         <th>UOM</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <h3>Characteristics</h3>
+            <div id="characteristics-toolbar"></div>
+            <table id="characteristics-table">
+                <thead>
+                    <tr>
+                        <th>Characteristic</th>
+                        <th>Value</th>
+                        <th>Unit</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>

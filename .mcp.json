@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "pss": {
-      "command": "F:\\python_projects\\express_api\\.venv\\Scripts\\python.exe",
-      "args": ["F:\\python_projects\\express_api\\tech_process_viewer\\mcp_server\\server.py"],
+      "command": "mcp_server/run.cmd",
+      "args": [],
       "env": {
         "PSS_SERVER": "http://localhost:7239",
         "PSS_DB": "pss_moma_08_07_2025",

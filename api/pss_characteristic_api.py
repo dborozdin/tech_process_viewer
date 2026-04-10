@@ -223,6 +223,100 @@ class CharacteristicAPI:
             result['_ref_id'] = ref_id
         return result
 
+    # ── Создание / обновление / удаление значений характеристик ───────
+
+    def create_characteristic_value(self, item_sys_id, char_sys_id, value, subtype='apl_descriptive_characteristic_value'):
+        """Создать значение характеристики для объекта.
+
+        Args:
+            item_sys_id: sys_id объекта (бизнес-процесс, изделие и т.д.)
+            char_sys_id: sys_id определения характеристики (apl_characteristic)
+            value: значение (строка или число)
+            subtype: подтип значения характеристики
+
+        Returns:
+            dict: созданный экземпляр или None
+        """
+        attributes = {
+            'item': {'id': int(item_sys_id), 'type': 'apl_business_process'},
+            'characteristic': {'id': int(char_sys_id), 'type': 'apl_characteristic'},
+            'scope': str(value),
+        }
+
+        # Для разных подтипов устанавливаем val по-разному
+        if subtype in ('apl_descriptive_characteristic_value',
+                       'apl_enumeration_characteristic_value'):
+            attributes['val'] = str(value)
+        elif subtype in ('apl_measured_characteristic_value',
+                         'apl_monetary_characteristic_value'):
+            try:
+                attributes['val'] = float(value)
+            except (ValueError, TypeError):
+                attributes['val'] = 0
+        elif subtype == 'apl_boolean_characteristic_value':
+            attributes['value'] = str(value).lower() in ('true', '1', 'yes', 'да')
+
+        try:
+            result = self.db_api.create_instance(subtype, attributes)
+            if result:
+                logger.info(f"Created characteristic value for item #{item_sys_id}, char #{char_sys_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Error creating characteristic value: {e}")
+            return None
+
+    def update_characteristic_value(self, value_sys_id, new_value, subtype='apl_descriptive_characteristic_value'):
+        """Обновить значение характеристики.
+
+        Args:
+            value_sys_id: sys_id экземпляра значения
+            new_value: новое значение
+            subtype: подтип (для правильного маппинга атрибутов)
+
+        Returns:
+            bool: True если успешно
+        """
+        updates = {'scope': str(new_value)}
+
+        if subtype in ('apl_descriptive_characteristic_value',
+                       'apl_enumeration_characteristic_value'):
+            updates['val'] = str(new_value)
+        elif subtype in ('apl_measured_characteristic_value',
+                         'apl_monetary_characteristic_value'):
+            try:
+                updates['val'] = float(new_value)
+            except (ValueError, TypeError):
+                updates['val'] = 0
+        elif subtype == 'apl_boolean_characteristic_value':
+            updates['value'] = str(new_value).lower() in ('true', '1', 'yes', 'да')
+
+        try:
+            result = self.db_api.update_instance(value_sys_id, subtype, updates)
+            if result:
+                logger.info(f"Updated characteristic value #{value_sys_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Error updating characteristic value #{value_sys_id}: {e}")
+            return False
+
+    def delete_characteristic_value(self, value_sys_id):
+        """Удалить значение характеристики.
+
+        Args:
+            value_sys_id: sys_id экземпляра значения
+
+        Returns:
+            bool: True если успешно
+        """
+        try:
+            result = self.db_api.delete_instance(value_sys_id, 'apl_characteristic_value')
+            if result:
+                logger.info(f"Deleted characteristic value #{value_sys_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Error deleting characteristic value #{value_sys_id}: {e}")
+            return False
+
     # ── Значения через версии (apl_characteristic_value_version) ─────
 
     def get_values_via_version(self, bp_version_sys_id):
