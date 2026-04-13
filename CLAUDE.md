@@ -16,3 +16,25 @@
 - Когда пользователь просит протестировать что-то в браузере — **всегда запускать Playwright с `headless=False`**, чтобы пользователь видел выполнение на экране в отдельном окне Chromium.
 - Использовать `slow_mo=500` для наглядности, если тест включает UI-взаимодействие (клики, ввод текста, переключение элементов).
 - Пример: `browser = p.chromium.launch(headless=False, slow_mo=500)`
+
+### Сценарии проверки UI
+
+- **При добавлении/изменении функций интерфейса** — обязательно создать или обновить `test_ui_scenarios.py` и `TEST_SCENARIOS.md` в папке приложения.
+- Сценарии **последовательные** — каждый продолжает с состояния предыдущего.
+- Результат записывается в HTML-файл `test_results.html`.
+
+### Pipeline тестирования PSS-aiR
+
+Полный цикл проверки CRUD-интерфейса PSS-aiR:
+
+1. **Убить процесс PSS-сервера** (`AplNetTransportServTCP.exe`) — сервер нестабилен и может зависать на write-операциях
+2. **Запустить PSS-сервер**: `"C:\Program Files (x86)\PSS_MUI\AplNetTransportServTCP.exe" /p:7239`
+3. **Подключить PSS-aiR** к БД `pss_moma_08_07_2025`
+4. **Запустить тесты**: `python PSS-aiR/test_ui_scenarios.py`
+5. Скрипт **автоматически перезапускает PSS-сервер** при обнаружении зависания (ensure + recovery)
+6. При неуспехе скрипт повторяет прогон (до 5 раз или 2 часов)
+7. Результат: `PSS-aiR/test_results.html`
+
+- Перечень тестов: [`PSS-aiR/TEST_SCENARIOS.md`](PSS-aiR/TEST_SCENARIOS.md)
+- Скрипт: [`PSS-aiR/test_ui_scenarios.py`](PSS-aiR/test_ui_scenarios.py)
+- Результаты: [`PSS-aiR/test_results.html`](PSS-aiR/test_results.html)

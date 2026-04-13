@@ -1,0 +1,192 @@
+
+─── [08:49:45.676] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "LOGTEST-001",
+      "name": "LogTestProduct",
+      "code1": "",
+      "code2": "",
+      "formation_type": "assembly",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 201  Time: 1.589s
+  Response body:
+    {
+      "data": {
+        "bom_id": null,
+        "pdf_id": 815957
+      },
+      "message": "Изделие создано",
+      "success": true
+    }
+
+─── [08:50:05.730] PUT /api/crud/products/815957 ───
+  Request body:
+    {
+      "id": "LOGTEST-001",
+      "name": "LogTestEdited",
+      "code1": "",
+      "code2": "",
+      "formation_type": "assembly",
+      "make_or_buy": "make",
+      "description": ""
+    }
+  Response: HTTP 200  Time: 67.139s
+  Response body:
+    {
+      "message": "Изделие обновлено",
+      "success": true
+    }
+
+─── [08:51:34.201] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "LOGASSY-001",
+      "name": "LogAssy",
+      "code1": "",
+      "code2": "",
+      "formation_type": "assembly",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 500  Time: 65.960s
+  Response body:
+    {
+      "message": "Не удалось создать изделие",
+      "success": false
+    }
+
+─── [08:52:46.809] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "LOGCOMP-001",
+      "name": "LogComp",
+      "code1": "",
+      "code2": "",
+      "formation_type": "part",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 500  Time: 65.614s
+  Response body:
+    {
+      "message": "Не удалось создать изделие",
+      "success": false
+    }
+
+─── [08:58:18.701] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "TEST-001",
+      "name": "TestProduct",
+      "code1": "",
+      "code2": "",
+      "formation_type": "assembly",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 500  Time: 53.578s
+  Response body:
+    {
+      "message": "('Connection aborted.', ConnectionResetError(10054, 'Удаленный хост принудительно разорвал существующее подключение', None, 10054, None))",
+      "success": false
+    }
+
+─── [08:59:41.682] PUT /api/crud/products/813321 ───
+  Request body:
+    {
+      "id": "N-63 OO",
+      "name": "Edited",
+      "code1": "",
+      "code2": "",
+      "formation_type": "komplex",
+      "make_or_buy": "not_known",
+      "description": ""
+    }
+  Response: HTTP 200  Time: 65.831s
+  Response body:
+    {
+      "message": "Изделие обновлено",
+      "success": true
+    }
+
+─── [09:01:20.182] DELETE /api/crud/products/813321 ───
+  Response: HTTP 500  Time: 5.858s
+  Response body:
+    {
+      "message": "DatabaseAPI.delete_instance() takes 3 positional arguments but 4 were given",
+      "success": false
+    }
+
+─── [09:01:55.406] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "ASSY-001",
+      "name": "TestAssy",
+      "code1": "",
+      "code2": "",
+      "formation_type": "assembly",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 500  Time: 66.941s
+  Response body:
+    {
+      "message": "Не удалось создать изделие",
+      "success": false
+    }
+
+─── [09:03:04.757] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "COMP-001",
+      "name": "TestComp",
+      "code1": "",
+      "code2": "",
+      "formation_type": "part",
+      "make_or_buy": "make",
+      "description": "",
+      "folder_id": 813319
+    }
+  Response: HTTP 500  Time: 50.076s
+  Response body:
+    {
+      "message": "('Connection aborted.', ConnectionResetError(10054, 'Удаленный хост принудительно разорвал существующее подключение', None, 10054, None))",
+      "success": false
+    }
+
+─── [09:04:23.729] POST /api/crud/processes ───
+  Request body:
+    {
+      "id": "PROC-001",
+      "name": "TestProcess",
+      "type_name": "",
+      "description": ""
+    }
+  Response: HTTP 500  Time: 52.629s
+  Response body:
+    {
+      "message": "('Connection aborted.', ConnectionResetError(10054, 'Удаленный хост принудительно разорвал существующее подключение', None, 10054, None))",
+      "success": false
+    }
+
+─── [09:05:40.076] POST /api/crud/products ───
+  Request body:
+    {
+      "id": "CURL-001",
+      "name": "CurlTest",
+      "formation_type": "part",
+      "make_or_buy": "make"
+    }
+  Response: HTTP 500  Time: 64.037s
+  Response body:
+    {
+      "message": "Не удалось создать изделие",
+      "success": false
+    }

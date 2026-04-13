@@ -1,0 +1,304 @@
+========================================
+  PSS /rest/save stress test
+  2026-04-10 21:13:49
+========================================
+
+--- STEP 1: Connect ---
+GET http://localhost:7239/rest/connect/user=Administrator&db=pss_moma_08_07_2025
+Response: HTTP 200, time=2.039582s
+Session key: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+
+--- STEP 2: Create product #1 (SAVE-TEST-001) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 0,
+            "index": 0,
+            "type": "apl_product_definition_formation",
+            "attributes": {
+                "formation_type": "part",
+                "make_or_buy": "make",
+                "of_product": {
+                    "id": 0,
+                    "index": 1,
+                    "type": "product",
+                    "attributes": {
+                        "id": "SAVE-TEST-001",
+                        "name": "SaveTest1"
+                    }
+                }
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=0.970619s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 2,
+    "instances": [
+        {
+            "id": 816989,
+            "type": "apl_product_definition_formation",
+            "index": 0
+        },
+        {
+            "id": 816990,
+            "type": "product",
+            "index": 1
+        }
+    ],
+    "_processingTime": "00:00:00.735",
+    "_processingStart": "10.04.2026 21:13:52.898"
+}
+  Created: type=apl_product_definition_formation, id=816989
+  Created: type=product, id=816990
+RESULT: PASS
+
+--- STEP 3: Create product #2 (SAVE-TEST-002) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 0,
+            "index": 0,
+            "type": "apl_product_definition_formation",
+            "attributes": {
+                "formation_type": "assembly",
+                "make_or_buy": "make",
+                "of_product": {
+                    "id": 0,
+                    "index": 1,
+                    "type": "product",
+                    "attributes": {
+                        "id": "SAVE-TEST-002",
+                        "name": "SaveTest2"
+                    }
+                }
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=0.978384s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 2,
+    "instances": [
+        {
+            "id": 816991,
+            "type": "apl_product_definition_formation",
+            "index": 0
+        },
+        {
+            "id": 816992,
+            "type": "product",
+            "index": 1
+        }
+    ],
+    "_processingTime": "00:00:00.750",
+    "_processingStart": "10.04.2026 21:13:54.747"
+}
+  Created: type=apl_product_definition_formation, id=816991
+  Created: type=product, id=816992
+RESULT: PASS
+
+--- STEP 4: Create product #3 (SAVE-TEST-003) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 0,
+            "index": 0,
+            "type": "apl_product_definition_formation",
+            "attributes": {
+                "formation_type": "material",
+                "make_or_buy": "buy",
+                "of_product": {
+                    "id": 0,
+                    "index": 1,
+                    "type": "product",
+                    "attributes": {
+                        "id": "SAVE-TEST-003",
+                        "name": "SaveTest3"
+                    }
+                }
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=1.017922s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 2,
+    "instances": [
+        {
+            "id": 816993,
+            "type": "apl_product_definition_formation",
+            "index": 0
+        },
+        {
+            "id": 816994,
+            "type": "product",
+            "index": 1
+        }
+    ],
+    "_processingTime": "00:00:00.782",
+    "_processingStart": "10.04.2026 21:13:56.483"
+}
+  Created: type=apl_product_definition_formation, id=816993
+  Created: type=product, id=816994
+RESULT: PASS
+
+--- STEP 5: Update product #1 name (id=816990) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 816990,
+            "type": "product",
+            "attributes": {
+                "name": "SaveTest1-EDITED"
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=0.964572s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 0,
+    "_processingTime": "00:00:00.719",
+    "_processingStart": "10.04.2026 21:13:58.319"
+}
+RESULT: PASS
+
+--- STEP 6: Create business process (SAVE-BP-001) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 0,
+            "index": 0,
+            "type": "apl_business_process",
+            "attributes": {
+                "id": "SAVE-BP-001",
+                "name": "SaveTestProcess"
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=1.004864s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 1,
+    "instances": [
+        {
+            "id": 816995,
+            "type": "apl_business_process",
+            "index": 0
+        }
+    ],
+    "_processingTime": "00:00:00.766",
+    "_processingStart": "10.04.2026 21:13:59.917"
+}
+  Created: type=apl_business_process, id=816995
+RESULT: PASS
+
+--- STEP 7: Create characteristic value (on pdf=816989) ---
+POST http://localhost:7239/rest/save
+Headers:
+  X-APL-SessionKey: EDGCDGOBOELBGGLCCHLCIEIBKFKHKANAJDNFNAMF...
+  Content-Type: application/json
+Body:
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "instances": [
+        {
+            "id": 0,
+            "index": 0,
+            "type": "apl_descriptive_characteristic_value",
+            "attributes": {
+                "val": "test-value-999",
+                "item": {
+                    "id": 816989,
+                    "type": "apl_product_definition_formation"
+                }
+            }
+        }
+    ]
+}
+
+Response: HTTP 200, time=1.040295s
+{
+    "format": "apl_json_1",
+    "dictionary": "apl_pss_a",
+    "count_all": 1,
+    "instances": [
+        {
+            "id": 816996,
+            "type": "apl_descriptive_characteristic_value",
+            "index": 0
+        }
+    ],
+    "_processingTime": "00:00:00.813",
+    "_processingStart": "10.04.2026 21:14:01.702"
+}
+  Created: type=apl_descriptive_characteristic_value, id=816996
+RESULT: PASS
+
+--- STEP 8: Cleanup (DELETE ids: 816989,816990,816991,816992,816993,816994,816995,816996) ---
+DELETE http://localhost:7239/rest/816989,816990,816991,816992,816993,816994,816995,816996
+Response: HTTP 000, time=0.000016s
+Body: 
+RESULT: FAIL
+
+========================================
+  SUMMARY
+========================================
+  PASS: 6
+  FAIL: 1
+  SKIP: 0
+  Total created IDs: 816989 816990 816991 816992 816993 816994 816995 816996
+========================================
+
+Full log: PSS-aiR/test_pss_save.log

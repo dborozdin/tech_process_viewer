@@ -441,6 +441,22 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .form-error { color: var(--danger); font-size: 12px; margin-top: 4px; display: none; }
 .form-error.visible { display: block; }
 
+/* ===== CRUD ===== */
+.crud-toolbar { display:flex; gap:8px; padding:6px 12px; border-bottom:1px solid var(--border-light); background:var(--bg); align-items:center; flex-shrink:0; }
+.crud-toolbar:empty { display:none; }
+.btn-action { background:none; border:none; cursor:pointer; padding:2px 6px; opacity:0.4; font-size:13px; transition: opacity var(--transition); line-height:1; }
+.btn-action:hover { opacity:1; }
+.btn-action.danger:hover { color:var(--danger); }
+.prop-toolbar { display:flex; gap:6px; padding:4px 0 8px; }
+.form-select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:13px; font-family:inherit; outline:none; }
+.form-select:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,85,102,0.15); }
+.form-textarea { min-height:60px; resize:vertical; }
+.crud-form .form-group { margin-bottom:12px; }
+.search-results { max-height:150px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius); margin-top:4px; }
+.search-result-item { padding:6px 10px; cursor:pointer; font-size:13px; }
+.search-result-item:hover { background:var(--hover); }
+.cell-actions { width:60px; text-align:center; white-space:nowrap; }
+
 /* ===== Report Modal ===== */
 .report-modal { width: 80vw; height: 80vh; }
 .report-frame { width: 100%; height: 100%; border: none; }
@@ -586,6 +602,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
           <div class="report-menu" id="reportMenu"></div>
         </div>
       </div>
+      <!-- CRUD Toolbar -->
+      <div class="crud-toolbar" id="crudToolbar"></div>
       <!-- Content -->
       <div class="content-area" id="contentArea">
         <div class="empty-state">
@@ -690,6 +708,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 
 <script src="/shared/js/db-connection.js"></script>
 <script src="/xlsx.full.min.js"></script>
+<script src="/crud.js"></script>
 <script>
 /* ============================================================
    PSS-aiR — Single Page Application
@@ -1116,6 +1135,7 @@ class FolderTreeView {
 
     bus.on('connected', () => this.load());
     bus.on('disconnected', () => this.clear());
+    bus.on('folder-tree-refresh', () => this.load());
   }
 
   async load() {
@@ -1544,12 +1564,63 @@ class ContentView {
     this._colBtn.style.display = 'none';
     this._colBtn.addEventListener('click', () => this._onColumnsBtnClick());
 
+    this._crud = null;
+
     bus.on('folder-selected', (data) => {
       this.folderPath = []; // reset path when selecting from tree
       this.loadFolderContents(data);
     });
-    bus.on('navigate-home', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this.showEmpty(); });
-    bus.on('disconnected', () => { this.folderPath = []; this._currentView = null; this._opsColumnTypesCache = null; this._updateColBtn(); this.showEmpty(); });
+    bus.on('navigate-home', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this._updateCrudToolbar(); this.showEmpty(); });
+    bus.on('disconnected', () => { this.folderPath = []; this._currentView = null; this._opsColumnTypesCache = null; this._updateColBtn(); this._updateCrudToolbar(); this.showEmpty(); });
+  }
+
+  setCrudManager(crud) { this._crud = crud; }
+
+  _updateCrudToolbar() {
+    const toolbar = document.getElementById('crudToolbar');
+    if (!toolbar) return;
+    toolbar.innerHTML = '';
+    if (!this._crud) return;
+
+    if (this._currentView === 'folder' && this.currentFolder) {
+      const folderId = this.currentFolder.id || this.currentFolder.sys_id;
+      toolbar.innerHTML =
+        `<button class="btn btn-primary btn-sm" id="crudBtnCreateProduct">+ Изделие</button>` +
+        `<button class="btn btn-secondary btn-sm" id="crudBtnCreateFolder">+ Папка</button>` +
+        `<button class="btn btn-secondary btn-sm" id="crudBtnCreateProcess">+ Процесс</button>`;
+      document.getElementById('crudBtnCreateProduct').addEventListener('click', () => {
+        this._crud.createProduct(folderId, () => this.loadFolderContents(this.currentFolder));
+      });
+      document.getElementById('crudBtnCreateFolder').addEventListener('click', () => {
+        this._crud.createFolder(folderId, () => {
+          this.loadFolderContents(this.currentFolder);
+          bus.emit('folder-tree-refresh');
+        });
+      });
+      document.getElementById('crudBtnCreateProcess').addEventListener('click', () => {
+        this._crud.createProcess(null, () => this.loadFolderContents(this.currentFolder));
+      });
+    } else if (this._currentView === 'bom' && this._lastBomTree) {
+      const root = this._lastBomTree.root || this._lastBomTree;
+      const rootId = root.sys_id || null;
+      const rootName = root.name || '';
+      const rootDesignation = root.product_id || root.designation || '';
+      if (rootId) {
+        toolbar.innerHTML =
+          `<button class="btn btn-primary btn-sm" id="crudBtnAddComponent">+ Существующее</button>` +
+          `<button class="btn btn-secondary btn-sm" id="crudBtnCreateInBom">+ Создать новое</button>`;
+        const reloadBom = () => contentView.loadProductBOM(rootId, rootName);
+        document.getElementById('crudBtnAddComponent').addEventListener('click', () => {
+          this._crud.addBomComponent(rootId, reloadBom);
+        });
+        document.getElementById('crudBtnCreateInBom').addEventListener('click', () => {
+          const folderId = this.currentFolder ? (this.currentFolder.id || this.currentFolder.sys_id) : null;
+          this._crud.createProduct(folderId, reloadBom, {
+            pdf_id: rootId, designation: rootDesignation, name: rootName
+          });
+        });
+      }
+    }
   }
 
   _updateColBtn() {
@@ -1663,20 +1734,23 @@ class ContentView {
       if (af !== bf) return af - bf;
       return (a.name || '').localeCompare(b.name || '');
     });
+    this._currentView = 'folder';
+    this._updateColBtn();
+    this._updateCrudToolbar();
+
     if (!items.length) {
       this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Папка пуста</div></div>';
       return;
     }
-
-    this._currentView = 'folder';
-    this._updateColBtn();
     const cols = this._getVisibleColumns();
+    const hasCrud = !!this._crud;
     const typeIcons = { product: '📦', process: '<span class="icon-process"></span>', document: '📋', folder: '📁' };
 
     let html = '<table class="data-table"><thead><tr>';
     cols.forEach(c => {
       html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
     });
+    if (hasCrud) html += '<th class="cell-actions"></th>';
     html += '</tr></thead><tbody>';
 
     items.forEach(item => {
@@ -1706,10 +1780,56 @@ class ContentView {
           html += `<td class="cell-id">${item.sys_id || ''}</td>`;
         }
       });
+      if (hasCrud) {
+        html += `<td class="cell-actions">` +
+          `<button class="btn-action crud-edit" title="Редактировать" data-id="${item.sys_id}" data-category="${item.category || ''}">&#9998;</button>` +
+          `<button class="btn-action danger crud-delete" title="Удалить" data-id="${item.sys_id}" data-name="${this._esc(item.name || '')}" data-category="${item.category || ''}">&#10005;</button>` +
+          `</td>`;
+      }
       html += '</tr>';
     });
     html += '</tbody></table>';
     this.container.innerHTML = html;
+
+    // CRUD action buttons
+    if (hasCrud) {
+      const folderId = this.currentFolder ? (this.currentFolder.id || this.currentFolder.sys_id) : null;
+      this.container.querySelectorAll('.crud-edit').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const cat = btn.dataset.category;
+          if (cat === 'product') {
+            try {
+              const details = await api.productFullInfo(id);
+              this._crud.editProduct(id, details || {}, () => this.loadFolderContents(this.currentFolder));
+            } catch (err) { this._crud.editProduct(id, {}, () => this.loadFolderContents(this.currentFolder)); }
+          } else if (cat === 'folder') {
+            const row = btn.closest('tr');
+            this._crud.renameFolder(id, row.dataset.name || '', () => {
+              this.loadFolderContents(this.currentFolder);
+              bus.emit('folder-tree-refresh');
+            });
+          }
+        });
+      });
+      this.container.querySelectorAll('.crud-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const name = btn.dataset.name;
+          const cat = btn.dataset.category;
+          if (cat === 'product') {
+            this._crud.deleteProduct(id, name, folderId, () => this.loadFolderContents(this.currentFolder));
+          } else if (cat === 'folder') {
+            this._crud.deleteFolder(id, name, () => {
+              this.loadFolderContents(this.currentFolder);
+              bus.emit('folder-tree-refresh');
+            });
+          }
+        });
+      });
+    }
 
     // Expand arrow click → open BOM
     this.container.querySelectorAll('.folder-expand').forEach(arrow => {
@@ -1826,13 +1946,15 @@ class ContentView {
 
   _renderBOM(tree) {
     this._lastBomTree = tree;
+    this._currentView = 'bom';
+    this._updateColBtn();
+    this._updateCrudToolbar();
     if (!tree || !tree.root) {
       this.showEmpty('Состав изделия пуст');
       return;
     }
-    this._currentView = 'bom';
-    this._updateColBtn();
     const cols = this._getBomColumns();
+    const hasCrud = !!this._crud;
 
     // Table header
     let html = '';
@@ -1840,6 +1962,7 @@ class ContentView {
     cols.forEach(c => {
       html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
     });
+    if (hasCrud) html += '<th class="cell-actions"></th>';
     html += '</tr></thead><tbody>';
 
     // Merge root with its children for unified rendering
@@ -1856,7 +1979,7 @@ class ContentView {
         ? `<span class="tree-toggle expanded bom-toggle">▶</span>`
         : `<span class="tree-toggle leaf"></span>`;
 
-      html += `<tr class="content-row bom-row" data-id="${node.sys_id}" data-depth="${depth}" data-type="product">`;
+      html += `<tr class="content-row bom-row" data-id="${node.sys_id}" data-bom-id="${node.bom_sys_id || ''}" data-depth="${depth}" data-type="product" data-name="${this._esc(node.name || '')}" data-qty="${node.quantity != null ? node.quantity : ''}" data-ref="${this._esc(node.reference_designator || '')}">`;
       cols.forEach(c => {
         if (c.key === 'name') {
           const pad = 4 + depth * 20;
@@ -1883,6 +2006,14 @@ class ContentView {
           html += `<td class="cell-id">${node.bom_sys_id || ''}</td>`;
         }
       });
+      if (hasCrud && depth > 0 && node.bom_sys_id) {
+        html += `<td class="cell-actions">` +
+          `<button class="btn-action crud-bom-edit" title="Редактировать связь" data-bom-id="${node.bom_sys_id}">&#9998;</button>` +
+          `<button class="btn-action danger crud-bom-delete" title="Удалить из состава" data-bom-id="${node.bom_sys_id}" data-name="${this._esc(node.name || '')}">&#10005;</button>` +
+          `</td>`;
+      } else if (hasCrud) {
+        html += '<td class="cell-actions"></td>';
+      }
       html += '</tr>';
       if (node.children) node.children.forEach(child => renderRows(child, depth + 1));
     };
@@ -1890,6 +2021,28 @@ class ContentView {
     renderRows(rootNode, 0);
     html += '</tbody></table>';
     this.container.innerHTML = html;
+
+    // BOM CRUD action buttons
+    if (hasCrud) {
+      this.container.querySelectorAll('.crud-bom-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const bomId = btn.dataset.bomId;
+          const row = btn.closest('tr');
+          this._crud.editBomLink(bomId, {
+            quantity: row.dataset.qty,
+            reference_designator: row.dataset.ref,
+          }, () => contentView.loadProductBOM(rootNode.sys_id, rootNode.name || ''));
+        });
+      });
+      this.container.querySelectorAll('.crud-bom-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const bomId = btn.dataset.bomId;
+          this._crud.deleteBomLink(bomId, btn.dataset.name, () => contentView.loadProductBOM(rootNode.sys_id, rootNode.name || ''));
+        });
+      });
+    }
 
     // Toggle collapse/expand
     this.container.querySelectorAll('.bom-toggle').forEach(toggle => {
@@ -2283,9 +2436,13 @@ class PropertyPanel {
       this._renderCurrentTab();
     });
 
+    this._crud = null;
+
     bus.on('item-selected', (data) => this.loadItem(data));
     bus.on('disconnected', () => this.clear());
   }
+
+  setCrudManager(crud) { this._crud = crud; }
 
   clear() {
     this.currentItem = null;
@@ -2378,6 +2535,14 @@ class PropertyPanel {
     if (!data) { this._showEmpty('Нет данных'); return; }
 
     let html = '<div style="padding:4px 0;">';
+    // Edit button
+    if (this._crud && this.currentItem) {
+      const isProduct = this.currentItem.type === 'product' || this.currentItem.type === 'Product';
+      const isProcess = this.currentItem.type === 'process' || this.currentItem.type === 'Process';
+      if (isProduct || isProcess) {
+        html += '<div class="prop-toolbar"><button class="btn btn-sm btn-secondary" id="propEditBtn">&#9998; Редактировать</button></div>';
+      }
+    }
 
     if (this.currentItem.type === 'product' || this.currentItem.type === 'Product') {
       const fields = [
@@ -2433,6 +2598,26 @@ class PropertyPanel {
 
     html += '</div>';
     this.contentContainer.innerHTML = html;
+
+    // Wire edit button
+    const editBtn = document.getElementById('propEditBtn');
+    if (editBtn && this._crud) {
+      editBtn.addEventListener('click', () => {
+        const item = this.currentItem;
+        const isProduct = item.type === 'product' || item.type === 'Product';
+        if (isProduct) {
+          this._crud.editProduct(item.id, data, () => {
+            this.cache = {};
+            this._loadAttributes(item);
+          });
+        } else {
+          this._crud.editProcess(item.id, data, () => {
+            this.cache = {};
+            this._loadAttributes(item);
+          });
+        }
+      });
+    }
   }
 
   async _renderCharacteristics() {
@@ -2464,16 +2649,52 @@ class PropertyPanel {
   }
 
   _displayChars(chars) {
-    if (!chars.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Характеристики отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar"><button class="btn btn-sm btn-primary" id="propAddChar">+ Характеристика</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>';
-    chars.forEach(c => {
-      html += `<tr><td>${this._esc(c.name || '')}</td><td>${this._esc(String(c.value != null ? c.value : ''))}</td></tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!chars.length) {
+      html += '<div class="property-empty"><div>Характеристики отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Параметр</th><th>Значение</th>';
+      if (hasCrud) html += '<th style="width:60px"></th>';
+      html += '</tr></thead><tbody>';
+      chars.forEach(c => {
+        const sysId = c.sys_id || '';
+        html += `<tr><td>${this._esc(c.name || '')}</td><td>${this._esc(String(c.value != null ? c.value : ''))}</td>`;
+        if (hasCrud && sysId) {
+          html += `<td class="cell-actions">` +
+            `<button class="btn-action crud-char-edit" data-id="${sysId}" data-value="${this._esc(String(c.value != null ? c.value : ''))}" data-subtype="${this._esc(c.subtype || '')}">&#9998;</button>` +
+            `<button class="btn-action danger crud-char-delete" data-id="${sysId}" data-name="${this._esc(c.name || '')}">&#10005;</button></td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshChars = () => { this.cache.chars = null; this._renderCharacteristics(); };
+      const addBtn = document.getElementById('propAddChar');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => this._crud.addCharacteristic(this.currentItem.id, refreshChars));
+      }
+      this.contentContainer.querySelectorAll('.crud-char-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.editCharacteristic(btn.dataset.id, {
+            value: btn.dataset.value, subtype: btn.dataset.subtype
+          }, refreshChars);
+        });
+      });
+      this.contentContainer.querySelectorAll('.crud-char-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.deleteCharacteristic(btn.dataset.id, btn.dataset.name, refreshChars);
+        });
+      });
+    }
   }
 
   async _renderDocuments() {
@@ -2502,20 +2723,56 @@ class PropertyPanel {
   }
 
   _displayDocs(docs) {
-    if (!docs.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    const itemType = (this.currentItem.type === 'process' || this.currentItem.type === 'Process')
+      ? 'apl_business_process' : 'apl_product_definition_formation';
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar">' +
+        '<button class="btn btn-sm btn-primary" id="propAttachDoc">Привязать</button>' +
+        '<button class="btn btn-sm btn-secondary" id="propUploadDoc">Загрузить</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Документ</th><th>Код</th><th>Тип</th></tr></thead><tbody>';
-    docs.forEach(d => {
-      html += `<tr>
-        <td>${this._esc(d.name || '')}</td>
-        <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
-        <td>${this._esc(d.type || '')}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!docs.length) {
+      html += '<div class="property-empty"><div>Документы отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Документ</th><th>Код</th><th>Тип</th>';
+      if (hasCrud) html += '<th style="width:40px"></th>';
+      html += '</tr></thead><tbody>';
+      docs.forEach(d => {
+        const refId = d.ref_id || d.reference_id || '';
+        html += `<tr>
+          <td>${this._esc(d.name || '')}</td>
+          <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
+          <td>${this._esc(d.type || '')}</td>`;
+        if (hasCrud && refId) {
+          html += `<td class="cell-actions"><button class="btn-action danger crud-doc-detach" data-ref-id="${refId}" data-name="${this._esc(d.name || '')}">&#10005;</button></td>`;
+        } else if (hasCrud) {
+          html += '<td></td>';
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshDocs = () => { this.cache.docs = null; this._renderDocuments(); };
+      const attachBtn = document.getElementById('propAttachDoc');
+      if (attachBtn) {
+        attachBtn.addEventListener('click', () => this._crud.attachDocument(this.currentItem.id, itemType, refreshDocs));
+      }
+      const uploadBtn = document.getElementById('propUploadDoc');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', () => this._crud.uploadDocument(this.currentItem.id, itemType, refreshDocs));
+      }
+      this.contentContainer.querySelectorAll('.crud-doc-detach').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.detachDocument(btn.dataset.refId, btn.dataset.name, refreshDocs);
+        });
+      });
+    }
   }
 
   async _renderResources() {
@@ -2538,21 +2795,58 @@ class PropertyPanel {
   }
 
   _displayResources(resources) {
-    if (!resources || !resources.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Ресурсы отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar"><button class="btn btn-sm btn-primary" id="propAddResource">+ Ресурс</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Тип</th><th>Наименование</th><th>Значение</th><th>Ед.</th></tr></thead><tbody>';
-    resources.forEach(r => {
-      html += `<tr>
-        <td>${this._esc(r.type || '')}</td>
-        <td>${this._esc(r.name || '')}</td>
-        <td>${this._esc(String(r.value != null ? r.value : ''))}</td>
-        <td>${this._esc(r.unit || '')}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!resources || !resources.length) {
+      html += '<div class="property-empty"><div>Ресурсы отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Тип</th><th>Наименование</th><th>Значение</th><th>Ед.</th>';
+      if (hasCrud) html += '<th style="width:60px"></th>';
+      html += '</tr></thead><tbody>';
+      resources.forEach(r => {
+        const sysId = r.sys_id || '';
+        html += `<tr>
+          <td>${this._esc(r.type || '')}</td>
+          <td>${this._esc(r.name || '')}</td>
+          <td>${this._esc(String(r.value != null ? r.value : ''))}</td>
+          <td>${this._esc(r.unit || '')}</td>`;
+        if (hasCrud && sysId) {
+          html += `<td class="cell-actions">` +
+            `<button class="btn-action crud-res-edit" data-id="${sysId}" data-name="${this._esc(r.name || '')}" data-value="${r.value != null ? r.value : 0}">&#9998;</button>` +
+            `<button class="btn-action danger crud-res-delete" data-id="${sysId}" data-name="${this._esc(r.name || '')}">&#10005;</button></td>`;
+        } else if (hasCrud) {
+          html += '<td></td>';
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshRes = () => { this.cache.resources = null; this._renderResources(); };
+      const addBtn = document.getElementById('propAddResource');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => this._crud.addResource(this.currentItem.id, refreshRes));
+      }
+      this.contentContainer.querySelectorAll('.crud-res-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.editResource(btn.dataset.id, {
+            name: btn.dataset.name, value: btn.dataset.value
+          }, refreshRes);
+        });
+      });
+      this.contentContainer.querySelectorAll('.crud-res-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.deleteResource(btn.dataset.id, btn.dataset.name, refreshRes);
+        });
+      });
+    }
   }
 
   async _renderMaterials() {
@@ -2895,6 +3189,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     contentView.loadProcessDetails(data.id);
   });
+
+  // CRUD Manager
+  const crudManager = new CrudManager(bus, api, toaster);
+  contentView.setCrudManager(crudManager);
+  propertyPanel.setCrudManager(crudManager);
 
   // Check connection on load
   conn.checkStatus();
