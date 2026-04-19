@@ -153,44 +153,56 @@ class ProductsAPI:
             return rel_id, "found"
         return None
 
-    def create_product_assembly(self, pdf_related, pdf_relating, quantity, UOM):
-        """Create a new product assemply in the database."""
+    def create_product_assembly(self, pdf_related, pdf_relating, quantity, UOM, reference_designator=None):
+        """Create a new product assembly in the database."""
         headers = {
             "User-Agent": "Mozilla/5.0 (X11; CrOS x86_64 12871.102.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.141 Safari/537.36",
             "X-APL-SessionKey": self.db_api.connect_data['session_key']
         }
-        idx = 0
-        query = f"""{{
-            "format":"apl_json_1",
-            "dictionary":"apl_pss_a",
-            "instances":[
-                {{
-                    "id":0,
-                    "index":{idx},
-                    "type":"apl_quantified_assembly_component_usage+next_assembly_usage_occurrence",
-                    "attributes":{{
-                        "value_component": {quantity},
-                        "related_product_definition":{{
-                            "id": {pdf_related},
-                            "type":"apl_product_definition_formation"
-                        }},
-                        "relating_product_definition":{{
-                            "id": {pdf_relating},
-                            "type":"apl_product_definition_formation"
-                        }},
-                        "unit_component":{{
-                            "id": {UOM},
-                            "type":"apl_unit"
-                        }}
-                    }}
-                }}
-            ]
-        }}"""
+        
+        # Build attributes
+        attributes = {
+            "value_component": quantity,
+            "related_product_definition": {
+                "id": pdf_related,
+                "index": 1,
+                "type": "apl_product_definition_formation"
+            },
+            "relating_product_definition": {
+                "id": pdf_relating,
+                "index": 2,
+                "type": "apl_product_definition_formation"
+            }
+        }
+        
+        # Add reference_designator if provided
+        if reference_designator:
+            attributes["reference_designator"] = reference_designator
+            
+        # Add unit_component only if UOM is valid (not 0)
+        if UOM and UOM != 0:
+            attributes["unit_component"] = {
+                "id": UOM,
+                "index": 3,
+                "type": "apl_unit"
+            }
+        
+        payload = {
+            "format": "apl_json_1",
+            "dictionary": "apl_pss_a",
+            "instances": [{
+                "id": 0,
+                "index": 0,
+                "type": "apl_quantified_assembly_component_usage+next_assembly_usage_occurrence",
+                "attributes": attributes
+            }]
+        }
+        
         requests.packages.urllib3.util.connection.HAS_IPV6 = False
         request_result = requests.post(
             url=self.db_api.URL_QUERY_SAVE,
             headers=headers,
-            data=query,
+            json=payload,
             timeout=120,
             verify=False
         )
@@ -199,14 +211,14 @@ class ProductsAPI:
             instances = data_json_saved.get('instances')
             for instance in instances:
                 if instance.get('type') == 'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence':
-                    inst_sys_id=instance.get('id')
+                    inst_sys_id = instance.get('id')
                     logger.info(f'Created product assembly with id {inst_sys_id}')
                     return inst_sys_id, "created"
             return None
         else:
             logger.error(f'Product assembly creation error')
             logger.error(f'Error description: {data_json_saved}')
-            logger.error(f'Query: {query}')
+            logger.error(f'Query: {payload}')
             return None
 
     def find_or_create_product_assembly(self, pdf_related, pdf_relating, quantity, UOM):
@@ -236,7 +248,7 @@ class ProductsAPI:
 
     def delete_product(self, product_sys_id, soft_delete=True):
         """Delete a product"""
-        return self.db_api.delete_instance(product_sys_id, 'product', soft_delete)
+        return self.db_api.delete_instance(product_sys_id, 'product')
 
     # Product Definition (version) methods
 
@@ -275,7 +287,7 @@ class ProductsAPI:
 
     def delete_product_definition(self, pdf_sys_id, soft_delete=True):
         """Delete a product definition"""
-        return self.db_api.delete_instance(pdf_sys_id, 'apl_product_definition_formation', soft_delete)
+        return self.db_api.delete_instance(pdf_sys_id, 'apl_product_definition_formation')
 
     # BOM (Bill of Materials) methods
 
@@ -311,8 +323,7 @@ class ProductsAPI:
         """Delete a BOM item"""
         return self.db_api.delete_instance(
             bom_item_sys_id,
-            'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence',
-            soft_delete
+            'apl_quantified_assembly_component_usage+next_assembly_usage_occurrence'
         )
 
     def add_component_to_bom(self, parent_pdf_id, component_pdf_id, quantity, unit_id=None, reference_designator=None):
@@ -334,31 +345,101 @@ class ProductsAPI:
     # === New methods for PSS-aiR ===
 
     def search_products(self, text, limit=50):
-        """Search products by id or name (case-insensitive LIKE)."""
-        query = f"""SELECT NO_CASE
-        Ext_
-        FROM
-        Ext_{{product(.id LIKE "*{text}*" OR .name LIKE "*{text}*")}}
-        END_SELECT"""
-        result = self.db_api.query_apl(query)
-        if result and 'instances' in result:
-            return result['instances'][:limit]
-        return []
+        """Search products by id or name (case-insensitive LIKE).
+
+        Searches both product (designation/name) and apl_product_definition_formation
+        (the PDF objects used by BOM/folder content). APL LIKE on this PSS build
+        does not accept '*' wildcards, so we use bare LIKE (substring on PSS side).
+        """
+        seen = {}
+        # Cyrillic LIKE is broken in PSS APL — fall back to filtering in Python.
+        is_cyrillic = any('\u0400' <= ch <= '\u04ff' for ch in text or '')
+        if is_cyrillic:
+            for entity in ('product', 'apl_product_definition_formation'):
+                try:
+                    q_all = f"""SELECT NO_CASE Ext_ FROM Ext_{{{entity}}} END_SELECT"""
+                    res = self.db_api.query_apl(q_all)
+                    tl = text.lower()
+                    for inst in (res or {}).get('instances', []):
+                        attrs = inst.get('attributes', {}) or {}
+                        if (tl in (attrs.get('id', '') or '').lower()
+                                or tl in (attrs.get('name', '') or '').lower()):
+                            seen[inst.get('id')] = inst
+                except Exception:
+                    pass
+        else:
+            for entity in ('product', 'apl_product_definition_formation'):
+                for field in ('id', 'name'):
+                    q_apl = f"""SELECT NO_CASE Ext_ FROM Ext_{{{entity}(.{field} LIKE "{text}")}} END_SELECT"""
+                    try:
+                        res = self.db_api.query_apl(q_apl)
+                        for inst in (res or {}).get('instances', []):
+                            seen[inst.get('id')] = inst
+                    except Exception:
+                        pass
+        # Newest matches first — across multiple test runs the same designation
+        # may exist many times; the user almost always wants the most recent.
+        ordered = sorted(seen.values(), key=lambda i: int(i.get('id') or 0), reverse=True)
+        return ordered[:limit]
 
     def get_product_characteristics(self, pdf_sys_id):
-        """Get characteristics (properties) for a product definition.
+        """Get characteristics for a product definition.
 
-        Queries apl_property_definition linked to the given product definition.
+        Combines two sources:
+        - apl_property_definition (designed-in properties of the product),
+        - apl_characteristic_value attached to this PDF via .item — these include
+          values created via the CRUD endpoint /api/crud/characteristics/values.
         """
-        query = f"""SELECT NO_CASE
-        Ext_
-        FROM
-        Ext_{{apl_property_definition(.definition = #{pdf_sys_id})}}
-        END_SELECT"""
-        result = self.db_api.query_apl(query)
-        if result and 'instances' in result:
-            return result['instances']
-        return []
+        out = []
+        # 1) Property definitions (existing)
+        try:
+            q1 = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_property_definition(.definition = #{pdf_sys_id})}}
+            END_SELECT"""
+            res1 = self.db_api.query_apl(q1)
+            if res1 and 'instances' in res1:
+                out.extend(res1['instances'])
+        except Exception:
+            pass
+
+        # 2) Characteristic values attached to this item
+        try:
+            q2 = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_characteristic_value(.item = #{pdf_sys_id})}}
+            END_SELECT"""
+            res2 = self.db_api.query_apl(q2)
+            for inst in (res2 or {}).get('instances', []) or []:
+                attrs = inst.get('attributes', {}) or {}
+                # Resolve characteristic name via embedded ref
+                char_ref = attrs.get('characteristic') or {}
+                char_name = ''
+                if isinstance(char_ref, dict) and char_ref.get('id'):
+                    try:
+                        char_q = f"""SELECT NO_CASE Ext_ FROM Ext_{{#{char_ref['id']}}} END_SELECT"""
+                        char_res = self.db_api.query_apl(char_q)
+                        for c_inst in (char_res or {}).get('instances', []):
+                            c_attrs = c_inst.get('attributes', {}) or {}
+                            char_name = c_attrs.get('name') or c_attrs.get('id') or ''
+                            break
+                    except Exception:
+                        pass
+                value = attrs.get('scope') or attrs.get('val') or ''
+                out.append({
+                    'id': inst.get('id'),
+                    'type': inst.get('type', 'apl_characteristic_value'),
+                    'attributes': {
+                        'name': char_name or 'характеристика',
+                        'value': value,
+                    }
+                })
+        except Exception:
+            pass
+
+        return out
 
     def get_product_full_info(self, pdf_sys_id):
         """Get full product info: product attrs + PDF attrs + BOM context.

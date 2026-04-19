@@ -499,7 +499,8 @@
       ];
     }
 
-    createProcess(pdfId, onSuccess) {
+    createProcess(folderId, onSuccess, opts) {
+      const pdfId = (opts && opts.pdfId) || null;
       const fields = this._processFields({});
       const body = this.buildForm('crudProcessForm', fields);
       const footer =
@@ -514,6 +515,7 @@
           return;
         }
         if (pdfId) data.pdf_id = pdfId;
+        if (folderId) data.folder_id = folderId;
         try {
           const result = await this._post('/api/crud/processes', data);
           if (result.success) {
@@ -644,7 +646,7 @@
 
     // ========== ХАРАКТЕРИСТИКИ ==========
 
-    async addCharacteristic(itemId, onSuccess) {
+    async addCharacteristic(itemId, itemType, onSuccess) {
       let chars = [];
       try {
         const resp = await this._get('/api/crud/characteristics');
@@ -664,6 +666,7 @@
       document.getElementById('crudCharSave').addEventListener('click', async () => {
         const data = this.getFormData('crudCharForm');
         data.item_id = itemId;
+        if (itemType) data.item_type = itemType;
         try {
           const result = await this._post('/api/crud/characteristics/values', data);
           if (result.success) {

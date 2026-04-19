@@ -229,10 +229,50 @@ def main():
     log("STEP 5: Verify created product via query")
     log("=" * 60)
 
-    query_verify = 'SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = "STRESS-TEST-001")} END_SELECT'
-    resp = pss_request("POST", "query", query_verify)
-    found = resp is not None and resp.status_code == 200 and "STRESS-TEST-001" in resp.text
-    record("READ: verify STRESS-TEST-001", found, f"found={found}")
+    # Wait for DB indexing
+    log("    Waiting 2 seconds for DB indexing...")
+    time.sleep(2)
+    
+    # Try multiple query approaches
+    query_verify1 = 'SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = "STRESS-TEST-001")} END_SELECT'
+    query_verify2 = 'SELECT Ext_.of_product FROM Ext_{apl_product_definition_formation(.id="' + str(product_id) + '")} END_SELECT'
+    
+    found = False
+    detail = ""
+    
+    for i, query in enumerate([query_verify1, query_verify2]):
+        log(f"    Try query {i+1}: {query[:80]}...")
+        resp = pss_request("POST", "query", query)
+        if resp and resp.status_code == 200:
+            try:
+                data = resp.json()
+                instances = data.get("instances", [])
+                for inst in instances:
+                    attrs = inst.get("attributes", {})
+                    # Check if this is the product we're looking for
+                    if "of_product" in attrs:
+                        of_product = attrs["of_product"]
+                        if isinstance(of_product, dict) and "attributes" in of_product:
+                            product_attrs = of_product["attributes"]
+                            if product_attrs.get("id") == "STRESS-TEST-001":
+                                found = True
+                                detail = f"found with query {i+1}"
+                                break
+                    # Also check if the formation itself has an id attribute
+                    if attrs.get("id") == "STRESS-TEST-001":
+                        found = True
+                        detail = f"found with query {i+1}"
+                        break
+                if found:
+                    break
+                else:
+                    detail = f"not in response (query {i+1})"
+            except Exception as e:
+                detail = f"JSON parse error: {e} (query {i+1})"
+        else:
+            detail = f"HTTP {resp.status_code if resp else 'N/A'} (query {i+1})"
+    
+    record("READ: verify STRESS-TEST-001", found, f"found={found}, {detail}")
 
     # ────────────────────────────────────────────
     # STEP 6: Update product name
@@ -241,12 +281,17 @@ def main():
     log("STEP 6: Update product via POST /rest/save")
     log("=" * 60)
 
-    update_body = json.dumps({
+    # Simplified approach: Update the product directly using the formation ID
+    # Based on PSS API documentation, we can update the product through formation
+    # Wait a bit for consistency
+    time.sleep(1)
+    
+    # Try approach 1: Update product name through formation
+    update_body1 = json.dumps({
         "format": "apl_json_1",
         "dictionary": "apl_pss_a",
         "instances": [{
             "id": product_id,
-            "index": product_id,
             "type": "apl_product_definition_formation",
             "attributes": {
                 "of_product": {
@@ -258,12 +303,54 @@ def main():
             }
         }]
     }, ensure_ascii=False)
-
-    resp = pss_request("POST", "save", update_body, "application/json")
-    save2_ok = resp is not None and resp.status_code == 200
-    save2_detail = f"HTTP {resp.status_code}" if resp else "no response"
-    if resp:
-        save2_detail += f": {resp.text[:200]}"
+    
+    log("    Trying approach 1: Update through formation...")
+    resp1 = pss_request("POST", "save", update_body1, "application/json")
+    
+    if resp1 and resp1.status_code == 200:
+        save2_ok = True
+        save2_detail = f"HTTP {resp1.status_code}: updated via formation"
+    else:
+        # Try approach 2: Load the formation to get product ID, then update product directly
+        log("    Approach 1 failed, trying approach 2...")
+        time.sleep(1)
+        
+        # Load the formation to get product reference
+        load_resp = pss_request("GET", f"i={product_id}")
+        product_instance_id = None
+        
+        if load_resp and load_resp.status_code == 200:
+            try:
+                data = load_resp.json()
+                instances = data.get("instances", [])
+                for inst in instances:
+                    attrs = inst.get("attributes", {})
+                    if "of_product" in attrs and attrs["of_product"]:
+                        product_instance_id = attrs["of_product"].get("id")
+                        break
+            except:
+                pass
+        
+        if product_instance_id:
+            update_body2 = json.dumps({
+                "format": "apl_json_1",
+                "dictionary": "apl_pss_a",
+                "instances": [{
+                    "id": product_instance_id,
+                    "type": "product",
+                    "attributes": {
+                        "name": "StressTestProduct_Updated"
+                    }
+                }]
+            }, ensure_ascii=False)
+            
+            resp2 = pss_request("POST", "save", update_body2, "application/json")
+            save2_ok = resp2 is not None and resp2.status_code == 200
+            save2_detail = f"HTTP {resp2.status_code if resp2 else 'N/A'}: updated product directly (id={product_instance_id})"
+        else:
+            save2_ok = False
+            save2_detail = "Could not get product instance ID"
+    
     record("SAVE 2: Update product name", save2_ok, save2_detail[:200])
 
     # ────────────────────────────────────────────

@@ -225,9 +225,12 @@ def create_product():
             try:
                 quantity = data.get('quantity', 1)
                 unit_id = db_api.units_api.find_unit_by_id("шт") or db_api.units_api.find_unit_by_id("EA") or 0
+                # If unit_id is 0, pass None (let API handle it)
+                uom_to_pass = unit_id if unit_id and unit_id != 0 else None
                 bom_result = db_api.products_api.create_product_assembly(
                     pdf_related=pdf_id, pdf_relating=parent_pdf_id,
-                    quantity=quantity, UOM=unit_id
+                    quantity=quantity, UOM=uom_to_pass,
+                    reference_designator=None  # No reference_designator when creating product with parent
                 )
                 if bom_result:
                     bom_id = bom_result[0] if isinstance(bom_result, tuple) else bom_result
@@ -346,6 +349,7 @@ def create_bom_link(pdf_id):
     child_pdf_id = data.get('child_pdf_id')
     quantity = data.get('quantity', 1)
     unit_id = data.get('unit_id')
+    reference_designator = data.get('reference_designator')
     if not child_pdf_id:
         return jsonify({'success': False, 'message': 'child_pdf_id обязателен'}), 400
     try:
@@ -353,12 +357,17 @@ def create_bom_link(pdf_id):
             unit_id = db_api.units_api.find_unit_by_id("шт")
             if not unit_id:
                 unit_id = db_api.units_api.find_unit_by_id("EA")
+        
+        # If unit_id is still None or 0, don't pass it (let the API handle it)
+        # The updated create_product_assembly will omit unit_component if UOM is 0 or None
+        uom_to_pass = unit_id if unit_id and unit_id != 0 else None
 
         result = db_api.products_api.create_product_assembly(
             pdf_related=child_pdf_id,
             pdf_relating=pdf_id,
             quantity=quantity,
-            UOM=unit_id or 0
+            UOM=uom_to_pass,
+            reference_designator=reference_designator
         )
         if result:
             bom_id = result[0] if isinstance(result, tuple) else result
@@ -432,6 +441,14 @@ def create_process():
         # Привязать к изделию если указан pdf_id
         if data.get('pdf_id'):
             db_api.bp_api.find_or_create_bp_reference(bp=bp_sys_id, pdf=data['pdf_id'])
+
+        # Привязать к папке если указан folder_id
+        folder_id = data.get('folder_id')
+        if folder_id and bp_sys_id:
+            try:
+                db_api.folders_api.add_item_to_folder(bp_sys_id, 'apl_business_process', int(folder_id))
+            except Exception as link_err:
+                logger.warning(f"create_process: failed to add to folder {folder_id}: {link_err}")
 
         return jsonify({
             'success': True, 'message': 'Процесс создан',
@@ -633,14 +650,17 @@ def create_characteristic_value():
     char_id = data.get('characteristic_id')
     value = data.get('value', '')
     subtype = data.get('subtype', 'apl_descriptive_characteristic_value')
+    item_type = data.get('item_type', 'apl_product_definition_formation')
     if not item_id or not char_id:
         return jsonify({'success': False, 'message': 'item_id и characteristic_id обязательны'}), 400
     try:
-        result = db_api.characteristic_api.create_characteristic_value(item_id, char_id, value, subtype)
+        result = db_api.characteristic_api.create_characteristic_value(
+            item_id, char_id, value, subtype, item_type
+        )
         if result:
             sid = result.get('id') if isinstance(result, dict) else result
             return jsonify({'success': True, 'message': 'Характеристика создана', 'data': {'sys_id': sid}}), 201
-        return jsonify({'success': False, 'message': 'Не удалось создать характеристику'}), 500
+        return jsonify({'success': False, 'message': 'PSS вернул пустой результат — проверьте subtype/item_type'}), 500
     except Exception as e:
         logger.error(f"create_characteristic_value error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -678,6 +698,63 @@ def delete_characteristic_value(value_id):
 
 
 # ========== Документы ==========
+
+@bp.route('/documents', methods=['POST'])
+def create_document_metadata():
+    """Create an apl_document with metadata only (no blob).
+
+    Convenience endpoint for tests/quick-attach scenarios where the file is
+    not needed. Bypasses upload_blob (which depends on PSS REST upload that
+    isn't reliable on this build).
+    """
+    db_api, err = _db()
+    if err:
+        return err
+    data = request.get_json() or {}
+    doc_id = data.get('id') or data.get('doc_id')
+    doc_name = data.get('name') or data.get('doc_name') or doc_id
+    if not doc_id:
+        return jsonify({'success': False, 'message': 'id обязателен'}), 400
+    try:
+        doc_type_id = data.get('doc_type_id')
+        if not doc_type_id:
+            doc_type_id = db_api.docs_api.find_or_create_doc_type("DEFAULT", "Default")
+        payload = {
+            "format": "apl_json_1",
+            "dictionary": "apl_pss_a",
+            "instances": [{
+                "id": 0,
+                "index": 0,
+                "type": "apl_document",
+                "attributes": {
+                    "id": doc_id,
+                    "name": doc_name,
+                    "authentic": False,
+                    "incl_in_doc": True,
+                    "state": "working",
+                    "kind": {"id": int(doc_type_id), "type": "document_type"},
+                }
+            }]
+        }
+        import requests as _r
+        resp = _r.post(db_api.URL_QUERY_SAVE,
+                       json=payload,
+                       headers={"X-APL-SessionKey": db_api.connect_data['session_key']})
+        if resp.status_code != 200:
+            return jsonify({'success': False, 'message': f'PSS save HTTP {resp.status_code}: {resp.text[:200]}'}), 500
+        body = resp.json()
+        instances = body.get('instances') or []
+        if not instances:
+            return jsonify({'success': False, 'message': f'PSS save returned no instances: {body}'}), 500
+        doc_sys_id = instances[0].get('id')
+        return jsonify({
+            'success': True, 'message': 'Документ создан',
+            'data': {'doc_id': doc_sys_id}
+        }), 201
+    except Exception as e:
+        logger.error(f"create_document_metadata error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @bp.route('/documents/upload', methods=['POST'])
 def upload_document():
@@ -778,18 +855,36 @@ def search_documents():
     if not q:
         return jsonify({'success': True, 'data': []})
     try:
-        query = f'SELECT NO_CASE Ext_ FROM Ext_{{apl_document(.id LIKE "{q}")}} END_SELECT'
-        data = db_api.query_apl(query)
-        results = []
-        if data and 'instances' in data:
-            for inst in data['instances'][:20]:
+        # APL LIKE с кириллицей не работает — фильтруем в Python.
+        # Латиница: ищем по id ИЛИ name через два отдельных запроса (APL OR на разных полях нестабилен).
+        seen = {}
+        is_cyrillic = any('\u0400' <= ch <= '\u04ff' for ch in q)
+        if is_cyrillic:
+            data = db_api.query_apl('SELECT NO_CASE Ext_ FROM Ext_{apl_document} END_SELECT')
+            instances = (data or {}).get('instances', [])
+            ql = q.lower()
+            for inst in instances:
                 attrs = inst.get('attributes', {})
-                results.append({
-                    'sys_id': inst.get('id'),
-                    'doc_id': attrs.get('id', ''),
-                    'name': attrs.get('name', ''),
-                    'type': inst.get('type', '')
-                })
+                if ql in (attrs.get('id', '') or '').lower() or ql in (attrs.get('name', '') or '').lower():
+                    seen[inst.get('id')] = inst
+        else:
+            for field in ('id', 'name'):
+                q_apl = f'SELECT NO_CASE Ext_ FROM Ext_{{apl_document(.{field} LIKE "{q}")}} END_SELECT'
+                try:
+                    data = db_api.query_apl(q_apl)
+                    for inst in (data or {}).get('instances', []):
+                        seen[inst.get('id')] = inst
+                except Exception as inner_e:
+                    logger.warning(f"search_documents field={field}: {inner_e}")
+        results = []
+        for inst in list(seen.values())[:20]:
+            attrs = inst.get('attributes', {})
+            results.append({
+                'sys_id': inst.get('id'),
+                'doc_id': attrs.get('id', ''),
+                'name': attrs.get('name', ''),
+                'type': inst.get('type', '')
+            })
         return jsonify({'success': True, 'data': results})
     except Exception as e:
         logger.error(f"search_documents error: {e}")

@@ -225,7 +225,9 @@ class CharacteristicAPI:
 
     # ── Создание / обновление / удаление значений характеристик ───────
 
-    def create_characteristic_value(self, item_sys_id, char_sys_id, value, subtype='apl_descriptive_characteristic_value'):
+    def create_characteristic_value(self, item_sys_id, char_sys_id, value,
+                                    subtype='apl_descriptive_characteristic_value',
+                                    item_type='apl_product_definition_formation'):
         """Создать значение характеристики для объекта.
 
         Args:
@@ -233,12 +235,18 @@ class CharacteristicAPI:
             char_sys_id: sys_id определения характеристики (apl_characteristic)
             value: значение (строка или число)
             subtype: подтип значения характеристики
+            item_type: тип объекта-владельца (apl_product_definition_formation,
+                apl_business_process и т.д.)
 
         Returns:
-            dict: созданный экземпляр или None
+            dict: созданный экземпляр
+
+        Raises:
+            Exception: если PSS вернул ошибку — пробрасывается наверх с понятным
+                сообщением, чтобы route мог показать пользователю.
         """
         attributes = {
-            'item': {'id': int(item_sys_id), 'type': 'apl_business_process'},
+            'item': {'id': int(item_sys_id), 'type': item_type},
             'characteristic': {'id': int(char_sys_id), 'type': 'apl_characteristic'},
             'scope': str(value),
         }
@@ -256,14 +264,9 @@ class CharacteristicAPI:
         elif subtype == 'apl_boolean_characteristic_value':
             attributes['value'] = str(value).lower() in ('true', '1', 'yes', 'да')
 
-        try:
-            result = self.db_api.create_instance(subtype, attributes)
-            if result:
-                logger.info(f"Created characteristic value for item #{item_sys_id}, char #{char_sys_id}")
-            return result
-        except Exception as e:
-            logger.error(f"Error creating characteristic value: {e}")
-            return None
+        result = self.db_api.create_instance(subtype, attributes)
+        logger.info(f"Created characteristic value for item #{item_sys_id} ({item_type}), char #{char_sys_id}, subtype={subtype}")
+        return result
 
     def update_characteristic_value(self, value_sys_id, new_value, subtype='apl_descriptive_characteristic_value'):
         """Обновить значение характеристики.

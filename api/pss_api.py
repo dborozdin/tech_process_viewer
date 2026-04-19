@@ -411,37 +411,33 @@ class DatabaseAPI:
             return False
 
     def delete_instance(self, sys_id, entity_type, **kwargs):
-        """Delete an instance via POST /rest/save/ with type=null (PSS convention)
+        """Delete an instance via HTTP DELETE /rest/{id}
 
-        Per PSS REST API docs, deletion is done by saving with "type": null.
+        Per PSS REST API YAML (db_schema_doc/REST API PSS AYATZK.yaml), deletion
+        is done with HTTP DELETE on /rest/<id>. The older POST /rest/save with
+        "type":null is silently no-op on this PSS build (returns count_all=0
+        without removing the instance).
 
         Args:
             sys_id: System ID of instance to delete
-            entity_type: Entity type (logged for debugging)
+            entity_type: Entity type (kept for logging compatibility)
 
         Returns:
             True on success, False on failure
         """
         try:
             logger.info(f"delete_instance: sys_id={sys_id}, entity_type={entity_type}")
-
-            payload = {
-                "format": "apl_json_1",
-                "dictionary": "apl_pss_a",
-                "instances": [
-                    {"id": int(sys_id), "type": None}
-                ]
-            }
-
-            logger.info(f"delete_instance: POST {self.URL_QUERY_SAVE} payload={json.dumps(payload)}")
-
+            # URL_QUERY_SAVE = '<server>/rest/save' → strip '/save' to get '<server>/rest'
+            base = self.URL_QUERY_SAVE[:-len('/save')] if self.URL_QUERY_SAVE.endswith('/save') else self.URL_QUERY_SAVE
+            url = f"{base}/{int(sys_id)}"
             headers = self.get_headers()
-            response = requests.post(self.URL_QUERY_SAVE, json=payload, headers=headers)
-
-            logger.info(f"delete_instance: response status={response.status_code}, body={response.text[:500]}")
+            response = requests.delete(url, headers=headers)
+            logger.info(f"delete_instance: DELETE {url} -> status={response.status_code}, body={response.text[:200]}")
+            # PSS DELETE returns empty body on success; treat 2xx as success.
+            if 200 <= response.status_code < 300:
+                return True
             response.raise_for_status()
-            return True
-
+            return False
         except requests.RequestException as e:
             logger.error(f"Error deleting instance {sys_id}: {e}")
             if hasattr(e, 'response') and e.response is not None:

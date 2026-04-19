@@ -7,6 +7,37 @@ class ResourcesAPI:
         
     def create_resource(self, res_id, res_name, res_type, bp, item, item_type, value, unit):
         print(f'create_resource with params: res_id={res_id}, res_name={res_name}, res_type={res_type}, bp={bp}, item={item}, item_type={item_type}, value={value}, unit={unit}')
+        attributes = {
+            "id": res_id,
+            "name": res_name,
+            "value_component": value,
+            "type": {
+                "id": int(res_type),
+                "type": "apl_business_process_resource_type"
+            },
+            "process": {
+                "id": int(bp),
+                "type": "apl_business_process"
+            },
+        }
+        # Only include optional refs when they point to a real instance.
+        # PSS rejects {id: 0} references, so skip unit/object when not provided.
+        try:
+            if int(unit) > 0:
+                attributes["unit_component"] = {
+                    "id": int(unit),
+                    "type": "apl_unit"
+                }
+        except (TypeError, ValueError):
+            pass
+        try:
+            if int(item) > 0:
+                attributes["object"] = {
+                    "id": int(item),
+                    "type": item_type or "organization"
+                }
+        except (TypeError, ValueError):
+            pass
         query_dict = {
             "format": "apl_json_1",
             "dictionary": "apl_pss_a",
@@ -15,27 +46,7 @@ class ResourcesAPI:
                     "id": 0,
                     "index": 0,
                     "type": "apl_business_process_resource",
-                    "attributes": {
-                        "id": res_id,
-                        "name": res_name,
-                        "value_component": value,
-                        "type": {
-                            "id": res_type,
-                            "type": "apl_business_process_resource_type"
-                        },
-                        "unit_component": {
-                            "id": unit,
-                            "type": "apl_unit"
-                        },
-                        "process": {
-                            "id": bp,
-                            "type": "apl_business_process"
-                        },
-                        "object": {
-                            "id": item,
-                            "type": item_type
-                        }
-                    }
+                    "attributes": attributes
                 }
             ]
         }

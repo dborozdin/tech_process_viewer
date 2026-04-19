@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>PSS-aiR CRUD Subset Results</title>
+<style>
+body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f5f5f5; }
+h1 { color: #003d4d; } h2 { color: #005566; margin-top: 30px; }
+.summary { font-size: 18px; margin: 10px 0 20px; }
+.pass { color: #28a745; font-weight: bold; } .fail { color: #cc3333; font-weight: bold; }
+table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 14px; }
+th { background: #005566; color: white; }
+tr:nth-child(even) { background: #f9f9f9; }
+.note { color: #666; font-size: 12px; }
+pre { white-space: pre-wrap; font-size: 12px; background: #fbeaea; padding: 8px; }
+</style></head><body>
+<h1>PSS-aiR CRUD — Subset (ранее проваленные)</h1>
+<p>Начало: 2026-04-17 21:02:57 | Окончание: 2026-04-17 21:04:25 | Длительность: 88с</p>
+<p class="summary">Итого: <span class="pass">6 PASS</span>, <span class="fail">0 FAIL</span> из 6</p>
+<h2>Результаты</h2>
+<table><tr><th>#</th><th>Описание</th><th>Начало</th><th>Окончание</th><th>Длит., мс</th><th>Результат</th><th>Примечание</th></tr>
+<tr><td>T09</td><td>BOM — добавить существующий компонент</td><td>21:03:01</td><td>21:03:20</td><td>19561</td><td class="pass">PASS</td><td class="note">BOM contains comp (assy=815999)</td></tr>
+<tr><td>T11</td><td>BOM — удалить связь</td><td>21:03:20</td><td>21:03:27</td><td>6972</td><td class="pass">PASS</td><td class="note">BOM link removed</td></tr>
+<tr><td>T15</td><td>Удаление характеристики</td><td>21:03:27</td><td>21:03:41</td><td>13988</td><td class="pass">PASS</td><td class="note">char 816004 deleted</td></tr>
+<tr><td>T17</td><td>Удаление ресурса</td><td>21:03:41</td><td>21:04:01</td><td>19593</td><td class="pass">PASS</td><td class="note">resource 816007 delete returned 200</td></tr>
+<tr><td>T18</td><td>Привязка документа</td><td>21:04:01</td><td>21:04:15</td><td>14010</td><td class="pass">PASS</td><td class="note">doc attached (doc=816008, ref=816009)</td></tr>
+<tr><td>T19</td><td>Отвязка документа</td><td>21:04:15</td><td>21:04:22</td><td>7698</td><td class="pass">PASS</td><td class="note">ref 816009 detached</td></tr>
+</table></body></html>

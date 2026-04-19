@@ -1598,7 +1598,7 @@ class ContentView {
         });
       });
       document.getElementById('crudBtnCreateProcess').addEventListener('click', () => {
-        this._crud.createProcess(null, () => this.loadFolderContents(this.currentFolder));
+        this._crud.createProcess(folderId, () => this.loadFolderContents(this.currentFolder));
       });
     } else if (this._currentView === 'bom' && this._lastBomTree) {
       const root = this._lastBomTree.root || this._lastBomTree;
@@ -1644,14 +1644,17 @@ class ContentView {
     this.currentFolder = folder;
     this._updateBreadcrumb();
     showSpinner(this.container);
+    const reqGen = (this._folderReqGen = (this._folderReqGen || 0) + 1);
     try {
       const data = await api.folderContents(folder.id);
+      if (reqGen !== this._folderReqGen) return;  // superseded by newer request
       this._renderFolderTable(data);
     } catch (err) {
+      if (reqGen !== this._folderReqGen) return;
       toaster.show('Ошибка загрузки содержимого: ' + err.message, 'error');
       this.showEmpty('Ошибка загрузки');
     } finally {
-      removeSpinner(this.container);
+      if (reqGen === this._folderReqGen) removeSpinner(this.container);
     }
   }
 
@@ -2456,7 +2459,7 @@ class PropertyPanel {
     this.currentTab = 'attrs';
 
     // Dynamic tabs based on item type
-    const isProcess = item.type === 'process' || item.type === 'Process';
+    const isProcess = item.type === 'process' || item.type === 'Process' || item.type === 'apl_business_process';
     if (isProcess) {
       this.tabsContainer.innerHTML =
         '<div class="property-tab active" data-tab="attrs">Атрибуты</div>' +
@@ -2680,7 +2683,13 @@ class PropertyPanel {
       const refreshChars = () => { this.cache.chars = null; this._renderCharacteristics(); };
       const addBtn = document.getElementById('propAddChar');
       if (addBtn) {
-        addBtn.addEventListener('click', () => this._crud.addCharacteristic(this.currentItem.id, refreshChars));
+        addBtn.addEventListener('click', () => {
+          const t = this.currentItem.type;
+          const itemType = (t === 'process' || t === 'Process' || t === 'apl_business_process')
+            ? 'apl_business_process'
+            : 'apl_product_definition_formation';
+          this._crud.addCharacteristic(this.currentItem.id, itemType, refreshChars);
+        });
       }
       this.contentContainer.querySelectorAll('.crud-char-edit').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2710,13 +2719,9 @@ class PropertyPanel {
       this.cache.docs = Array.isArray(docs) ? docs : [];
       this._displayDocs(this.cache.docs);
     } catch {
-      this.cache.docs = [];
-      if (this.cache.attrs && this.cache.attrs.documents) {
-        this.cache.docs = this.cache.attrs.documents;
-        this._displayDocs(this.cache.docs);
-      } else {
-        this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы не найдены</div></div>';
-      }
+      // Even on fetch error we must keep the toolbar so the user can attach/upload.
+      this.cache.docs = (this.cache.attrs && this.cache.attrs.documents) || [];
+      this._displayDocs(this.cache.docs);
     } finally {
       removeSpinner(this.contentContainer);
     }
@@ -2740,7 +2745,7 @@ class PropertyPanel {
       if (hasCrud) html += '<th style="width:40px"></th>';
       html += '</tr></thead><tbody>';
       docs.forEach(d => {
-        const refId = d.ref_id || d.reference_id || '';
+        const refId = d.ref_sys_id || d.ref_id || d.reference_id || '';
         html += `<tr>
           <td>${this._esc(d.name || '')}</td>
           <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
@@ -3142,6 +3147,11 @@ document.addEventListener('DOMContentLoaded', () => {
   contentView = new ContentView('contentArea');
   breadcrumb.addButton(contentView._colBtn);
   propertyPanel = new PropertyPanel('propertyTabs', 'propertyContent');
+
+  // Expose for test automation (Playwright via page.evaluate)
+  window.bus = bus;
+  window.contentView = contentView;
+  window.propertyPanel = propertyPanel;
 
   // Right panel toggle
   const btnToggleRight = document.getElementById('btnToggleRight');

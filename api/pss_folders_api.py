@@ -80,12 +80,29 @@ class FoldersAPI:
             return self.create_folder(PSS_folder_name=PSS_folder_name)
     
     def add_item_to_folder(self, item, item_type, folder):
-        folder_content=[]
-    
-        elem= { "id": item,
-                "type": item_type}
-        folder_content.append(elem) 
-        folder_content_str= str(folder_content).replace("\'", "\"")
+        # Load existing content first — apl_folder.content is a full list, so writing
+        # only the new item would otherwise wipe out everything else in the folder.
+        existing = []
+        try:
+            query_load = f"""SELECT NO_CASE
+            Ext_
+            FROM
+            Ext_{{apl_folder(.# = #{folder})}}
+            END_SELECT"""
+            load_result = self.db_api.query_apl(query_load)
+            if load_result and load_result.get('instances'):
+                raw = load_result['instances'][0].get('attributes', {}).get('content', []) or []
+                for it in raw:
+                    if isinstance(it, dict) and 'id' in it:
+                        existing.append({"id": it['id'], "type": it.get('type', '')})
+        except Exception as load_err:
+            print(f'add_item_to_folder: failed to load existing content for folder {folder}: {load_err}')
+
+        # Skip if already attached
+        if not any(str(e['id']) == str(item) for e in existing):
+            existing.append({"id": item, "type": item_type})
+
+        folder_content_str = str(existing).replace("\'", "\"")
         query= """{
                         "format":"apl_json_1",
                         "dictionary":"apl_pss_a",

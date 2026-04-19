@@ -1,17 +1,17 @@
 ======================================================================
   PSS REST API Stress Test — Full Log
 ======================================================================
-Date:     2026-04-13T08:18:16.847686
+Date:     2026-04-16T16:04:17.276371
 Server:   http://localhost:7239
 Database: pss_moma_08_07_2025
 User:     Administrator
 
-[08:18:16.847] ============================================================
-[08:18:16.847] STEP 1: Check PSS server
-[08:18:16.848] ============================================================
-[08:18:16.848] >>> GET http://localhost:7239/rest/dblist
-[08:18:18.942] <<< 200 (2094ms) Content-Length: 196
-[08:18:18.943]     Response: {
+[16:04:17.277] ============================================================
+[16:04:17.277] STEP 1: Check PSS server
+[16:04:17.277] ============================================================
+[16:04:17.278] >>> GET http://localhost:7239/rest/dblist
+[16:04:19.374] <<< 200 (2096ms) Content-Length: 196
+[16:04:19.374]     Response: {
 	"dblist":[
 		"db_moma_25_03_25",
 		"ils_lessons12",
@@ -21,35 +21,35 @@ User:     Administrator
 		"pss_source_moma_08_07_2025",
 		"ПНЦР_Maximo"
 	]}
-[08:18:18.943]   [PASS] Server check (GET /rest/dblist): OK, 192 bytes
-[08:18:18.943] 
+[16:04:19.374]   [PASS] Server check (GET /rest/dblist): OK, 192 bytes
+[16:04:19.377] 
 ============================================================
-[08:18:18.944] STEP 2: Connect to database
-[08:18:18.944] ============================================================
-[08:18:18.944] >>> GET http://localhost:7239/rest/connect/user=Administrator&db=pss_moma_08_07_2025
-[08:18:26.163] <<< 200 (7219ms) Content-Length: 418
-[08:18:26.163]     Response: {
-	"_processingTime":"00:00:05.141",
+[16:04:19.377] STEP 2: Connect to database
+[16:04:19.377] ============================================================
+[16:04:19.378] >>> GET http://localhost:7239/rest/connect/user=Administrator&db=pss_moma_08_07_2025
+[16:04:21.475] <<< 200 (2097ms) Content-Length: 330
+[16:04:21.475]     Response: {
 	"_serverPort":"7239",
-	"_serverVersion":"PSS 5.1019_mui",
-	"_applicationName":"Сервер приложений PDM STEP Suite/ LITE unicode",
+	"_serverVersion":"2.0.17629-c (Qt Windows)",
+	"_applicationName":"Платформа A-YATZK",
 	"_serverVerDict":"1425",
 	"curr_user":"Administrator",
 	"curr_db":"pss_moma_08_07_2025",
-	"session_key":"EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH",
-	"_processingStart":"13.04.2026  8:18:21.029"
+	"session_key":"0x19A1E86810EF7BF8",
+	"_processingTime":"00:00:00.015",
+	"_processingStart":"16.04.2026 16:04:21.461"
 }
-[08:18:26.164]   [PASS] Connect: session_key=EDGCDBAGEDDGPGPFPAGF...
-[08:18:26.164] Full session_key: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:18:26.164] 
+[16:04:21.475]   [PASS] Connect: session_key=0x19A1E86810EF7BF8...
+[16:04:21.476] Full session_key: 0x19A1E86810EF7BF8
+[16:04:21.476] 
 ============================================================
-[08:18:26.165] STEP 3: Read operations (POST /rest/query)
-[08:18:26.165] ============================================================
-[08:18:26.165] >>> POST http://localhost:7239/rest/query
-[08:18:26.165]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:18:26.166]     Body (44 bytes): SELECT Ext_ FROM Ext_{apl_folder} END_SELECT
-[08:18:28.249] <<< 200 (2083ms) Content-Length: 16930
-[08:18:28.249]     Response: {
+[16:04:21.476] STEP 3: Read operations (POST /rest/query)
+[16:04:21.477] ============================================================
+[16:04:21.478] >>> POST http://localhost:7239/rest/query
+[16:04:21.478]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:21.478]     Body (44 bytes): SELECT Ext_ FROM Ext_{apl_folder} END_SELECT
+[16:04:23.603] <<< 200 (2125ms) Content-Length: 16930
+[16:04:23.604]     Response: {
 	"format":"apl_json_1",
 	"dictionary":"apl_pss_a",
 	"count_all":81,
@@ -239,15 +239,15 @@ User:     Administrator
 				"name":"i-liste",
 				"parent":{
 					
-[08:18:28.250]   [PASS] READ: query apl_folder: status=200, count=81
-[08:18:28.250] >>> POST http://localhost:7239/rest/query
-[08:18:28.251]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:18:28.251]     Body (66 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation} END_SELECT
-[08:18:53.658] <<< 200 (25408ms) Content-Length: 48511
-[08:18:53.659]     Response: {
+[16:04:23.605]   [PASS] READ: query apl_folder: status=200, count=81
+[16:04:23.605] >>> POST http://localhost:7239/rest/query
+[16:04:23.605]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:23.605]     Body (66 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation} END_SELECT
+[16:04:39.921] <<< 200 (16315ms) Content-Length: 48511
+[16:04:39.921]     Response: {
 	"format":"apl_json_1",
 	"dictionary":"apl_pss_a",
-	"count_all":266172,
+	"count_all":266206,
 	"portion_from":0,
 	"instances":[
 		{
@@ -392,13 +392,13 @@ User:     Administrator
 					"type":"context_dependent_unit"
 				},
 				"releva
-[08:18:53.660]   [PASS] READ: query products (PDF): status=200, count=266172
-[08:18:53.660] 
+[16:04:39.926]   [PASS] READ: query products (PDF): status=200, count=266206
+[16:04:39.926] 
 ============================================================
-[08:18:53.661] STEP 4: Create product via POST /rest/save
-[08:18:53.661] ============================================================
-[08:18:53.662] Save payload (pretty):
-[08:18:53.662] {
+[16:04:39.927] STEP 4: Create product via POST /rest/save
+[16:04:39.927] ============================================================
+[16:04:39.928] Save payload (pretty):
+[16:04:39.928] {
   "format": "apl_json_1",
   "dictionary": "apl_pss_a",
   "instances": [
@@ -422,53 +422,111 @@ User:     Administrator
     }
   ]
 }
-[08:18:53.662] >>> POST http://localhost:7239/rest/save
-[08:18:53.663]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:18:53.663]     Header: Content-Type: application/json
-[08:18:53.663]     Body (318 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-TEST-001", "name": "StressTestProduct"}}}}]}
-[08:18:57.444] <<< 200 (3781ms) Content-Length: 312
-[08:18:57.446]     Response: {
+[16:04:39.928] >>> POST http://localhost:7239/rest/save
+[16:04:39.928]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:39.928]     Header: Content-Type: application/json
+[16:04:39.928]     Body (318 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-TEST-001", "name": "StressTestProduct"}}}}]}
+[16:04:43.101] <<< 200 (3173ms) Content-Length: 312
+[16:04:43.101]     Response: {
 	"format":"apl_json_1",
 	"dictionary":"apl_pss_a",
 	"count_all":2,
 	"instances":[
 		{
-			"id":815960,
+			"id":816038,
 			"type":"apl_product_definition_formation",
 			"index":0
 		},
 		{
-			"id":815961,
+			"id":816039,
 			"type":"product",
 			"index":1
 		}
 	],
-	"_processingTime":"00:00:01.719",
-	"_processingStart":"13.04.2026  8:18:55.729"
+	"_processingTime":"00:00:01.063",
+	"_processingStart":"16.04.2026 16:04:42.020"
 }
-[08:18:57.447]   [PASS] SAVE 1: Create product: product_id=815960
-[08:18:57.448] 
+[16:04:43.110]   [PASS] SAVE 1: Create product: product_id=816038
+[16:04:43.110] 
 ============================================================
-[08:18:57.448] STEP 5: Verify created product via query
-[08:18:57.448] ============================================================
-[08:18:57.449] >>> POST http://localhost:7239/rest/query
-[08:18:57.449]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:18:57.449]     Body (111 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = "STRESS-TEST-001")} END_SELECT
-[08:19:00.593] <<< 200 (3144ms) Content-Length: 436
-[08:19:00.594]     Response: {
+[16:04:43.110] STEP 5: Verify created product via query
+[16:04:43.110] ============================================================
+[16:04:43.110]     Waiting 2 seconds for DB indexing...
+[16:04:45.113]     Try query 1: SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id =...
+[16:04:45.113] >>> POST http://localhost:7239/rest/query
+[16:04:45.113]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:45.113]     Body (111 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = "STRESS-TEST-001")} END_SELECT
+[16:04:47.702] <<< 200 (2590ms) Content-Length: 1428
+[16:04:47.702]     Response: {
 	"format":"apl_json_1",
 	"dictionary":"apl_pss_a",
-	"count_all":1,
+	"count_all":5,
 	"portion_from":0,
 	"instances":[
 		{
-			"id":815960,
+			"id":815957,
 			"type":"apl_product_definition_formation",
 			"access":"OWN",
 			"attributes":{
 				"of_product":{
 					"access":"OWN",
-					"id":815961,
+					"id":815958,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816008,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816009,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816018,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816019,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816028,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816029,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816038,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816039,
 					"type":"product"
 				},
 				"make_or_buy":"1",
@@ -476,93 +534,435 @@ User:     Administrator
 			}
 		}
 	],
-	"_processingTime":"00:00:01.047",
-	"_processingStart":"13.04.2026  8:18:59.536"
+	"_processingTime":"00:00:00.500",
+	"_processingStart":"16.04.2026 16:04:47.195"
 }
-[08:19:00.595]   [FAIL] READ: verify STRESS-TEST-001: found=False
-[08:19:00.595] 
+[16:04:47.702]     Try query 2: SELECT Ext_.of_product FROM Ext_{apl_product_definition_formation(.id="816038")}...
+[16:04:47.702] >>> POST http://localhost:7239/rest/query
+[16:04:47.710]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:47.710]     Body (91 bytes): SELECT Ext_.of_product FROM Ext_{apl_product_definition_formation(.id="816038")} END_SELECT
+[16:04:50.090] <<< 200 (2380ms) Content-Length: 170
+[16:04:50.093]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":0,
+	"portion_from":0,
+	"_processingTime":"00:00:00.266",
+	"_processingStart":"16.04.2026 16:04:49.820"
+}
+[16:04:50.094]   [FAIL] READ: verify STRESS-TEST-001: found=False, not in response (query 2)
+[16:04:50.095] 
 ============================================================
-[08:19:00.596] STEP 6: Update product via POST /rest/save
-[08:19:00.597] ============================================================
-[08:19:00.597] >>> POST http://localhost:7239/rest/save
-[08:19:00.598]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:19:00.598]     Header: Content-Type: application/json
-[08:19:00.598]     Body (247 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 815960, "index": 815960, "type": "apl_product_definition_formation", "attributes": {"of_product": {"type": "product", "attributes": {"name": "StressTestProduct_Updated"}}}}]}
-[08:19:09.736] <<< 400 (9137ms) Content-Length: 431
-[08:19:09.737]     Response: {
-	"_processingTime":"00:00:07.046",
+[16:04:50.095] STEP 6: Update product via POST /rest/save
+[16:04:50.095] ============================================================
+[16:04:51.096]     Trying approach 1: Update through formation...
+[16:04:51.096] >>> POST http://localhost:7239/rest/save
+[16:04:51.096]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:51.096]     Header: Content-Type: application/json
+[16:04:51.096]     Body (230 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 816038, "type": "apl_product_definition_formation", "attributes": {"of_product": {"type": "product", "attributes": {"name": "StressTestProduct_Updated"}}}}]}
+[16:04:56.166] <<< 400 (5070ms) Content-Length: 424
+[16:04:56.166]     Response: {
 	"error_description":[
-		"Throw: Throw: Для инстанса без идентификатора (в т.ч. для нового инстанса) должен быть задан индекс в массиве 'index' (для старого кода - пользовательский идентификатор 'id_tmp') (line 1 pos 171)"
+		"Throw: Для инстанса без идентификатора (в т.ч. для нового инстанса) должен быть задан индекс в массиве 'index' (для старого кода - пользовательский идентификатор 'id_tmp') (line 1 pos 154)"
 	],
-	"_processingStart":"13.04.2026  8:19:02.680"
+	"_processingTime":"00:00:02.984",
+	"_processingStart":"16.04.2026 16:04:53.173"
 }
-[08:19:09.737]   [FAIL] SAVE 2: Update product name: no response
-[08:19:09.738] 
+[16:04:56.166]     Approach 1 failed, trying approach 2...
+[16:04:57.169] >>> GET http://localhost:7239/rest/i=816038
+[16:04:57.169]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:59.261] <<< 200 (2092ms) Content-Length: 436
+[16:04:59.261]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":1,
+	"portion_from":0,
+	"instances":[
+		{
+			"id":816038,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816039,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		}
+	],
+	"_processingTime":"00:00:00.016",
+	"_processingStart":"16.04.2026 16:04:59.253"
+}
+[16:04:59.261] >>> POST http://localhost:7239/rest/save
+[16:04:59.261]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:04:59.261]     Header: Content-Type: application/json
+[16:04:59.261]     Body (154 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 816039, "type": "product", "attributes": {"name": "StressTestProduct_Updated"}}]}
+[16:05:02.360] <<< 200 (3100ms) Content-Length: 151
+[16:05:02.360]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":0,
+	"_processingTime":"00:00:01.000",
+	"_processingStart":"16.04.2026 16:05:01.348"
+}
+[16:05:02.360]   [PASS] SAVE 2: Update product name: HTTP 200: updated product directly (id=816039)
+[16:05:02.360] 
 ============================================================
-[08:19:09.738] STEP 7: Create second product
-[08:19:09.738] ============================================================
-[08:19:09.739] >>> POST http://localhost:7239/rest/save
-[08:19:09.739]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:19:09.739]     Header: Content-Type: application/json
-[08:19:09.740]     Body (319 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "2", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-TEST-002", "name": "StressTestProduct2"}}}}]}
-[08:21:11.809] <<< EXCEPTION after 122069ms: HTTPConnectionPool(host='localhost', port=7239): Read timed out. (read timeout=120)
-[08:21:11.810]   [FAIL] SAVE 3: Create product 2: HTTP N/A: 
-[08:21:11.810] 
+[16:05:02.360] STEP 7: Create second product
+[16:05:02.360] ============================================================
+[16:05:02.360] >>> POST http://localhost:7239/rest/save
+[16:05:02.368]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:02.368]     Header: Content-Type: application/json
+[16:05:02.368]     Body (319 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "2", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-TEST-002", "name": "StressTestProduct2"}}}}]}
+[16:05:05.520] <<< 200 (3152ms) Content-Length: 312
+[16:05:05.520]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":2,
+	"instances":[
+		{
+			"id":816040,
+			"type":"apl_product_definition_formation",
+			"index":0
+		},
+		{
+			"id":816041,
+			"type":"product",
+			"index":1
+		}
+	],
+	"_processingTime":"00:00:01.063",
+	"_processingStart":"16.04.2026 16:05:04.444"
+}
+[16:05:05.520]   [PASS] SAVE 3: Create product 2: product2_id=816040
+[16:05:05.520] 
 ============================================================
-[08:21:11.811] STEP 8: Delete product via POST /rest/save (type=null)
-[08:21:11.811] ============================================================
-[08:21:11.812] >>> POST http://localhost:7239/rest/save
-[08:21:11.812]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:21:11.813]     Header: Content-Type: application/json
-[08:21:11.813]     Body (113 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 815960, "index": 815960, "type": null}]}
-[08:23:13.857] <<< EXCEPTION after 122043ms: HTTPConnectionPool(host='localhost', port=7239): Read timed out. (read timeout=120)
-[08:23:13.858]   [FAIL] SAVE 4: Delete product 1: HTTP N/A: 
-[08:23:13.858] 
+[16:05:05.520] STEP 8: Delete product via POST /rest/save (type=null)
+[16:05:05.520] ============================================================
+[16:05:05.520] >>> POST http://localhost:7239/rest/save
+[16:05:05.520]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:05.520]     Header: Content-Type: application/json
+[16:05:05.520]     Body (113 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 816038, "index": 816038, "type": null}]}
+[16:05:08.640] <<< 200 (3120ms) Content-Length: 258
+[16:05:08.640]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":1,
+	"instances":[
+		{
+			"id":816038,
+			"type":"apl_product_definition_formation",
+			"index":816038
+		}
+	],
+	"_processingTime":"00:00:01.032",
+	"_processingStart":"16.04.2026 16:05:07.611"
+}
+[16:05:08.640]   [PASS] SAVE 4: Delete product 1: HTTP 200: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":1,
+	"instances":[
+		{
+			"id":816038,
+			"type":"apl_product_definition_formation",
+			"index":816038
+		}
+	],
+	"_processingTime":"00:0
+[16:05:08.643] 
 ============================================================
-[08:23:13.859] STEP 9: Rapid sequential creates (3x)
-[08:23:13.859] ============================================================
-[08:23:13.859] >>> POST http://localhost:7239/rest/save
-[08:23:13.860]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:23:13.860]     Header: Content-Type: application/json
-[08:23:13.860]     Body (313 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-RAPID-001", "name": "RapidTest_1"}}}}]}
-[08:25:14.058] <<< EXCEPTION after 120198ms: ('Connection aborted.', ConnectionResetError(10054, 'Удаленный хост принудительно разорвал существующее подключение', None, 10054, None))
-[08:25:14.059]   [FAIL] SAVE 5: Rapid create #1: no response
-[08:25:14.059] Rapid create #1 FAILED — stopping
-[08:25:14.059] 
+[16:05:08.643] STEP 9: Rapid sequential creates (3x)
+[16:05:08.643] ============================================================
+[16:05:08.644] >>> POST http://localhost:7239/rest/save
+[16:05:08.644]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:08.644]     Header: Content-Type: application/json
+[16:05:08.644]     Body (313 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-RAPID-001", "name": "RapidTest_1"}}}}]}
+[16:05:11.843] <<< 200 (3199ms) Content-Length: 312
+[16:05:11.844]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":2,
+	"instances":[
+		{
+			"id":816042,
+			"type":"apl_product_definition_formation",
+			"index":0
+		},
+		{
+			"id":816043,
+			"type":"product",
+			"index":1
+		}
+	],
+	"_processingTime":"00:00:01.110",
+	"_processingStart":"16.04.2026 16:05:10.727"
+}
+[16:05:11.845]   [PASS] SAVE 5: Rapid create #1: HTTP 200
+[16:05:12.345] >>> POST http://localhost:7239/rest/save
+[16:05:12.345]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:12.345]     Header: Content-Type: application/json
+[16:05:12.345]     Body (313 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-RAPID-002", "name": "RapidTest_2"}}}}]}
+[16:05:15.543] <<< 200 (3197ms) Content-Length: 312
+[16:05:15.543]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":2,
+	"instances":[
+		{
+			"id":816044,
+			"type":"apl_product_definition_formation",
+			"index":0
+		},
+		{
+			"id":816045,
+			"type":"product",
+			"index":1
+		}
+	],
+	"_processingTime":"00:00:01.125",
+	"_processingStart":"16.04.2026 16:05:14.421"
+}
+[16:05:15.544]   [PASS] SAVE 6: Rapid create #2: HTTP 200
+[16:05:16.045] >>> POST http://localhost:7239/rest/save
+[16:05:16.045]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:16.045]     Header: Content-Type: application/json
+[16:05:16.045]     Body (313 bytes): {"format": "apl_json_1", "dictionary": "apl_pss_a", "instances": [{"id": 0, "index": 0, "type": "apl_product_definition_formation", "attributes": {"formation_type": "1", "make_or_buy": "1", "of_product": {"id": 0, "index": 1, "type": "product", "attributes": {"id": "STRESS-RAPID-003", "name": "RapidTest_3"}}}}]}
+[16:05:19.202] <<< 200 (3157ms) Content-Length: 312
+[16:05:19.202]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":2,
+	"instances":[
+		{
+			"id":816046,
+			"type":"apl_product_definition_formation",
+			"index":0
+		},
+		{
+			"id":816047,
+			"type":"product",
+			"index":1
+		}
+	],
+	"_processingTime":"00:00:01.062",
+	"_processingStart":"16.04.2026 16:05:18.136"
+}
+[16:05:19.202]   [PASS] SAVE 7: Rapid create #3: HTTP 200
+[16:05:19.709] 
 ============================================================
-[08:25:14.061] STEP 10: Final verification — count all STRESS-* products
-[08:25:14.061] ============================================================
-[08:25:14.061] >>> POST http://localhost:7239/rest/query
-[08:25:14.062]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:25:14.062]     Body (105 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id LIKE "STRESS")} END_SELECT
-[08:25:18.147] <<< EXCEPTION after 4085ms: HTTPConnectionPool(host='localhost', port=7239): Max retries exceeded with url: /rest/query (Caused by NewConnectionError("HTTPConnection(host='localhost', port=7239): Failed to establish a new connection: [WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение"))
-[08:25:18.148]   [FAIL] READ: count STRESS-* products: HTTP N/A
-[08:25:18.149] 
+[16:05:19.711] STEP 10: Final verification — count all STRESS-* products
+[16:05:19.711] ============================================================
+[16:05:19.711] >>> POST http://localhost:7239/rest/query
+[16:05:19.711]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:19.711]     Body (105 bytes): SELECT Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id LIKE "STRESS")} END_SELECT
+[16:05:22.252] <<< 200 (2541ms) Content-Length: 6389
+[16:05:22.252]     Response: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":25,
+	"portion_from":0,
+	"instances":[
+		{
+			"id":815957,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":815958,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":815959,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":815960,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"2"
+			}
+		},
+		{
+			"id":815961,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":815962,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":815963,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":815964,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":815965,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":815966,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816008,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816009,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816010,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816011,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"2"
+			}
+		},
+		{
+			"id":816012,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816013,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816014,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816015,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816016,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816017,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816018,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816019,
+					"type":"product"
+				},
+				"make_or_buy":"1",
+				"formation_type":"1"
+			}
+		},
+		{
+			"id":816020,
+			"type":"apl_product_definition_formation",
+			"access":"OWN",
+			"attributes":{
+				"of_product":{
+					"access":"OWN",
+					"id":816021,
+					"t
+[16:05:22.253]   [PASS] READ: count STRESS-* products: count=25
+[16:05:22.253] 
 ============================================================
-[08:25:18.150] STEP 11: Disconnect
-[08:25:18.150] ============================================================
-[08:25:18.151] >>> GET http://localhost:7239/rest/disconnect
-[08:25:18.151]     Header: X-APL-SessionKey: EDGCDBAGEDDGPGPFPAGFGDCGGFBHDABHAEGCGHHCKGJDODLCNGKAAEDBEAOEJAPEEFKDOHJDHHFAMFMH
-[08:25:22.211] <<< EXCEPTION after 4060ms: HTTPConnectionPool(host='localhost', port=7239): Max retries exceeded with url: /rest/disconnect (Caused by NewConnectionError("HTTPConnection(host='localhost', port=7239): Failed to establish a new connection: [WinError 10061] Подключение не установлено, т.к. конечный компьютер отверг запрос на подключение"))
-[08:25:22.212]   [FAIL] Disconnect: HTTP N/A
-[08:25:22.212] 
+[16:05:22.253] STEP 11: Disconnect
+[16:05:22.253] ============================================================
+[16:05:22.253] >>> GET http://localhost:7239/rest/disconnect
+[16:05:22.253]     Header: X-APL-SessionKey: 0x19A1E86810EF7BF8
+[16:05:24.394] <<< 204 (2141ms) Content-Length: 0
+[16:05:24.394]     Response: 
+[16:05:24.394]   [PASS] Disconnect: HTTP 204
+[16:05:24.394] 
 ============================================================
-[08:25:22.212]   RESULTS SUMMARY
-[08:25:22.213] ============================================================
-[08:25:22.213]   [PASS] Server check (GET /rest/dblist)               OK, 192 bytes
-[08:25:22.213]   [PASS] Connect                                       session_key=EDGCDBAGEDDGPGPFPAGF...
-[08:25:22.213]   [PASS] READ: query apl_folder                        status=200, count=81
-[08:25:22.214]   [PASS] READ: query products (PDF)                    status=200, count=266172
-[08:25:22.214]   [PASS] SAVE 1: Create product                        product_id=815960
-[08:25:22.214]   [FAIL] READ: verify STRESS-TEST-001                  found=False
-[08:25:22.214]   [FAIL] SAVE 2: Update product name                   no response
-[08:25:22.215]   [FAIL] SAVE 3: Create product 2                      HTTP N/A: 
-[08:25:22.215]   [FAIL] SAVE 4: Delete product 1                      HTTP N/A: 
-[08:25:22.215]   [FAIL] SAVE 5: Rapid create #1                       no response
-[08:25:22.215]   [FAIL] READ: count STRESS-* products                 HTTP N/A
-[08:25:22.216]   [FAIL] Disconnect                                    HTTP N/A
-[08:25:22.216] 
-  5/12 PASS
-[08:25:22.217] 
-Done at 2026-04-13 08:25:22.217253
-[08:25:22.217] Full log: c:\python_projects\express_api\tech_process_viewer\PSS-aiR\stress_test_log.txt
+[16:05:24.394]   RESULTS SUMMARY
+[16:05:24.394] ============================================================
+[16:05:24.394]   [PASS] Server check (GET /rest/dblist)               OK, 192 bytes
+[16:05:24.394]   [PASS] Connect                                       session_key=0x19A1E86810EF7BF8...
+[16:05:24.394]   [PASS] READ: query apl_folder                        status=200, count=81
+[16:05:24.394]   [PASS] READ: query products (PDF)                    status=200, count=266206
+[16:05:24.394]   [PASS] SAVE 1: Create product                        product_id=816038
+[16:05:24.394]   [FAIL] READ: verify STRESS-TEST-001                  found=False, not in response (query 2)
+[16:05:24.400]   [PASS] SAVE 2: Update product name                   HTTP 200: updated product directly (id=816039)
+[16:05:24.401]   [PASS] SAVE 3: Create product 2                      product2_id=816040
+[16:05:24.401]   [PASS] SAVE 4: Delete product 1                      HTTP 200: {
+	"format":"apl_json_1",
+	"dictionary":"apl_pss_a",
+	"count_all":1,
+	
+[16:05:24.402]   [PASS] SAVE 5: Rapid create #1                       HTTP 200
+[16:05:24.402]   [PASS] SAVE 6: Rapid create #2                       HTTP 200
+[16:05:24.402]   [PASS] SAVE 7: Rapid create #3                       HTTP 200
+[16:05:24.402]   [PASS] READ: count STRESS-* products                 count=25
+[16:05:24.403]   [PASS] Disconnect                                    HTTP 204
+[16:05:24.403] 
+  13/14 PASS
+[16:05:24.403] 
+Done at 2026-04-16 16:05:24.403672
+[16:05:24.403] Full log: C:\python_projects\express_api\tech_process_viewer\PSS-aiR\stress_test_log.txt
