@@ -4468,6 +4468,1471 @@
           }
         }
       ]
+    },
+    "/api/products": {
+      "post": {
+        "tags": [
+          "CRUD: Products"
+        ],
+        "summary": "Создать изделие",
+        "description": "Создаёт apl_product_definition_formation, добавляет в папку Aircrafts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "TEST-PRD-001"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Test Product"
+                  },
+                  "type": {
+                    "type": "string",
+                    "default": "make"
+                  },
+                  "source": {
+                    "type": "string",
+                    "default": "make"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/products/{pdf_id}": {
+      "put": {
+        "tags": [
+          "CRUD: Products"
+        ],
+        "summary": "Обновить изделие",
+        "parameters": [
+          {
+            "name": "pdf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "sys_id of apl_product_definition_formation"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "404": {
+            "description": "Entity not found"
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRUD: Products"
+        ],
+        "summary": "Удалить изделие",
+        "parameters": [
+          {
+            "name": "pdf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "sys_id of apl_product_definition_formation"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/products/bom": {
+      "post": {
+        "tags": [
+          "CRUD: BOM"
+        ],
+        "summary": "Создать BOM-связь (родитель ↔ компонент)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "relating_pdf_id",
+                  "related_pdf_id"
+                ],
+                "properties": {
+                  "relating_pdf_id": {
+                    "type": "integer",
+                    "description": "Parent PDF sys_id"
+                  },
+                  "related_pdf_id": {
+                    "type": "integer",
+                    "description": "Component PDF sys_id"
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "default": 1
+                  },
+                  "unit_id": {
+                    "type": "integer",
+                    "description": "Optional apl_unit sys_id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/products/bom/{bom_id}": {
+      "delete": {
+        "tags": [
+          "CRUD: BOM"
+        ],
+        "summary": "Удалить BOM-связь",
+        "parameters": [
+          {
+            "name": "bom_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "BOM link sys_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/products/{pdf_id}/bom": {
+      "get": {
+        "tags": [
+          "CRUD: BOM"
+        ],
+        "summary": "Получить структуру BOM для изделия",
+        "parameters": [
+          {
+            "name": "pdf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Product PDF sys_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/business-processes": {
+      "post": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Создать бизнес-процесс",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "TEST-BP-001"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Test Process"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "type_name": {
+                    "type": "string",
+                    "default": "Default"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/business-processes/{bp_id}": {
+      "put": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Обновить бизнес-процесс",
+        "parameters": [
+          {
+            "name": "bp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Удалить бизнес-процесс",
+        "parameters": [
+          {
+            "name": "bp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/business-processes/{bp_id}/elements": {
+      "post": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Добавить вложенный элемент в процесс",
+        "parameters": [
+          {
+            "name": "bp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Parent process sys_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "element_id"
+                ],
+                "properties": {
+                  "element_id": {
+                    "type": "integer",
+                    "description": "Child process sys_id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/business-processes/{bp_id}/elements/{child_id}": {
+      "delete": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Удалить вложенный элемент из процесса",
+        "parameters": [
+          {
+            "name": "bp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Parent process sys_id"
+          },
+          {
+            "name": "child_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Child element sys_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/business-processes/{bp_id}/link-product": {
+      "post": {
+        "tags": [
+          "CRUD: Business Processes"
+        ],
+        "summary": "Привязать процесс к изделию",
+        "parameters": [
+          {
+            "name": "bp_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "pdf_id"
+                ],
+                "properties": {
+                  "pdf_id": {
+                    "type": "integer",
+                    "description": "Product PDF sys_id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/documents/upload": {
+      "post": {
+        "tags": [
+          "CRUD: Documents"
+        ],
+        "summary": "Загрузить файл-документ (multipart/form-data)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "doc_id": {
+                    "type": "string"
+                  },
+                  "doc_name": {
+                    "type": "string"
+                  },
+                  "doc_type_id": {
+                    "type": "integer"
+                  },
+                  "item_id": {
+                    "type": "integer"
+                  },
+                  "item_type": {
+                    "type": "string",
+                    "default": "apl_business_process"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/document-references": {
+      "post": {
+        "tags": [
+          "CRUD: Documents"
+        ],
+        "summary": "Создать ссылку документ → объект",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "doc_id",
+                  "item_id"
+                ],
+                "properties": {
+                  "doc_id": {
+                    "type": "integer",
+                    "description": "Document sys_id"
+                  },
+                  "item_id": {
+                    "type": "integer",
+                    "description": "Item sys_id"
+                  },
+                  "item_type": {
+                    "type": "string",
+                    "default": "apl_business_process"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/document-references/{ref_id}": {
+      "delete": {
+        "tags": [
+          "CRUD: Documents"
+        ],
+        "summary": "Удалить ссылку документ → объект",
+        "parameters": [
+          {
+            "name": "ref_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "apl_document_reference sys_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/documents/search": {
+      "get": {
+        "tags": [
+          "CRUD: Documents"
+        ],
+        "summary": "Поиск документов по id (substring LIKE)",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search substring"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/characteristics": {
+      "get": {
+        "tags": [
+          "CRUD: Characteristics"
+        ],
+        "summary": "Список определений характеристик",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/characteristics/values/{item_id}": {
+      "get": {
+        "tags": [
+          "CRUD: Characteristics"
+        ],
+        "summary": "Значения характеристик объекта",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Owner sys_id (PDF/BP/etc.)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/characteristics/values": {
+      "post": {
+        "tags": [
+          "CRUD: Characteristics"
+        ],
+        "summary": "Создать значение характеристики",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "item_id",
+                  "characteristic_id"
+                ],
+                "properties": {
+                  "item_id": {
+                    "type": "integer"
+                  },
+                  "characteristic_id": {
+                    "type": "integer"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "subtype": {
+                    "type": "string",
+                    "default": "apl_descriptive_characteristic_value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/characteristics/values/{value_id}": {
+      "put": {
+        "tags": [
+          "CRUD: Characteristics"
+        ],
+        "summary": "Обновить значение характеристики",
+        "parameters": [
+          {
+            "name": "value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  },
+                  "subtype": {
+                    "type": "string",
+                    "default": "apl_descriptive_characteristic_value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRUD: Characteristics"
+        ],
+        "summary": "Удалить значение характеристики",
+        "parameters": [
+          {
+            "name": "value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/resources": {
+      "post": {
+        "tags": [
+          "CRUD: Resources"
+        ],
+        "summary": "Создать ресурс процесса",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "process_id",
+                  "type_id"
+                ],
+                "properties": {
+                  "process_id": {
+                    "type": "integer",
+                    "description": "Owner BP sys_id"
+                  },
+                  "type_id": {
+                    "type": "integer",
+                    "description": "Resource type sys_id"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "object_id": {
+                    "type": "integer"
+                  },
+                  "object_type": {
+                    "type": "string",
+                    "default": "organization"
+                  },
+                  "value_component": {
+                    "type": "number"
+                  },
+                  "unit_id": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing/invalid parameters"
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/resources/{resource_id}": {
+      "put": {
+        "tags": [
+          "CRUD: Resources"
+        ],
+        "summary": "Обновить ресурс",
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CRUD: Resources"
+        ],
+        "summary": "Удалить ресурс",
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
+    },
+    "/api/resource-types": {
+      "get": {
+        "tags": [
+          "CRUD: Resources"
+        ],
+        "summary": "Список типов ресурсов",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected to DB. POST /api/connect first."
+          },
+          "500": {
+            "description": "Server / PSS error"
+          }
+        }
+      }
     }
   },
   "tags": [

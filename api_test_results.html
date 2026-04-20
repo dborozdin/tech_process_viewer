@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>API CRUD — Результаты</title>
+<style>
+body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f5f5f5; }
+h1 { color: #003d4d; } h2 { color: #005566; margin-top: 30px; }
+.summary { font-size: 18px; margin: 10px 0 20px; }
+.pass { color: #28a745; font-weight: bold; }
+.fail { color: #cc3333; font-weight: bold; }
+.skip { color: #888; }
+table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 14px; }
+th { background: #005566; color: white; }
+tr:nth-child(even) { background: #f9f9f9; }
+.note { color: #666; font-size: 12px; }
+pre { white-space: pre-wrap; font-size: 12px; background: #fbeaea; padding: 8px; }
+</style></head><body>
+<h1>API CRUD на 5004 — Результаты тестирования</h1>
+<p>Начало: 2026-04-19 21:35:08 | Окончание: 2026-04-19 21:36:53 | Длительность: 105с</p>
+<p class="summary">Итого: <span class="pass">25 PASS</span>, <span class="fail">0 FAIL</span>, <span class="skip">0 SKIP</span> из 25</p>
+<h2>Результаты</h2>
+<table><tr><th>#</th><th>Описание</th><th>Начало</th><th>Окончание</th><th>Длит., мс</th><th>Результат</th><th>Примечание</th></tr>
+<tr><td>T01</td><td>GET /api/dblist — список БД</td><td>21:35:26</td><td>21:35:28</td><td>2508</td><td class="pass">PASS</td><td class="note">HTTP 200, body type dict</td></tr>
+<tr><td>T02</td><td>POST /api/connect — подключение к БД</td><td>21:35:29</td><td>21:35:36</td><td>6921</td><td class="pass">PASS</td><td class="note">session_key=0x10A572C02191D472…</td></tr>
+<tr><td>T03</td><td>GET /api/status — статус подключения</td><td>21:35:37</td><td>21:35:37</td><td>372</td><td class="pass">PASS</td><td class="note">connected=true</td></tr>
+<tr><td>T04</td><td>GET /api/resource-types — типы ресурсов</td><td>21:35:38</td><td>21:35:39</td><td>163</td><td class="pass">PASS</td><td class="note">6 types, first sys_id=809326</td></tr>
+<tr><td>T05</td><td>GET /api/characteristics — определения характеристик</td><td>21:35:40</td><td>21:35:40</td><td>464</td><td class="pass">PASS</td><td class="note">3 characteristics, first sys_id=808916</td></tr>
+<tr><td>T06</td><td>POST /api/products — создать сборку</td><td>21:35:41</td><td>21:35:43</td><td>1736</td><td class="pass">PASS</td><td class="note">pdf_id=815957</td></tr>
+<tr><td>T07</td><td>POST /api/products — создать компонент</td><td>21:35:45</td><td>21:35:47</td><td>2106</td><td class="pass">PASS</td><td class="note">pdf_id=815959</td></tr>
+<tr><td>T08</td><td>POST /api/products/bom — связать parent ↔ child</td><td>21:35:49</td><td>21:35:50</td><td>1005</td><td class="pass">PASS</td><td class="note">bom_id=815961</td></tr>
+<tr><td>T09</td><td>GET /api/products/{pdf}/bom — BOM-структура</td><td>21:35:52</td><td>21:35:52</td><td>473</td><td class="pass">PASS</td><td class="note">BOM содержит компонент</td></tr>
+<tr><td>T10</td><td>PUT /api/products/{pdf} — обновить изделие</td><td>21:35:53</td><td>21:35:54</td><td>1040</td><td class="pass">PASS</td><td class="note">name updated</td></tr>
+<tr><td>T11</td><td>DELETE /api/products/bom/{bom_id} — удалить BOM-связь</td><td>21:35:56</td><td>21:35:58</td><td>1161</td><td class="pass">PASS</td><td class="note">BOM link deleted</td></tr>
+<tr><td>T12</td><td>POST /api/business-processes — создать процесс</td><td>21:36:00</td><td>21:36:02</td><td>2407</td><td class="pass">PASS</td><td class="note">bp_id=815963</td></tr>
+<tr><td>T13</td><td>PUT /api/business-processes/{bp} — обновить процесс</td><td>21:36:04</td><td>21:36:05</td><td>1113</td><td class="pass">PASS</td><td class="note">BP updated</td></tr>
+<tr><td>T14</td><td>POST /api/business-processes/{bp}/elements — вложенный элемент</td><td>21:36:07</td><td>21:36:11</td><td>4204</td><td class="pass">PASS</td><td class="note">child 815965 added to 815963</td></tr>
+<tr><td>T15</td><td>DELETE /api/business-processes/{bp}/elements/{ch} — удалить вложение</td><td>21:36:13</td><td>21:36:14</td><td>927</td><td class="pass">PASS</td><td class="note">child removed</td></tr>
+<tr><td>T16</td><td>POST /api/business-processes/{bp}/link-product — привязка к изделию</td><td>21:36:16</td><td>21:36:18</td><td>1262</td><td class="pass">PASS</td><td class="note">linked bp 815963 → pdf 815957</td></tr>
+<tr><td>T17</td><td>POST /api/characteristics/values — создать значение</td><td>21:36:20</td><td>21:36:20</td><td>861</td><td class="pass">PASS</td><td class="note">sys_id=815968</td></tr>
+<tr><td>T18</td><td>GET /api/characteristics/values/{item} — значения объекта</td><td>21:36:22</td><td>21:36:23</td><td>549</td><td class="pass">PASS</td><td class="note">1 values</td></tr>
+<tr><td>T19</td><td>PUT /api/characteristics/values/{val} — обновить значение</td><td>21:36:24</td><td>21:36:25</td><td>796</td><td class="pass">PASS</td><td class="note">value updated</td></tr>
+<tr><td>T20</td><td>DELETE /api/characteristics/values/{val} — удалить значение</td><td>21:36:27</td><td>21:36:28</td><td>1167</td><td class="pass">PASS</td><td class="note">value deleted</td></tr>
+<tr><td>T21</td><td>POST /api/resources — создать ресурс</td><td>21:36:30</td><td>21:36:31</td><td>834</td><td class="pass">PASS</td><td class="note">resource_id=815969</td></tr>
+<tr><td>T22</td><td>PUT /api/resources/{res} — обновить ресурс</td><td>21:36:33</td><td>21:36:34</td><td>1109</td><td class="pass">PASS</td><td class="note">resource updated</td></tr>
+<tr><td>T23</td><td>DELETE /api/resources/{res} — удалить ресурс</td><td>21:36:36</td><td>21:36:37</td><td>844</td><td class="pass">PASS</td><td class="note">resource deleted</td></tr>
+<tr><td>T24</td><td>POST /api/document-references → DELETE — привязка/отвязка документа</td><td>21:36:39</td><td>21:36:44</td><td>4797</td><td class="pass">PASS</td><td class="note">attached+detached ref=815970</td></tr>
+<tr><td>T25</td><td>DELETE /api/business-processes/{bp} + /api/products/{pdf} — cleanup</td><td>21:36:46</td><td>21:36:50</td><td>4053</td><td class="pass">PASS</td><td class="note">bp_child→500; bp→500; assy→200; comp→200</td></tr>
+</table>
+<h2>История прогонов</h2><table><tr><th>Прогон</th><th>PASS</th><th>FAIL</th></tr>
+<tr><td>#1</td><td>25</td><td>0</td></tr>
+</table>
+</body></html>
