@@ -13,5 +13,4 @@ test_*.png
 .claude/scheduled_tasks.lock
 *.pyc
 /api/routes/__pycache__
-/api/routes/__pycache__
 .claude/settings.local.json
