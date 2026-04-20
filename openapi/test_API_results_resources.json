@@ -1,0 +1,86 @@
+{
+  "group": "resources",
+  "title": "Resources",
+  "started_at": "2026-04-20T13:20:54",
+  "finished_at": "2026-04-20T13:20:58",
+  "duration_s": 4,
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "results": [
+    {
+      "scenario": "list_types",
+      "method": "GET",
+      "path": "/api/v1/resources/types",
+      "http_status": 200,
+      "duration_ms": 154,
+      "status": "PASS",
+      "saved": {
+        "type_id": 809326
+      },
+      "response_preview": "{\"resource_types\": [{\"description\": null, \"id\": null, \"name\": \"Povremeno zamenjivi materijal\", \"sys_id\": 809326}, {\"description\": null, \"id\": null, \"name\": \"Obavezno zamenjivi materijal\", \"sys_id\": 809327}, {\"description\": null, \"id\": null, \"name\": \"Alat\", \"sys_id\": 809328}, {\"description\": null, \"id\": null, \"name\": \"Materijal\", \"sys_id\": 809329}, {\"description\": null, \"id\": null, \"name\": \"Potrošn",
+      "error": ""
+    },
+    {
+      "scenario": "create_bp",
+      "method": "POST",
+      "path": "/api/v1/business-processes/",
+      "http_status": 201,
+      "duration_ms": 1010,
+      "status": "PASS",
+      "saved": {
+        "bp_id": 816082
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"id\": \"RUN-RES-BP\", \"name\": \"RunResBp\", \"type\": {\"id\": 815975}}, \"id\": 816082, \"type\": \"apl_business_process\"}, \"message\": \"Business process created successfully\", \"process_id\": 816082, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "create_resource",
+      "method": "POST",
+      "path": "/api/v1/business-processes/816082/resources",
+      "http_status": 201,
+      "duration_ms": 982,
+      "status": "PASS",
+      "saved": {
+        "res_id": 816121
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"id\": \"RUN-RES-BP\", \"name\": \"RunResBp\", \"type\": {\"id\": 815975}}, \"id\": 816082, \"type\": \"apl_business_process\"}, \"message\": \"Resource added to business process successfully\", \"process_id\": 816082, \"resource_id\": 816121, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "update_resource",
+      "method": "PUT",
+      "path": "/api/v1/business-processes/816082/resources/816121",
+      "http_status": 200,
+      "duration_ms": 903,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"id\": \"RUN-RES-BP\", \"name\": \"RunResBp\", \"type\": {\"id\": 815975}}, \"id\": 816082, \"type\": \"apl_business_process\"}, \"message\": \"Resource updated successfully\", \"process_id\": 816082, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "delete_resource",
+      "method": "DELETE",
+      "path": "/api/v1/business-processes/816082/resources/816121",
+      "http_status": 204,
+      "duration_ms": 900,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"\"",
+      "error": ""
+    },
+    {
+      "scenario": "cleanup_bp",
+      "method": "DELETE",
+      "path": "/api/v1/business-processes/816082",
+      "http_status": 500,
+      "duration_ms": 81,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"<!doctype html>\\n<html lang=en>\\n  <head>\\n    <title>TypeError: DatabaseAPI.delete_instance() takes 3 positional arguments but 4 were given\\n // Werkzeug Debugger</title>\\n    <link rel=\\\"stylesheet\\\" href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\\\">\\n    <link rel=\\\"shortcut icon\\\"\\n        href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\\\">\\n    <script src=\\\"?__debugger_",
+      "error": ""
+    }
+  ]
+}

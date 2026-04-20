@@ -2090,6 +2090,28 @@
             "additionalProperties": {}
           }
         }
+      },
+      "_SettingsPut": {
+        "type": "object",
+        "properties": {
+          "settings": {
+            "type": "object",
+            "description": "Replace whole settings (must contain db + groups)",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "group": {
+            "type": "string",
+            "description": "Group key to replace",
+            "nullable": true
+          },
+          "group_def": {
+            "type": "object",
+            "description": "Group definition (title, scenarios)",
+            "additionalProperties": {},
+            "nullable": true
+          }
+        }
       }
     },
     "responses": {
@@ -5226,6 +5248,49 @@
           "test_runner"
         ],
         "description": "Метаданные групп из test_API_settings.json (без выполнения тестов)."
+      }
+    },
+    "/api/v1/test-runner/settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Получить целиком текущие test_API_settings.json"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SettingsPut"
+              }
+            }
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Перезаписать settings: либо целиком (поле 'settings'), либо одну группу (поля 'group' и 'group_def'). Перед записью — JSON-валидация и атомарная запись через временный файл."
       }
     }
   },

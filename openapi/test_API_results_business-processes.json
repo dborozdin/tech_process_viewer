@@ -1,0 +1,143 @@
+{
+  "group": "business-processes",
+  "title": "Business Processes",
+  "started_at": "2026-04-20T13:19:32",
+  "finished_at": "2026-04-20T13:19:49",
+  "duration_s": 17,
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "results": [
+    {
+      "scenario": "create",
+      "method": "POST",
+      "path": "/api/v1/business-processes/",
+      "http_status": 201,
+      "duration_ms": 3079,
+      "status": "PASS",
+      "saved": {
+        "bp_id": 816094
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"description\": \"edited\", \"id\": \"RUN-BP-001\", \"name\": \"RunBpEdited\", \"type\": {\"id\": 815975}}, \"id\": 816094, \"type\": \"apl_business_process\"}, \"message\": \"Business process created successfully\", \"process_id\": 816094, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "update",
+      "method": "PUT",
+      "path": "/api/v1/business-processes/816094",
+      "http_status": 200,
+      "duration_ms": 921,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"type\": \"apl_business_process\"}, \"message\": \"Business process updated successfully\", \"process_id\": 816094, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "create_child",
+      "method": "POST",
+      "path": "/api/v1/business-processes/",
+      "http_status": 201,
+      "duration_ms": 1080,
+      "status": "PASS",
+      "saved": {
+        "child_id": 816096
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"id\": \"RUN-BP-CH\", \"name\": \"RunBpCh\", \"type\": {\"id\": 815975}}, \"id\": 816096, \"type\": \"apl_business_process\"}, \"message\": \"Business process created successfully\", \"process_id\": 816096, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "add_element",
+      "method": "POST",
+      "path": "/api/v1/business-processes/816094/elements",
+      "http_status": 201,
+      "duration_ms": 1076,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"customized\": false, \"description\": \"edited\", \"elements\": [{\"id\": 816096, \"type\": \"apl_business_process\"}], \"id\": \"RUN-BP-001\", \"name\": \"RunBpEdited\", \"type\": {\"id\": 815975}}, \"id\": 816094, \"type\": \"apl_business_process\"}, \"message\": \"Element added to business process successfully\", \"process_id\": 816094, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "del_element",
+      "method": "DELETE",
+      "path": "/api/v1/business-processes/816094/elements/816096",
+      "http_status": 204,
+      "duration_ms": 1001,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"\"",
+      "error": ""
+    },
+    {
+      "scenario": "make_assy_for_link",
+      "method": "POST",
+      "path": "/api/v1/products/",
+      "http_status": 201,
+      "duration_ms": 1246,
+      "status": "PASS",
+      "saved": {
+        "link_pid": 816106
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"id\": \"RUN-BP-LK\", \"name\": \"RunBpLk\"}, \"id\": 816106, \"type\": \"product\"}, \"message\": \"Product created successfully\", \"product_id\": 816106, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "get_link_pdf",
+      "method": "GET",
+      "path": "/api/v1/products/816106",
+      "http_status": 200,
+      "duration_ms": 533,
+      "status": "PASS",
+      "saved": {
+        "link_pdf": 816105
+      },
+      "response_preview": "{\"definition_count\": 1, \"definitions\": [{\"attributes\": {\"of_product\": {\"id\": 816106, \"type\": \"product\"}}, \"id\": 816105, \"type\": \"apl_product_definition_formation\"}], \"product\": {\"access\": \"OWN\", \"attributes\": {\"id\": \"RUN-BP-LK\", \"name\": \"RunBpLk\"}, \"id\": 816106, \"type\": \"product\"}}",
+      "error": ""
+    },
+    {
+      "scenario": "link_product",
+      "method": "POST",
+      "path": "/api/v1/business-processes/816094/link-product",
+      "http_status": 201,
+      "duration_ms": 968,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"ref_id\": 816107}, \"message\": \"BP linked to product\", \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "cleanup_child",
+      "method": "DELETE",
+      "path": "/api/v1/business-processes/816096",
+      "http_status": 500,
+      "duration_ms": 89,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"<!doctype html>\\n<html lang=en>\\n  <head>\\n    <title>TypeError: DatabaseAPI.delete_instance() takes 3 positional arguments but 4 were given\\n // Werkzeug Debugger</title>\\n    <link rel=\\\"stylesheet\\\" href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\\\">\\n    <link rel=\\\"shortcut icon\\\"\\n        href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\\\">\\n    <script src=\\\"?__debugger_",
+      "error": ""
+    },
+    {
+      "scenario": "cleanup_bp",
+      "method": "DELETE",
+      "path": "/api/v1/business-processes/816094",
+      "http_status": 500,
+      "duration_ms": 90,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"<!doctype html>\\n<html lang=en>\\n  <head>\\n    <title>TypeError: DatabaseAPI.delete_instance() takes 3 positional arguments but 4 were given\\n // Werkzeug Debugger</title>\\n    <link rel=\\\"stylesheet\\\" href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=style.css\\\">\\n    <link rel=\\\"shortcut icon\\\"\\n        href=\\\"?__debugger__=yes&amp;cmd=resource&amp;f=console.png\\\">\\n    <script src=\\\"?__debugger_",
+      "error": ""
+    },
+    {
+      "scenario": "cleanup_pid",
+      "method": "DELETE",
+      "path": "/api/v1/products/816106",
+      "http_status": 204,
+      "duration_ms": 1013,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"\"",
+      "error": ""
+    }
+  ]
+}

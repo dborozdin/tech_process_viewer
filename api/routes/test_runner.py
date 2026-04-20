@@ -123,10 +123,14 @@ def _run_scenario(base_url, step, state, default_db):
 
     started = time.perf_counter()
     headers = {"Content-Type": "application/json"} if body is not None else {}
+    # Per-scenario timeout: short for DELETE (PSS BP delete sometimes hangs),
+    # default 60 for others. Override via step["timeout_s"].
+    default_timeout = 20 if method == "DELETE" else 60
+    timeout_s = step.get("timeout_s", default_timeout)
     try:
         resp = _http.request(method, base_url + path,
                              json=body if body is not None else None,
-                             headers=headers, timeout=60)
+                             headers=headers, timeout=timeout_s)
         duration_ms = int((time.perf_counter() - started) * 1000)
         try:
             resp_body = resp.json()
@@ -380,3 +384,51 @@ class TestRunnerGroups(MethodView):
                             "scenarios": [s["id"] for s in v.get("scenarios", [])]}
                         for k, v in settings.get("groups", {}).items()}
         }
+
+
+# ── GET / PUT settings (for in-UI editor) ────────────────────────
+
+class _SettingsPutSchema(_ma.Schema):
+    class Meta:
+        unknown = _ma.EXCLUDE
+    settings = _f.Dict(description="Replace whole settings (must contain db + groups)",
+                       allow_none=True)
+    group = _f.Str(description="Group key to replace", allow_none=True)
+    group_def = _f.Dict(description="Group definition (title, scenarios)", allow_none=True)
+
+
+@blp.route("/settings")
+class TestRunnerSettings(MethodView):
+    @blp.response(200)
+    @blp.doc(description="Получить целиком текущие test_API_settings.json")
+    def get(self):
+        return _load_settings()
+
+    @blp.arguments(_SettingsPutSchema)
+    @blp.response(200)
+    @blp.doc(description=("Перезаписать settings: либо целиком (поле 'settings'), либо "
+                          "одну группу (поля 'group' и 'group_def'). Перед записью — "
+                          "JSON-валидация и атомарная запись через временный файл."))
+    def put(self, data):
+        current = _load_settings()
+        new = None
+        if data.get("settings"):
+            new = data["settings"]
+            if not isinstance(new.get("db"), dict) or not isinstance(new.get("groups"), dict):
+                abort(400, message="settings must contain 'db' (dict) and 'groups' (dict)")
+        elif data.get("group") and data.get("group_def"):
+            gd = data["group_def"]
+            if not isinstance(gd, dict) or not isinstance(gd.get("scenarios"), list):
+                abort(400, message="group_def must be dict with 'scenarios' list")
+            current["groups"][data["group"]] = gd
+            new = current
+        else:
+            abort(400, message="Provide either 'settings' OR ('group' + 'group_def')")
+
+        # Atomic write
+        tmp = SETTINGS_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(new, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, SETTINGS_PATH)
+        return {"success": True, "message": "Settings saved",
+                "groups_count": len(new.get("groups", {}))}

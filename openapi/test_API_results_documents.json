@@ -1,9 +1,9 @@
 {
   "group": "documents",
   "title": "Documents",
-  "started_at": "2026-04-20T12:03:18",
-  "finished_at": "2026-04-20T12:03:27",
-  "duration_s": 8,
+  "started_at": "2026-04-20T13:20:09",
+  "finished_at": "2026-04-20T13:20:10",
+  "duration_s": 0,
   "summary": {
     "total": 1,
     "passed": 1,
@@ -15,7 +15,7 @@
       "method": "GET",
       "path": "/api/v1/documents/search?q=A",
       "http_status": 200,
-      "duration_ms": 2202,
+      "duration_ms": 181,
       "status": "PASS",
       "saved": {},
       "response_preview": "{\"data\": [{\"doc_id\": \"65-A00-00-000-0s\", \"name\": \"Lista kompletnosti\", \"sys_id\": 815005, \"type\": \"apl_document\"}, {\"doc_id\": \"65-A21-60-000-1k\", \"name\": \"Lista materijala obavezne zamene faza 0\", \"sys_id\": 815009, \"type\": \"apl_document\"}, {\"doc_id\": \"65-A21-60-000-2k\", \"name\": \"Lista materijala obavezne zamene faza 0\", \"sys_id\": 815013, \"type\": \"apl_document\"}, {\"doc_id\": \"65-A24-60-000-1k\", \"name",

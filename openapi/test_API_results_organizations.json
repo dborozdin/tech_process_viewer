@@ -1,0 +1,71 @@
+{
+  "group": "organizations",
+  "title": "Organizations",
+  "started_at": "2026-04-20T13:20:17",
+  "finished_at": "2026-04-20T13:20:20",
+  "duration_s": 3,
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "results": [
+    {
+      "scenario": "list",
+      "method": "GET",
+      "path": "/api/v1/organizations/",
+      "http_status": 200,
+      "duration_ms": 183,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"organizations\": [{\"description\": null, \"id\": null, \"name\": \"Deleted items\", \"organization_id\": 4928}, {\"description\": null, \"id\": \"5110\", \"name\": \"Odeljenje tehnologije SRV\", \"organization_id\": 807633}, {\"description\": null, \"id\": \"4000\", \"name\": \"Sektor kontrole kvaliteta\", \"organization_id\": 807634}, {\"description\": null, \"id\": \"5000\", \"name\": \"Sektor za remont vazduhoplova\", \"organization_id\"",
+      "error": ""
+    },
+    {
+      "scenario": "create",
+      "method": "POST",
+      "path": "/api/v1/organizations/",
+      "http_status": 201,
+      "duration_ms": 958,
+      "status": "PASS",
+      "saved": {
+        "org_id": 816111
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"description\": \"test\", \"id\": \"RUN-ORG-001\", \"name\": \"RunOrg\"}, \"id\": 816111, \"type\": \"organization\"}, \"message\": \"Organization created successfully\", \"organization_id\": 816111, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "get",
+      "method": "GET",
+      "path": "/api/v1/organizations/816111",
+      "http_status": 200,
+      "duration_ms": 170,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"access\": \"OWN\", \"attributes\": {\"description\": \"test\", \"id\": \"RUN-ORG-001\", \"name\": \"RunOrg\"}, \"type\": \"organization\"}",
+      "error": ""
+    },
+    {
+      "scenario": "update",
+      "method": "PUT",
+      "path": "/api/v1/organizations/816111",
+      "http_status": 200,
+      "duration_ms": 928,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"description\": \"edited\", \"id\": \"RUN-ORG-001\", \"name\": \"RunOrgEdited\"}, \"id\": 816111, \"type\": \"organization\"}, \"message\": \"Organization updated successfully\", \"organization_id\": 816111, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "delete",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/816111",
+      "http_status": 204,
+      "duration_ms": 935,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"\"",
+      "error": ""
+    }
+  ]
+}
