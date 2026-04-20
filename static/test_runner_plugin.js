@@ -261,10 +261,13 @@
       })
       .catch(() => {});
 
+    const settingsDet = row.querySelector(".trp-details-settings");
     btnSettings.addEventListener("click", () => {
-      const det = row.querySelector(".trp-details-settings");
-      det.open = !det.open;
-      if (det.open) loadGroupIntoEditor(row, key);
+      settingsDet.open = !settingsDet.open;
+    });
+    // Load editor whenever the spoiler is opened (button OR summary click)
+    settingsDet.addEventListener("toggle", () => {
+      if (settingsDet.open) loadGroupIntoEditor(row, key);
     });
 
     // Wire Save / Reset (delegated since textarea is inside settings markup)
