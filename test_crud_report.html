@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчёт тестирования CRUD API классификаторов</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .summary { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .pass { color: green; }
+        .fail { color: red; }
+        .skip { color: orange; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .timestamp { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Отчёт тестирования CRUD API классификаторов PSS-aiR</h1>
+    <div class="timestamp">Время тестирования: 2026-04-20 20:09:42</div>
+
+    <div class="summary">
+        <h2>Сводка</h2>
+        <p><strong class="pass">Пройдено: 9</strong> |
+           <strong class="fail">Провалено: 0</strong> |
+           <strong class="skip">Пропущено: 0</strong></p>
+    </div>
+
+    <h2>Детальные результаты</h2>
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Тест</th>
+            <th>Статус</th>
+            <th>Примечания</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>Создание системы классификаторов</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Получение списка систем</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Создание уровня классификатора</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Получение дерева классификатора</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Получение деталей уровня</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td>Обновление системы</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Обновление уровня</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>8</td>
+            <td>Удаление уровня</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+        <tr>
+            <td>9</td>
+            <td>Удаление системы</td>
+            <td class="pass">✅ PASS</td>
+            <td>Успешно</td>
+        </tr>
+    </table>
+
+    <h2>Информация о тестировании</h2>
+    <ul>
+        <li><strong>API:</strong> Справочники PSS-aiR (классификаторы)</li>
+        <li><strong>Базовый URL:</strong> http://localhost:5002</li>
+        <li><strong>Тестируемые операции:</strong> CRUD (создание, чтение, обновление, удаление) систем и уровней классификаторов</li>
+        <li><strong>Тестовые данные:</strong> Создаются автоматически с уникальными ID, удаляются после тестирования</li>
+    </ul>
+
+    <footer>
+        <p>Сгенерировано автоматически тестом <code>test_references_crud_api.py</code></p>
+    </footer>
+</body>
+</html>
