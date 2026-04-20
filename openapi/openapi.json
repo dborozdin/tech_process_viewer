@@ -2002,6 +2002,94 @@
         "required": [
           "success"
         ]
+      },
+      "_RunRequest": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "Group key from test_API_settings.json"
+          }
+        },
+        "required": [
+          "group"
+        ]
+      },
+      "_ScenarioResult": {
+        "type": "object",
+        "properties": {
+          "scenario": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "http_status": {
+            "type": "integer"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "saved": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "response_preview": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "_RunResponse": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string"
+          },
+          "duration_s": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/_ScenarioResult"
+            }
+          }
+        }
+      },
+      "_AllRunResponse": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
       }
     },
     "responses": {
@@ -5048,6 +5136,97 @@
           }
         }
       ]
+    },
+    "/api/v1/test-runner/run": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_RunResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_RunRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Запустить все сценарии указанной группы. Возвращает JSON-отчёт и сохраняет копию в openapi/test_API_results_<group>.json"
+      }
+    },
+    "/api/v1/test-runner/run-all": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_AllRunResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Запустить все группы по порядку. Каждая группа сохраняется отдельно."
+      }
+    },
+    "/api/v1/test-runner/history": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Последний сохранённый JSON-отчёт. Если ?group= указан — для одной группы; иначе — словарь по всем группам, у которых есть история."
+      }
+    },
+    "/api/v1/test-runner/groups": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Метаданные групп из test_API_settings.json (без выполнения тестов)."
+      }
     }
   },
   "tags": [
@@ -5082,6 +5261,10 @@
     {
       "name": "characteristics",
       "description": "Characteristic definitions and per-item values"
+    },
+    {
+      "name": "test_runner",
+      "description": "Run grouped API smoke-tests defined in openapi/test_API_settings.json"
     }
   ],
   "openapi": "3.0.3"

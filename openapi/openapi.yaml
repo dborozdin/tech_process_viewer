@@ -1374,6 +1374,15 @@ components:
       required:
       - success
       type: object
+    _AllRunResponse:
+      properties:
+        groups:
+          additionalProperties: {}
+          type: object
+        summary:
+          additionalProperties: {}
+          type: object
+      type: object
     _DocSearchResponse:
       properties:
         data:
@@ -1401,6 +1410,56 @@ components:
           type: integer
       required:
       - pdf_id
+      type: object
+    _RunRequest:
+      properties:
+        group:
+          description: Group key from test_API_settings.json
+          type: string
+      required:
+      - group
+      type: object
+    _RunResponse:
+      properties:
+        duration_s:
+          type: integer
+        finished_at:
+          type: string
+        group:
+          type: string
+        results:
+          items:
+            $ref: '#/components/schemas/_ScenarioResult'
+          type: array
+        started_at:
+          type: string
+        summary:
+          additionalProperties: {}
+          type: object
+        title:
+          type: string
+      type: object
+    _ScenarioResult:
+      properties:
+        duration_ms:
+          type: integer
+        error:
+          type: string
+        http_status:
+          type: integer
+        method:
+          type: string
+        path:
+          type: string
+        response_preview:
+          type: string
+        saved:
+          additionalProperties: {}
+          type: object
+        scenario:
+          type: string
+        status:
+          type: string
       type: object
   securitySchemes:
     SessionKey:
@@ -3308,6 +3367,64 @@ paths:
       summary: Update resource
       tags:
       - resources
+  /api/v1/test-runner/groups:
+    get:
+      description: Метаданные групп из test_API_settings.json (без выполнения тестов).
+      responses:
+        '200':
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/history:
+    get:
+      description: Последний сохранённый JSON-отчёт. Если ?group= указан — для одной
+        группы; иначе — словарь по всем группам, у которых есть история.
+      responses:
+        '200':
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/run:
+    post:
+      description: Запустить все сценарии указанной группы. Возвращает JSON-отчёт
+        и сохраняет копию в openapi/test_API_results_<group>.json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_RunRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_RunResponse'
+          description: OK
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/run-all:
+    post:
+      description: Запустить все группы по порядку. Каждая группа сохраняется отдельно.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_AllRunResponse'
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
 security:
 - SessionKey: []
 servers:
@@ -3332,3 +3449,5 @@ tags:
   name: organizations
 - description: Characteristic definitions and per-item values
   name: characteristics
+- description: Run grouped API smoke-tests defined in openapi/test_API_settings.json
+  name: test_runner

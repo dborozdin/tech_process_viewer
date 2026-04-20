@@ -38,6 +38,7 @@ from tech_process_viewer.api.routes.documents import blp as documents_blp
 from tech_process_viewer.api.routes.resources import blp as resources_blp
 from tech_process_viewer.api.routes.organizations import blp as organizations_blp
 from tech_process_viewer.api.routes.characteristics import blp as characteristics_blp
+from tech_process_viewer.api.routes.test_runner import blp as test_runner_blp
 
 api.register_blueprint(auth_blp)
 api.register_blueprint(business_processes_blp)
@@ -47,6 +48,63 @@ api.register_blueprint(documents_blp)
 api.register_blueprint(resources_blp)
 api.register_blueprint(organizations_blp)
 api.register_blueprint(characteristics_blp)
+api.register_blueprint(test_runner_blp)
+
+
+# ── Override /api/docs Swagger UI to inject our test-runner plugin ──────
+from flask import send_from_directory, Response
+
+
+@app.route("/static/<path:filename>")
+def _api_docs_static(filename):
+    return send_from_directory(os.path.join(BASE_DIR, "static"), filename)
+
+
+_SWAGGER_UI_HTML = """<!DOCTYPE html>
+<html>
+<head>
+  <title>PSS API — Swagger + Test Runner</title>
+  <link href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css" rel="stylesheet" type="text/css"/>
+  <style>
+    .test-runner-row table tr:nth-child(even){background:#f9f9f9}
+    .test-runner-row .test-runner-output{max-height:520px;overflow:auto}
+  </style>
+</head>
+<body>
+  <div id="swagger-ui-container"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-standalone-preset.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
+  <script src="/static/test_runner_plugin.js"></script>
+  <script>
+    window.onload = function() {
+      window.ui = SwaggerUIBundle({
+        url: "/api/openapi.json",
+        dom_id: '#swagger-ui-container',
+        presets: [SwaggerUIBundle.presets.apis],
+        plugins: [window.TestRunnerPlugin],
+        layout: 'BaseLayout',
+        docExpansion: 'list'
+      });
+    };
+  </script>
+</body>
+</html>
+"""
+
+
+def _override_swagger_ui():
+    """Replace Smorest's openapi_swagger_ui view with our enhanced HTML."""
+    def _ui():
+        return Response(_SWAGGER_UI_HTML, mimetype="text/html")
+    # Smorest registers endpoint name 'api-docs.openapi_swagger_ui'
+    for endpoint in list(app.view_functions.keys()):
+        if "openapi_swagger_ui" in endpoint:
+            app.view_functions[endpoint] = _ui
+            print(f" * Overridden Swagger UI endpoint: {endpoint}")
+            break
+
+
+_override_swagger_ui()
 
 BASE_DIR = os.path.dirname(__file__)
 
