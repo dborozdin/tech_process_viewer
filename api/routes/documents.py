@@ -422,3 +422,53 @@ class ItemDocumentDetail(MethodView):
             abort(500, message="Failed to delete document reference")
 
         return '', 204
+
+
+# ── Search documents (CRUD migration from /api/documents/search) ────
+
+from ..schemas.common_schemas import fields as _df
+import marshmallow as _ma
+
+
+class _DocSearchResultSchema(_ma.Schema):
+    class Meta:
+        unknown = _ma.EXCLUDE
+    sys_id = _df.Int()
+    doc_id = _df.Str()
+    name = _df.Str()
+    type = _df.Str()
+
+
+class _DocSearchResponseSchema(_ma.Schema):
+    class Meta:
+        unknown = _ma.EXCLUDE
+    success = _df.Bool(dump_default=True)
+    data = _df.List(_df.Nested(_DocSearchResultSchema))
+
+
+@blp.route('/search')
+class DocumentSearch(MethodView):
+    @blp.response(200, _DocSearchResponseSchema)
+    @blp.alt_response(401, schema=ErrorSchema, description="Not connected")
+    @blp.doc(description="Search apl_document by id (substring LIKE). Param: ?q=<text>")
+    def get(self):
+        db_api = get_db_api()
+        q = request.args.get('q', '').strip()
+        if not q:
+            return {"success": True, "data": []}
+        try:
+            query = f'SELECT NO_CASE Ext_ FROM Ext_{{apl_document(.id LIKE "{q}")}} END_SELECT'
+            data = db_api.query_apl(query)
+            results = []
+            if data and 'instances' in data:
+                for inst in data['instances'][:20]:
+                    attrs = inst.get('attributes', {}) or {}
+                    results.append({
+                        'sys_id': inst.get('id'),
+                        'doc_id': attrs.get('id', ''),
+                        'name': attrs.get('name', ''),
+                        'type': inst.get('type', ''),
+                    })
+            return {"success": True, "data": results}
+        except Exception as e:
+            abort(500, message=str(e))

@@ -37,8 +37,7 @@ from tech_process_viewer.api.routes.products import blp as products_blp
 from tech_process_viewer.api.routes.documents import blp as documents_blp
 from tech_process_viewer.api.routes.resources import blp as resources_blp
 from tech_process_viewer.api.routes.organizations import blp as organizations_blp
-from tech_process_viewer.api.routes.crud_routes import crud_blp
-from tech_process_viewer.api.openapi_crud_paths import register_crud_paths
+from tech_process_viewer.api.routes.characteristics import blp as characteristics_blp
 
 api.register_blueprint(auth_blp)
 api.register_blueprint(business_processes_blp)
@@ -47,10 +46,7 @@ api.register_blueprint(products_blp)
 api.register_blueprint(documents_blp)
 api.register_blueprint(resources_blp)
 api.register_blueprint(organizations_blp)
-
-# CRUD endpoints (plain Flask Blueprint) — register on app, then describe in OpenAPI
-app.register_blueprint(crud_blp)
-register_crud_paths(api)
+api.register_blueprint(characteristics_blp)
 
 BASE_DIR = os.path.dirname(__file__)
 

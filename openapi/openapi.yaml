@@ -343,6 +343,10 @@ components:
         process_id:
           description: Created/updated process ID
           type: integer
+        resource_id:
+          description: Resource ID (returned from resource-add endpoints)
+          nullable: true
+          type: integer
         success:
           description: Operation success
           type: boolean
@@ -374,6 +378,114 @@ components:
         type_id:
           description: Process type system ID
           type: integer
+      type: object
+    Characteristic:
+      properties:
+        description:
+          description: Optional description
+          type: string
+        id:
+          description: Designation/code
+          type: string
+        name:
+          description: Display name
+          type: string
+        sys_id:
+          description: System ID of apl_characteristic
+          type: integer
+      required:
+      - sys_id
+      type: object
+    CharacteristicListResponse:
+      properties:
+        data:
+          description: List of characteristic definitions
+          items:
+            $ref: '#/components/schemas/Characteristic'
+          type: array
+        success:
+          type: boolean
+      type: object
+    CharacteristicValue:
+      properties:
+        characteristic_id:
+          description: Linked characteristic sys_id
+          type: integer
+        characteristic_name:
+          description: Linked characteristic name
+          type: string
+        scope:
+          description: PSS scope field
+          type: string
+        subtype:
+          description: apl_*_characteristic_value subtype
+          type: string
+        sys_id:
+          description: System ID of value
+          type: integer
+        unit:
+          description: Unit name (if measured)
+          type: string
+        value:
+          description: Display value
+          type: string
+      required:
+      - sys_id
+      type: object
+    CharacteristicValueCreate:
+      properties:
+        characteristic_id:
+          description: apl_characteristic sys_id
+          type: integer
+        item_id:
+          description: Owner sys_id (PDF / BP / etc.)
+          type: integer
+        item_type:
+          default: apl_product_definition_formation
+          description: Type of the owner item
+          type: string
+        subtype:
+          default: apl_descriptive_characteristic_value
+          description: apl_*_characteristic_value subtype
+          type: string
+        value:
+          description: Value string
+          type: string
+      required:
+      - characteristic_id
+      - item_id
+      - value
+      type: object
+    CharacteristicValueListResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/CharacteristicValue'
+          type: array
+        success:
+          type: boolean
+      type: object
+    CharacteristicValueResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: '{sys_id: <int>}'
+          type: object
+        message:
+          type: string
+        success:
+          type: boolean
+      type: object
+    CharacteristicValueUpdate:
+      properties:
+        subtype:
+          default: apl_descriptive_characteristic_value
+          type: string
+        value:
+          description: New value string
+          type: string
+      required:
+      - value
       type: object
     ConnectRequest:
       properties:
@@ -1217,6 +1329,9 @@ components:
         name:
           description: Resource type name
           type: string
+        sys_id:
+          description: apl_business_process_resource_type sys_id (use for create_resource.type_id)
+          type: integer
       type: object
     ResourceTypeListResponse:
       properties:
@@ -1244,6 +1359,49 @@ components:
           nullable: true
           type: number
       type: object
+    SuccessResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Response data
+          type: object
+        message:
+          description: Success message
+          type: string
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    _DocSearchResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/_DocSearchResult'
+          type: array
+        success:
+          type: boolean
+      type: object
+    _DocSearchResult:
+      properties:
+        doc_id:
+          type: string
+        name:
+          type: string
+        sys_id:
+          type: integer
+        type:
+          type: string
+      type: object
+    _LinkProduct:
+      properties:
+        pdf_id:
+          description: apl_product_definition_formation sys_id
+          type: integer
+      required:
+      - pdf_id
+      type: object
   securitySchemes:
     SessionKey:
       description: Session key obtained from /api/connect endpoint
@@ -1261,284 +1419,6 @@ info:
   version: v1
 openapi: 3.0.3
 paths:
-  /api/business-processes:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                description:
-                  type: string
-                id:
-                  example: TEST-BP-001
-                  type: string
-                name:
-                  example: Test Process
-                  type: string
-                type_name:
-                  default: Default
-                  type: string
-              required:
-              - name
-              type: object
-        required: true
-      responses:
-        '201': &id004
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    type: object
-                  message:
-                    type: string
-                  success:
-                    type: boolean
-                type: object
-          description: Created
-        '401': &id001
-          description: Not connected to DB. POST /api/connect first.
-        '500': &id002
-          description: Server / PSS error
-      summary: Создать бизнес-процесс
-      tags:
-      - 'CRUD: Business Processes'
-  /api/business-processes/{bp_id}:
-    delete:
-      parameters:
-      - description: ''
-        in: path
-        name: bp_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': &id003
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    type: object
-                  message:
-                    type: string
-                  success:
-                    type: boolean
-                type: object
-          description: Success
-        '401': *id001
-        '500': *id002
-      summary: Удалить бизнес-процесс
-      tags:
-      - 'CRUD: Business Processes'
-    put:
-      parameters:
-      - description: ''
-        in: path
-        name: bp_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                description:
-                  type: string
-                name:
-                  type: string
-              required: []
-              type: object
-        required: true
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Обновить бизнес-процесс
-      tags:
-      - 'CRUD: Business Processes'
-  /api/business-processes/{bp_id}/elements:
-    post:
-      parameters:
-      - description: Parent process sys_id
-        in: path
-        name: bp_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                element_id:
-                  description: Child process sys_id
-                  type: integer
-              required:
-              - element_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': &id005
-          description: Bad request — missing/invalid parameters
-        '401': *id001
-        '500': *id002
-      summary: Добавить вложенный элемент в процесс
-      tags:
-      - 'CRUD: Business Processes'
-  /api/business-processes/{bp_id}/elements/{child_id}:
-    delete:
-      parameters:
-      - description: Parent process sys_id
-        in: path
-        name: bp_id
-        required: true
-        schema:
-          type: integer
-      - description: Child element sys_id
-        in: path
-        name: child_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить вложенный элемент из процесса
-      tags:
-      - 'CRUD: Business Processes'
-  /api/business-processes/{bp_id}/link-product:
-    post:
-      parameters:
-      - description: ''
-        in: path
-        name: bp_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                pdf_id:
-                  description: Product PDF sys_id
-                  type: integer
-              required:
-              - pdf_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Привязать процесс к изделию
-      tags:
-      - 'CRUD: Business Processes'
-  /api/characteristics:
-    get:
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Список определений характеристик
-      tags:
-      - 'CRUD: Characteristics'
-  /api/characteristics/values:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                characteristic_id:
-                  type: integer
-                item_id:
-                  type: integer
-                subtype:
-                  default: apl_descriptive_characteristic_value
-                  type: string
-                value:
-                  type: string
-              required:
-              - item_id
-              - characteristic_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Создать значение характеристики
-      tags:
-      - 'CRUD: Characteristics'
-  /api/characteristics/values/{item_id}:
-    get:
-      parameters:
-      - description: Owner sys_id (PDF/BP/etc.)
-        in: path
-        name: item_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Значения характеристик объекта
-      tags:
-      - 'CRUD: Characteristics'
-  /api/characteristics/values/{value_id}:
-    delete:
-      parameters:
-      - description: ''
-        in: path
-        name: value_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить значение характеристики
-      tags:
-      - 'CRUD: Characteristics'
-    put:
-      parameters:
-      - description: ''
-        in: path
-        name: value_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                subtype:
-                  default: apl_descriptive_characteristic_value
-                  type: string
-                value:
-                  type: string
-              required:
-              - value
-              type: object
-        required: true
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Обновить значение характеристики
-      tags:
-      - 'CRUD: Characteristics'
   /api/connect:
     post:
       description: 'Connect to PSS database and obtain a session key.
@@ -1611,100 +1491,6 @@ paths:
       summary: Disconnect from PSS database
       tags:
       - auth
-  /api/document-references:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                doc_id:
-                  description: Document sys_id
-                  type: integer
-                item_id:
-                  description: Item sys_id
-                  type: integer
-                item_type:
-                  default: apl_business_process
-                  type: string
-              required:
-              - doc_id
-              - item_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Создать ссылку документ → объект
-      tags:
-      - 'CRUD: Documents'
-  /api/document-references/{ref_id}:
-    delete:
-      parameters:
-      - description: apl_document_reference sys_id
-        in: path
-        name: ref_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить ссылку документ → объект
-      tags:
-      - 'CRUD: Documents'
-  /api/documents/search:
-    get:
-      parameters:
-      - description: Search substring
-        in: query
-        name: q
-        required: false
-        schema:
-          type: string
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Поиск документов по id (substring LIKE)
-      tags:
-      - 'CRUD: Documents'
-  /api/documents/upload:
-    post:
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              properties:
-                doc_id:
-                  type: string
-                doc_name:
-                  type: string
-                doc_type_id:
-                  type: integer
-                file:
-                  format: binary
-                  type: string
-                item_id:
-                  type: integer
-                item_type:
-                  default: apl_business_process
-                  type: string
-              required:
-              - file
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Загрузить файл-документ (multipart/form-data)
-      tags:
-      - 'CRUD: Documents'
   /api/entity-viewer/:
     get:
       description: Get list of all entity types defined in the dictionary
@@ -1884,233 +1670,6 @@ paths:
       schema:
         minimum: 0
         type: integer
-  /api/products:
-    post:
-      description: Создаёт apl_product_definition_formation, добавляет в папку Aircrafts.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                id:
-                  example: TEST-PRD-001
-                  type: string
-                name:
-                  example: Test Product
-                  type: string
-                source:
-                  default: make
-                  type: string
-                type:
-                  default: make
-                  type: string
-              required:
-              - id
-              - name
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '401': *id001
-        '500': *id002
-      summary: Создать изделие
-      tags:
-      - 'CRUD: Products'
-  /api/products/bom:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                quantity:
-                  default: 1
-                  type: number
-                related_pdf_id:
-                  description: Component PDF sys_id
-                  type: integer
-                relating_pdf_id:
-                  description: Parent PDF sys_id
-                  type: integer
-                unit_id:
-                  description: Optional apl_unit sys_id
-                  type: integer
-              required:
-              - relating_pdf_id
-              - related_pdf_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Создать BOM-связь (родитель ↔ компонент)
-      tags:
-      - 'CRUD: BOM'
-  /api/products/bom/{bom_id}:
-    delete:
-      parameters:
-      - description: BOM link sys_id
-        in: path
-        name: bom_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить BOM-связь
-      tags:
-      - 'CRUD: BOM'
-  /api/products/{pdf_id}:
-    delete:
-      parameters:
-      - description: sys_id of apl_product_definition_formation
-        in: path
-        name: pdf_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить изделие
-      tags:
-      - 'CRUD: Products'
-    put:
-      parameters:
-      - description: sys_id of apl_product_definition_formation
-        in: path
-        name: pdf_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                id:
-                  type: string
-                name:
-                  type: string
-              required: []
-              type: object
-        required: true
-      responses:
-        '200': *id003
-        '401': *id001
-        '404':
-          description: Entity not found
-        '500': *id002
-      summary: Обновить изделие
-      tags:
-      - 'CRUD: Products'
-  /api/products/{pdf_id}/bom:
-    get:
-      parameters:
-      - description: Product PDF sys_id
-        in: path
-        name: pdf_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Получить структуру BOM для изделия
-      tags:
-      - 'CRUD: BOM'
-  /api/resource-types:
-    get:
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Список типов ресурсов
-      tags:
-      - 'CRUD: Resources'
-  /api/resources:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                id:
-                  type: string
-                name:
-                  type: string
-                object_id:
-                  type: integer
-                object_type:
-                  default: organization
-                  type: string
-                process_id:
-                  description: Owner BP sys_id
-                  type: integer
-                type_id:
-                  description: Resource type sys_id
-                  type: integer
-                unit_id:
-                  type: integer
-                value_component:
-                  type: number
-              required:
-              - process_id
-              - type_id
-              type: object
-        required: true
-      responses:
-        '201': *id004
-        '400': *id005
-        '401': *id001
-        '500': *id002
-      summary: Создать ресурс процесса
-      tags:
-      - 'CRUD: Resources'
-  /api/resources/{resource_id}:
-    delete:
-      parameters:
-      - description: ''
-        in: path
-        name: resource_id
-        required: true
-        schema:
-          type: integer
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Удалить ресурс
-      tags:
-      - 'CRUD: Resources'
-    put:
-      parameters:
-      - description: ''
-        in: path
-        name: resource_id
-        required: true
-        schema:
-          type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              additionalProperties: true
-              type: object
-        required: true
-      responses:
-        '200': *id003
-        '401': *id001
-        '500': *id002
-      summary: Обновить ресурс
-      tags:
-      - 'CRUD: Resources'
   /api/status:
     get:
       description: Check if currently connected to a database.
@@ -2344,6 +1903,49 @@ paths:
       schema:
         minimum: 0
         type: integer
+  /api/v1/business-processes/{process_id}/link-product:
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Привязать бизнес-процесс к изделию (apl_business_process_reference)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_LinkProduct'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: pdf_id missing
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - business_processes
   /api/v1/business-processes/{process_id}/resources:
     parameters:
     - in: path
@@ -2456,6 +2058,159 @@ paths:
       summary: Update business process resource
       tags:
       - business_processes
+  /api/v1/characteristics/:
+    get:
+      description: List all apl_characteristic definitions
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+  /api/v1/characteristics/values:
+    post:
+      description: Create a new apl_*_characteristic_value linked to an item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacteristicValueCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicValueResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Validation failed
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: PSS save failed
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+  /api/v1/characteristics/values/{item_id}:
+    get:
+      description: Get all characteristic values attached to an item (PDF / BP / ...)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicValueListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+    parameters:
+    - in: path
+      name: item_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/characteristics/values/{value_id}:
+    delete:
+      description: Delete characteristic value
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+    parameters:
+    - in: path
+      name: value_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update value (re-saves apl_*_characteristic_value with new scope/val)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacteristicValueUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
   /api/v1/documents/:
     get:
       description: Get list of documents with optional filtering
@@ -2609,6 +2364,26 @@ paths:
       schema:
         minimum: 0
         type: integer
+  /api/v1/documents/search:
+    get:
+      description: 'Search apl_document by id (substring LIKE). Param: ?q=<text>'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_DocSearchResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - documents
   /api/v1/documents/{document_id}:
     delete:
       description: Delete document
@@ -3555,3 +3330,5 @@ tags:
   name: resources
 - description: Organization management endpoints
   name: organizations
+- description: Characteristic definitions and per-item values
+  name: characteristics

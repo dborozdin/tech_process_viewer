@@ -184,6 +184,7 @@ class BusinessProcessResponseSchema(Schema):
     message = fields.Str(description="Response message")
     data = fields.Nested(BusinessProcessSchema, description="Business process data")
     process_id = fields.Int(description="Created/updated process ID")
+    resource_id = fields.Int(description="Resource ID (returned from resource-add endpoints)", allow_none=True)
 
 
 class BusinessProcessListResponseSchema(Schema):
