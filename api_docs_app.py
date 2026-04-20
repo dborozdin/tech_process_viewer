@@ -52,12 +52,42 @@ api.register_blueprint(test_runner_blp)
 
 
 # ── Override /api/docs Swagger UI to inject our test-runner plugin ──────
-from flask import send_from_directory, Response
+from flask import send_from_directory, Response, request, stream_with_context
 
 
 @app.route("/static/<path:filename>")
 def _api_docs_static(filename):
     return send_from_directory(os.path.join(BASE_DIR, "static"), filename)
+
+
+@app.route("/openapi/<path:filename>")
+def _api_docs_openapi_file(filename):
+    """Serve files from openapi/ (settings.json, test_API_results_*.json, etc.)."""
+    return send_from_directory(os.path.join(BASE_DIR, "openapi"), filename)
+
+
+# Streaming endpoint for live test-runner updates (NDJSON, не Smorest).
+@app.route("/api/v1/test-runner/run-stream", methods=["POST"])
+def _test_runner_run_stream():
+    from tech_process_viewer.api.routes.test_runner import (
+        _load_settings, run_group_stream, _origin_from_request_url,
+    )
+    data = request.get_json(silent=True) or {}
+    group = data.get("group")
+    settings = _load_settings()
+    if group not in settings.get("groups", {}):
+        return Response(
+            json.dumps({"error": f"Unknown group '{group}'"}, ensure_ascii=False),
+            mimetype="application/json", status=404,
+        )
+    base_url = _origin_from_request_url(request.url_root + "_x")
+    return Response(
+        stream_with_context(
+            run_group_stream(base_url, group, settings["groups"][group], settings["db"])
+        ),
+        mimetype="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 _SWAGGER_UI_HTML = """<!DOCTYPE html>

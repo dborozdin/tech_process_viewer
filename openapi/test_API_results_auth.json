@@ -1,8 +1,8 @@
 {
   "group": "auth",
   "title": "Auth / Connection",
-  "started_at": "2026-04-20T11:46:38",
-  "finished_at": "2026-04-20T11:47:07",
+  "started_at": "2026-04-20T12:05:31",
+  "finished_at": "2026-04-20T12:06:00",
   "duration_s": 29,
   "summary": {
     "total": 5,
@@ -15,7 +15,7 @@
       "method": "GET",
       "path": "/api/dblist",
       "http_status": 200,
-      "duration_ms": 4221,
+      "duration_ms": 4212,
       "status": "PASS",
       "saved": {},
       "response_preview": "{\"dblist\": [\"db_moma_25_03_25\", \"ils_lessons12\", \"pss_empty_moma_08_07_2025\", \"pss_moma_08_07_2025\", \"pss_moma_08_07_2025_copy\", \"pss_source_moma_08_07_2025\", \"ПНЦР_Maximo\"]}",
@@ -26,10 +26,10 @@
       "method": "POST",
       "path": "/api/connect",
       "http_status": 200,
-      "duration_ms": 6340,
+      "duration_ms": 6342,
       "status": "PASS",
       "saved": {},
-      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A575A6249D3AD0\", \"user\": \"Administrator\"}",
+      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A575F724AE844A\", \"user\": \"Administrator\"}",
       "error": ""
     },
     {
@@ -37,7 +37,7 @@
       "method": "GET",
       "path": "/api/status",
       "http_status": 200,
-      "duration_ms": 2129,
+      "duration_ms": 2142,
       "status": "PASS",
       "saved": {},
       "response_preview": "{\"connected\": true, \"message\": \"Connected to database\", \"session_key\": \"0x10A575...\"}",
@@ -48,7 +48,7 @@
       "method": "POST",
       "path": "/api/disconnect",
       "http_status": 200,
-      "duration_ms": 4266,
+      "duration_ms": 4236,
       "status": "PASS",
       "saved": {},
       "response_preview": "{\"disconnected\": true, \"message\": \"Successfully disconnected from database\"}",
@@ -59,10 +59,10 @@
       "method": "POST",
       "path": "/api/connect",
       "http_status": 200,
-      "duration_ms": 6305,
+      "duration_ms": 6342,
       "status": "PASS",
       "saved": {},
-      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A575B2249D6C6F\", \"user\": \"Administrator\"}",
+      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A5760324AEB618\", \"user\": \"Administrator\"}",
       "error": ""
     }
   ]

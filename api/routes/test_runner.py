@@ -206,6 +206,55 @@ def _run_group(base_url, group_key, group_def, default_db, do_connect=True):
     }
 
 
+def run_group_stream(base_url, group_key, group_def, default_db):
+    """Generator that yields NDJSON events for live UI updates.
+
+    Events:
+      - {"type":"start","group":..,"title":..,"total":N,"started_at":..}
+      - {"type":"step","index":i,"total":N,"step":<scenario result dict>}
+      - {"type":"end","report":<full report dict>}
+    """
+    started_at = datetime.datetime.now()
+    state = {}
+    scenarios = group_def.get("scenarios", [])
+    total = len(scenarios)
+
+    yield (json.dumps({"type": "start", "group": group_key,
+                       "title": group_def.get("title", group_key),
+                       "total": total,
+                       "started_at": started_at.isoformat(timespec="seconds")},
+                      ensure_ascii=False) + "\n")
+
+    # Pre-connect
+    try:
+        _http.post(base_url + "/api/connect", json=default_db, timeout=10)
+    except Exception:
+        pass
+
+    results = []
+    for i, step in enumerate(scenarios, 1):
+        r = _run_scenario(base_url, step, state, default_db)
+        results.append(r)
+        yield (json.dumps({"type": "step", "index": i, "total": total, "step": r},
+                          ensure_ascii=False, default=str) + "\n")
+
+    finished_at = datetime.datetime.now()
+    passed = sum(1 for r in results if r["status"] == "PASS")
+    failed = sum(1 for r in results if r["status"] == "FAIL")
+    report = {
+        "group": group_key,
+        "title": group_def.get("title", group_key),
+        "started_at": started_at.isoformat(timespec="seconds"),
+        "finished_at": finished_at.isoformat(timespec="seconds"),
+        "duration_s": int((finished_at - started_at).total_seconds()),
+        "summary": {"total": total, "passed": passed, "failed": failed},
+        "results": results,
+    }
+    _save_results(group_key, report)
+    yield (json.dumps({"type": "end", "report": report},
+                      ensure_ascii=False, default=str) + "\n")
+
+
 # ─── Schemas ────────────────────────────────────────────────────────
 
 class _RunRequestSchema(_ma.Schema):
