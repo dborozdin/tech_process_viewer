@@ -602,6 +602,218 @@ TOOLS = [
             "required": ["value_id"],
         },
     ),
+    # ==================== pdm_* — Classifiers ====================
+    Tool(
+        name="pdm_get_classifiers",
+        description="Получить список систем классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "Опциональный фильтр по конкретной системе (sys_id системы классификатора)",
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_tree",
+        description=(
+            "Получить неглубокое дерево классификатора (система + корневые уровни). "
+            "Для больших классификаторов (тысячи уровней) используйте ленивую загрузку через "
+            "pdm_get_classifier_children."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "sys_id системы классификатора (обязательно)",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Глубина дерева (1 = только корневые уровни; 2 = с прямыми потомками). По умолч. 2.",
+                    "default": 2,
+                },
+            },
+            "required": ["system_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_roots",
+        description="Получить корневые уровни классификатора (ленивая загрузка дерева).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "sys_id системы классификатора (обязательно)",
+                },
+            },
+            "required": ["system_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_children",
+        description="Получить прямые дочерние уровни для указанного уровня классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "parent_level_id": {
+                    "type": "integer",
+                    "description": "sys_id родительского уровня (обязательно)",
+                },
+            },
+            "required": ["parent_level_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_level",
+        description="Получить детальную информацию об уровне классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "level_id": {
+                    "type": "integer",
+                    "description": "sys_id уровня классификатора (обязательно)",
+                },
+            },
+            "required": ["level_id"],
+        },
+    ),
+    Tool(
+        name="pdm_create_classifier_system",
+        description="Создать новую систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Строковый идентификатор системы (обязательно)",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Название системы (обязательно)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Описание системы",
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "description": "ID родительской системы (опционально)",
+                },
+                "default_level_id": {
+                    "type": "integer",
+                    "description": "ID уровня по умолчанию (опционально)",
+                },
+            },
+            "required": ["id", "name"],
+        },
+    ),
+    Tool(
+        name="pdm_update_classifier_system",
+        description="Обновить систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID системы для обновления (обязательно)",
+                },
+                "updates": {
+                    "type": "object",
+                    "description": "Обновляемые атрибуты (JSON объект)",
+                },
+            },
+            "required": ["sys_id", "updates"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_classifier_system",
+        description="Удалить систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID системы для удаления (обязательно)",
+                },
+            },
+            "required": ["sys_id"],
+        },
+    ),
+    Tool(
+        name="pdm_create_classifier_level",
+        description="Создать новый уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "ID системы классификатора (обязательно)",
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Строковый идентификатор уровня (обязательно)",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Название уровня (обязательно)",
+                },
+                "code": {
+                    "type": "string",
+                    "description": "Код уровня (обязательно)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Описание уровня",
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "description": "ID родительского уровня (опционально)",
+                },
+                "related_product_id": {
+                    "type": "integer",
+                    "description": "ID связанного изделия (опционально)",
+                },
+            },
+            "required": ["system_id", "id", "name", "code"],
+        },
+    ),
+    Tool(
+        name="pdm_update_classifier_level",
+        description="Обновить уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID уровня для обновления (обязательно)",
+                },
+                "updates": {
+                    "type": "object",
+                    "description": "Обновляемые атрибуты (JSON объект)",
+                },
+            },
+            "required": ["sys_id", "updates"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_classifier_level",
+        description="Удалить уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID уровня для удаления (обязательно)",
+                },
+            },
+            "required": ["sys_id"],
+        },
+    ),
     # ==================== ILS — Logistic structure ====================
     Tool(
         name="ils_find_final_products",
@@ -739,6 +951,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_update_characteristic_value(arguments)
         elif name == "pdm_delete_characteristic_value":
             return _handle_pdm_delete_characteristic_value(arguments)
+        # Classifiers tools
+        elif name == "pdm_get_classifiers":
+            return _handle_pdm_get_classifiers(arguments)
+        elif name == "pdm_get_classifier_tree":
+            return _handle_pdm_get_classifier_tree(arguments)
+        elif name == "pdm_get_classifier_roots":
+            return _handle_pdm_get_classifier_roots(arguments)
+        elif name == "pdm_get_classifier_children":
+            return _handle_pdm_get_classifier_children(arguments)
+        elif name == "pdm_get_classifier_level":
+            return _handle_pdm_get_classifier_level(arguments)
         # ILS tools
         elif name == "ils_find_final_products":
             return _handle_ils_find_final_products(arguments)
@@ -1199,6 +1422,202 @@ def _handle_pdm_delete_characteristic_value(arguments: dict) -> list[TextContent
     success = db_api.characteristic_api.delete_characteristic_value(int(value_id))
 
     return _json_response({"success": bool(success), "value_id": value_id})
+
+
+def _handle_pdm_get_classifiers(arguments: dict) -> list[TextContent]:
+    """Получить список систем классификаторов."""
+    db_api = _get_db_api()
+    system_id = arguments.get("system_id")
+    try:
+        if system_id:
+            one = db_api.classifiers_api.get_classifier_system(int(system_id))
+            if not one:
+                return _error_response(f"Система классификатора с sys_id {system_id} не найдена")
+            return _json_response({"systems": [one]})
+        systems = db_api.classifiers_api.get_classifier_systems()
+        return _json_response({"systems": systems})
+    except Exception as e:
+        logger.error(f"Error getting classifier systems: {e}")
+        return _error_response(f"Ошибка при получении систем классификаторов: {e}")
+
+
+def _handle_pdm_get_classifier_tree(arguments: dict) -> list[TextContent]:
+    """Получить неглубокое дерево классификатора."""
+    system_id = arguments.get("system_id")
+    if system_id is None:
+        return _error_response("system_id is required")
+    max_depth = arguments.get("max_depth", 2)
+    db_api = _get_db_api()
+    try:
+        tree = db_api.classifiers_api.get_classifier_tree(int(system_id), int(max_depth))
+        return _json_response(tree)
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error getting classifier tree: {e}")
+        return _error_response(f"Ошибка при получении дерева классификатора: {e}")
+
+
+def _handle_pdm_get_classifier_roots(arguments: dict) -> list[TextContent]:
+    """Получить корневые уровни системы классификаторов."""
+    system_id = arguments.get("system_id")
+    if system_id is None:
+        return _error_response("system_id is required")
+    db_api = _get_db_api()
+    try:
+        levels = db_api.classifiers_api.get_root_levels(int(system_id))
+        return _json_response({"levels": levels})
+    except Exception as e:
+        logger.error(f"Error getting classifier roots: {e}")
+        return _error_response(f"Ошибка при получении корневых уровней: {e}")
+
+
+def _handle_pdm_get_classifier_children(arguments: dict) -> list[TextContent]:
+    """Получить прямые дочерние уровни классификатора."""
+    parent_level_id = arguments.get("parent_level_id")
+    if parent_level_id is None:
+        return _error_response("parent_level_id is required")
+    db_api = _get_db_api()
+    try:
+        levels = db_api.classifiers_api.get_child_levels(int(parent_level_id))
+        return _json_response({"levels": levels})
+    except Exception as e:
+        logger.error(f"Error getting classifier children: {e}")
+        return _error_response(f"Ошибка при получении дочерних уровней: {e}")
+
+
+def _handle_pdm_get_classifier_level(arguments: dict) -> list[TextContent]:
+    """Получить детальную информацию об уровне классификатора."""
+    level_id = arguments.get("level_id")
+    if level_id is None:
+        return _error_response("level_id is required")
+    db_api = _get_db_api()
+    try:
+        details = db_api.classifiers_api.get_classifier_level_details(int(level_id))
+        return _json_response({"level": details})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error getting classifier level details: {e}")
+        return _error_response(f"Ошибка при получении деталей уровня классификатора: {e}")
+
+
+def _handle_pdm_create_classifier_system(arguments: dict) -> list[TextContent]:
+    """Создать новую систему классификаторов."""
+    db_api = _get_db_api()
+    try:
+        system_data = {
+            "id": arguments.get("id"),
+            "name": arguments.get("name"),
+            "description": arguments.get("description", ""),
+            "parent_id": arguments.get("parent_id"),
+            "default_level_id": arguments.get("default_level_id"),
+        }
+        # Удаляем None значения
+        system_data = {k: v for k, v in system_data.items() if v is not None}
+        result = db_api.classifiers_api.create_classifier_system(system_data)
+        return _json_response({"system": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error creating classifier system: {e}")
+        return _error_response(f"Ошибка при создании системы классификаторов: {e}")
+
+
+def _handle_pdm_update_classifier_system(arguments: dict) -> list[TextContent]:
+    """Обновить систему классификаторов."""
+    sys_id = arguments.get("sys_id")
+    updates = arguments.get("updates")
+    if sys_id is None or updates is None:
+        return _error_response("sys_id and updates are required")
+    db_api = _get_db_api()
+    try:
+        result = db_api.classifiers_api.update_classifier_system(int(sys_id), updates)
+        return _json_response({"system": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error updating classifier system {sys_id}: {e}")
+        return _error_response(f"Ошибка при обновлении системы классификаторов: {e}")
+
+
+def _handle_pdm_delete_classifier_system(arguments: dict) -> list[TextContent]:
+    """Удалить систему классификаторов."""
+    sys_id = arguments.get("sys_id")
+    if sys_id is None:
+        return _error_response("sys_id is required")
+    db_api = _get_db_api()
+    try:
+        success = db_api.classifiers_api.delete_classifier_system(int(sys_id))
+        if success:
+            return _json_response({"success": True, "message": f"Система {sys_id} удалена"})
+        else:
+            return _error_response(f"Не удалось удалить систему {sys_id}")
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error deleting classifier system {sys_id}: {e}")
+        return _error_response(f"Ошибка при удалении системы классификаторов: {e}")
+
+
+def _handle_pdm_create_classifier_level(arguments: dict) -> list[TextContent]:
+    """Создать новый уровень классификатора."""
+    db_api = _get_db_api()
+    try:
+        level_data = {
+            "system_id": arguments.get("system_id"),
+            "id": arguments.get("id"),
+            "name": arguments.get("name"),
+            "code": arguments.get("code"),
+            "description": arguments.get("description", ""),
+            "parent_id": arguments.get("parent_id"),
+            "related_product_id": arguments.get("related_product_id"),
+        }
+        # Удаляем None значения
+        level_data = {k: v for k, v in level_data.items() if v is not None}
+        result = db_api.classifiers_api.create_classifier_level(level_data)
+        return _json_response({"level": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error creating classifier level: {e}")
+        return _error_response(f"Ошибка при создании уровня классификатора: {e}")
+
+
+def _handle_pdm_update_classifier_level(arguments: dict) -> list[TextContent]:
+    """Обновить уровень классификатора."""
+    sys_id = arguments.get("sys_id")
+    updates = arguments.get("updates")
+    if sys_id is None or updates is None:
+        return _error_response("sys_id and updates are required")
+    db_api = _get_db_api()
+    try:
+        result = db_api.classifiers_api.update_classifier_level(int(sys_id), updates)
+        return _json_response({"level": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error updating classifier level {sys_id}: {e}")
+        return _error_response(f"Ошибка при обновлении уровня классификатора: {e}")
+
+
+def _handle_pdm_delete_classifier_level(arguments: dict) -> list[TextContent]:
+    """Удалить уровень классификатора."""
+    sys_id = arguments.get("sys_id")
+    if sys_id is None:
+        return _error_response("sys_id is required")
+    db_api = _get_db_api()
+    try:
+        success = db_api.classifiers_api.delete_classifier_level(int(sys_id))
+        if success:
+            return _json_response({"success": True, "message": f"Уровень {sys_id} удален"})
+        else:
+            return _error_response(f"Не удалось удалить уровень {sys_id}")
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error deleting classifier level {sys_id}: {e}")
+        return _error_response(f"Ошибка при удалении уровня классификатора: {e}")
 
 
 def _handle_pdm_find_by_code(arguments: dict) -> list[TextContent]:

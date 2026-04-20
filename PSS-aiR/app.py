@@ -113,6 +113,7 @@ from routes.documents import bp as documents_bp
 from routes.processes import bp as processes_bp
 from routes.reports import bp as reports_bp
 from routes.crud import bp as crud_bp
+from routes.references import bp as references_bp
 
 app.register_blueprint(folders_bp)
 app.register_blueprint(products_bp)
@@ -120,6 +121,7 @@ app.register_blueprint(documents_bp)
 app.register_blueprint(processes_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(crud_bp)
+app.register_blueprint(references_bp)
 
 
 # ========== Static Files ==========
