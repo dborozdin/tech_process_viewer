@@ -8,6 +8,7 @@
     <script src="../js/jquery-3.7.1.min.js"></script>
     <script src="../js/db-connection.js"></script>
     <script src="../js/common.js"></script>
+    <script src="../js/crud-ui.js"></script>
     <script src="../js/products.js"></script>
 </head>
 <body>
@@ -49,6 +50,7 @@
 
         <div id="products-section" style="display: none;">
             <h2>Select an aircraft</h2>
+            <div id="products-toolbar"></div>
             <table id="aircraft-table">
                 <thead>
                     <tr>
@@ -58,6 +60,7 @@
                         <th>Serial Number</th>
                         <th>Release Date</th>
                         <th>Repair Date</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>

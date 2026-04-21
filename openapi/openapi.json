@@ -410,6 +410,11 @@
           "process_id": {
             "type": "integer",
             "description": "Created/updated process ID"
+          },
+          "resource_id": {
+            "type": "integer",
+            "description": "Resource ID (returned from resource-add endpoints)",
+            "nullable": true
           }
         },
         "required": [
@@ -545,6 +550,18 @@
             "description": "Unit ID"
           }
         }
+      },
+      "_LinkProduct": {
+        "type": "object",
+        "properties": {
+          "pdf_id": {
+            "type": "integer",
+            "description": "apl_product_definition_formation sys_id"
+          }
+        },
+        "required": [
+          "pdf_id"
+        ]
       },
       "ProductListItem": {
         "type": "object",
@@ -1386,6 +1403,37 @@
           "item_id"
         ]
       },
+      "_DocSearchResult": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer"
+          },
+          "doc_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "_DocSearchResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/_DocSearchResult"
+            }
+          }
+        }
+      },
       "ResourceListItem": {
         "type": "object",
         "properties": {
@@ -1590,6 +1638,10 @@
       "ResourceType": {
         "type": "object",
         "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "apl_business_process_resource_type sys_id (use for create_resource.type_id)"
+          },
           "id": {
             "type": "string",
             "description": "Resource type ID"
@@ -1773,6 +1825,290 @@
           "description": {
             "type": "string",
             "description": "Description",
+            "nullable": true
+          }
+        }
+      },
+      "Characteristic": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "System ID of apl_characteristic"
+          },
+          "id": {
+            "type": "string",
+            "description": "Designation/code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description"
+          }
+        },
+        "required": [
+          "sys_id"
+        ]
+      },
+      "CharacteristicListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "description": "List of characteristic definitions",
+            "items": {
+              "$ref": "#/components/schemas/Characteristic"
+            }
+          }
+        }
+      },
+      "CharacteristicValue": {
+        "type": "object",
+        "properties": {
+          "sys_id": {
+            "type": "integer",
+            "description": "System ID of value"
+          },
+          "characteristic_id": {
+            "type": "integer",
+            "description": "Linked characteristic sys_id"
+          },
+          "characteristic_name": {
+            "type": "string",
+            "description": "Linked characteristic name"
+          },
+          "value": {
+            "type": "string",
+            "description": "Display value"
+          },
+          "scope": {
+            "type": "string",
+            "description": "PSS scope field"
+          },
+          "subtype": {
+            "type": "string",
+            "description": "apl_*_characteristic_value subtype"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit name (if measured)"
+          }
+        },
+        "required": [
+          "sys_id"
+        ]
+      },
+      "CharacteristicValueListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CharacteristicValue"
+            }
+          }
+        }
+      },
+      "CharacteristicValueCreate": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "description": "Owner sys_id (PDF / BP / etc.)"
+          },
+          "characteristic_id": {
+            "type": "integer",
+            "description": "apl_characteristic sys_id"
+          },
+          "value": {
+            "type": "string",
+            "description": "Value string"
+          },
+          "subtype": {
+            "type": "string",
+            "default": "apl_descriptive_characteristic_value",
+            "description": "apl_*_characteristic_value subtype"
+          },
+          "item_type": {
+            "type": "string",
+            "default": "apl_product_definition_formation",
+            "description": "Type of the owner item"
+          }
+        },
+        "required": [
+          "characteristic_id",
+          "item_id",
+          "value"
+        ]
+      },
+      "CharacteristicValueResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "description": "{sys_id: <int>}",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "CharacteristicValueUpdate": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "New value string"
+          },
+          "subtype": {
+            "type": "string",
+            "default": "apl_descriptive_characteristic_value"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "_RunRequest": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "Group key from test_API_settings.json"
+          }
+        },
+        "required": [
+          "group"
+        ]
+      },
+      "_ScenarioResult": {
+        "type": "object",
+        "properties": {
+          "scenario": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "http_status": {
+            "type": "integer"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "saved": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "response_preview": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "_RunResponse": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string"
+          },
+          "duration_s": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/_ScenarioResult"
+            }
+          }
+        }
+      },
+      "_AllRunResponse": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "_SettingsPut": {
+        "type": "object",
+        "properties": {
+          "settings": {
+            "type": "object",
+            "description": "Replace whole settings (must contain db + groups)",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "group": {
+            "type": "string",
+            "description": "Group key to replace",
+            "nullable": true
+          },
+          "group_def": {
+            "type": "object",
+            "description": "Group definition (title, scenarios)",
+            "additionalProperties": {},
             "nullable": true
           }
         }
@@ -2440,6 +2776,76 @@
         {
           "in": "path",
           "name": "resource_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/business-processes/{process_id}/link-product": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "pdf_id missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_LinkProduct"
+              }
+            }
+          }
+        },
+        "tags": [
+          "business_processes"
+        ],
+        "description": "Привязать бизнес-процесс к изделию (apl_business_process_reference)"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "process_id",
           "required": true,
           "schema": {
             "type": "integer",
@@ -3967,6 +4373,39 @@
         }
       ]
     },
+    "/api/v1/documents/search": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_DocSearchResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "description": "Search apl_document by id (substring LIKE). Param: ?q=<text>"
+      }
+    },
     "/api/v1/resources/": {
       "get": {
         "responses": {
@@ -4468,6 +4907,391 @@
           }
         }
       ]
+    },
+    "/api/v1/characteristics/": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacteristicListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "characteristics"
+        ],
+        "description": "List all apl_characteristic definitions"
+      }
+    },
+    "/api/v1/characteristics/values/{item_id}": {
+      "get": {
+        "responses": {
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacteristicValueListResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "characteristics"
+        ],
+        "description": "Get all characteristic values attached to an item (PDF / BP / ...)"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "item_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/characteristics/values": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "500": {
+            "description": "PSS save failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacteristicValueResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacteristicValueCreate"
+              }
+            }
+          }
+        },
+        "tags": [
+          "characteristics"
+        ],
+        "description": "Create a new apl_*_characteristic_value linked to an item"
+      }
+    },
+    "/api/v1/characteristics/values/{value_id}": {
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacteristicValueUpdate"
+              }
+            }
+          }
+        },
+        "tags": [
+          "characteristics"
+        ],
+        "description": "Update value (re-saves apl_*_characteristic_value with new scope/val)"
+      },
+      "delete": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error1"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "characteristics"
+        ],
+        "description": "Delete characteristic value"
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "value_id",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    "/api/v1/test-runner/run": {
+      "post": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_RunResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_RunRequest"
+              }
+            }
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Запустить все сценарии указанной группы. Возвращает JSON-отчёт и сохраняет копию в openapi/test_API_results_<group>.json"
+      }
+    },
+    "/api/v1/test-runner/run-all": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_AllRunResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Запустить все группы по порядку. Каждая группа сохраняется отдельно."
+      }
+    },
+    "/api/v1/test-runner/history": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Последний сохранённый JSON-отчёт. Если ?group= указан — для одной группы; иначе — словарь по всем группам, у которых есть история."
+      }
+    },
+    "/api/v1/test-runner/groups": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Метаданные групп из test_API_settings.json (без выполнения тестов)."
+      }
+    },
+    "/api/v1/test-runner/settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Получить целиком текущие test_API_settings.json"
+      },
+      "put": {
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SettingsPut"
+              }
+            }
+          }
+        },
+        "tags": [
+          "test_runner"
+        ],
+        "description": "Перезаписать settings: либо целиком (поле 'settings'), либо одну группу (поля 'group' и 'group_def'). Перед записью — JSON-валидация и атомарная запись через временный файл."
+      }
     }
   },
   "tags": [
@@ -4498,6 +5322,14 @@
     {
       "name": "organizations",
       "description": "Organization management endpoints"
+    },
+    {
+      "name": "characteristics",
+      "description": "Characteristic definitions and per-item values"
+    },
+    {
+      "name": "test_runner",
+      "description": "Run grouped API smoke-tests defined in openapi/test_API_settings.json"
     }
   ],
   "openapi": "3.0.3"

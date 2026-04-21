@@ -65,3 +65,27 @@ def search_products():
     if not q:
         return jsonify({'error': 'q parameter required'}), 400
     return jsonify(svc.search_products(q))
+
+
+@bp.route('/<int:product_id>/bom')
+def product_bom(product_id):
+    """Получить BOM (состав) изделия"""
+    svc = _service()
+    if not svc:
+        return jsonify({'error': 'Not connected'}), 400
+    
+    try:
+        # Получить информацию о продукте
+        product_details = svc.get_product_details(product_id)
+        if not product_details:
+            return jsonify({'error': 'Product not found'}), 404
+        
+        # Получить BOM через сервис или напрямую через db_api
+        db_api = current_app.config.get('db_api')
+        if not db_api:
+            return jsonify({'error': 'Database API not available'}), 500
+        
+        bom = db_api.products_api.get_bom_structure(product_id)
+        return jsonify({'success': True, 'data': bom})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

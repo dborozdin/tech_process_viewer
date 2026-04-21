@@ -1,30 +1,43 @@
 """
-Agent orchestrator: the main loop that connects user questions,
-LLM reasoning, tool execution, and report generation.
+2-step agent orchestrator.
+
+Step 1: LLM selects the right MCP tool and calls it (with optional follow-up).
+Step 2: LLM formats the JSON result as an HTML report.
+
+Between requests, the agent remembers found objects (sys_id + label) so the
+user can refer to them in follow-up questions without repeating searches.
 """
 
 import json
 import logging
-import os
 import time
 from typing import Generator
 
 from ILS_reports_agent.agent.llm_client import LLMClient
-from ILS_reports_agent.agent.tools import TOOLS
 from ILS_reports_agent.agent.tool_executor import ToolExecutor
-from ILS_reports_agent.agent.prompts import (build_system_prompt, format_categories,
-                                FEW_SHOT_EXAMPLES, FEW_SHOT_EXAMPLES_HIGH_LEVEL)
-from ILS_reports_agent.agent.knowledge import KnowledgeStore
-from ILS_reports_agent.pss.schema import Schema
+from ILS_reports_agent.agent.prompts import STEP1_PROMPT, STEP2_PROMPT
+from ILS_reports_agent.pss.mcp_bridge import MCPBridge
 
 logger = logging.getLogger("ils.agent")
 
+# Tools that search/list (may need a follow-up call with sys_id)
+_SEARCH_TOOLS = {
+    "ils_find_final_products", "pdm_search_products",
+    "pdm_find_product_by_code", "pdm_list_organizations",
+    "pdm_get_folders", "pdm_list_units",
+    "pdm_list_characteristic_types", "schema_search",
+    "schema_list_categories", "data_query",
+}
+
+# Keys to use as label when extracting objects from tool results
+_LABEL_KEYS = ["name_rus", "name", "id", "designation", "code1", "lcn"]
+
 
 class AgentStep:
-    """Represents one step in the agent's reasoning process."""
+    """One step in the agent pipeline."""
 
     def __init__(self, step_type: str, **kwargs):
-        self.type = step_type  # "tool_call", "tool_result", "api_calls", "clarification", "answer", "error"
+        self.type = step_type
         self.data = kwargs
         self.timestamp = time.time()
 
@@ -33,265 +46,287 @@ class AgentStep:
 
 
 class Agent:
-    """ILS Report Agent orchestrator."""
+    """2-step ILS Report Agent with object memory."""
 
-    def __init__(self, llm: LLMClient, executor: ToolExecutor, schema: Schema,
-                 knowledge: KnowledgeStore = None,
-                 max_iterations: int = 15,
-                 custom_instructions_path: str = None):
+    def __init__(self, llm: LLMClient, executor: ToolExecutor,
+                 mcp_bridge: MCPBridge, **_ignored):
         self.llm = llm
         self.executor = executor
-        self.schema = schema
-        self.knowledge = knowledge
-        self.max_iterations = max_iterations
-        self.custom_instructions_path = custom_instructions_path
-
-        # Build system prompt with categories, knowledge, and custom instructions
-        self._rebuild_system_prompt()
-
-        # Conversation state (persists between ask / continue_with_answer)
-        self.messages: list = []
-        self._pending_clarification = False
-        self._pending_tool_call_id: str | None = None
-        self._iteration = 0
-
-        # Cross-turn conversation history (Q&A summaries for context continuity)
-        self._conversation_history: list[dict] = []  # [{question, answer}]
-        self._max_history_turns = 3  # keep last N turns
-
-    def _rebuild_system_prompt(self):
-        """Rebuild system prompt to include latest knowledge and custom instructions."""
-        categories = self.schema.get_categories()
-        categories_text = format_categories(categories)
-        knowledge_text = self.knowledge.format_for_prompt() if self.knowledge else ""
-        custom = ""
-        if self.custom_instructions_path and os.path.exists(self.custom_instructions_path):
-            with open(self.custom_instructions_path, 'r', encoding='utf-8') as f:
-                custom = f.read()
-        self.system_prompt = build_system_prompt(
-            categories_text, knowledge_text, custom, high_level_available=True
-        )
+        self.mcp_bridge = mcp_bridge
+        # Memory: list of {sys_id, type, label, tool} found across requests
+        self._memory: list[dict] = []
 
     def ask(self, question: str) -> Generator[AgentStep, None, None]:
-        """Start a new conversation turn.
+        """Process user question in 2 steps: tool selection → HTML formatting."""
+        tools = self.mcp_bridge.tools  # OpenAI format
 
-        Yields AgentStep objects for each step:
-        - tool_call: agent is calling a tool
-        - tool_result: tool returned a result
-        - api_calls: PSS REST API calls made during tool execution
-        - clarification: agent asks user a clarifying question (stream ends here)
-        - answer: final answer (may contain HTML)
-        - error: something went wrong
-        """
-        self._rebuild_system_prompt()
-        self.messages = [
-            {"role": "system", "content": self.system_prompt},
+        # ── Step 1: pick tool ──
+        yield AgentStep("step", step=1, description="Выбор инструмента")
+
+        system = STEP1_PROMPT
+        if self._memory:
+            system += "\n\nОбъекты в памяти (используй их sys_id если пользователь ссылается на них):\n"
+            for m in self._memory:
+                system += f"- {m['label']} (sys_id={m['sys_id']}, {m['type']})\n"
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": question},
         ]
-        self.messages.extend(FEW_SHOT_EXAMPLES_HIGH_LEVEL)
-        self.messages.extend(FEW_SHOT_EXAMPLES)
 
-        # Inject previous conversation turns as context
-        for turn in self._conversation_history:
-            self.messages.append({"role": "user", "content": turn["question"]})
-            self.messages.append({"role": "assistant", "content": turn["answer"]})
-
-        # Inject relevant knowledge directly into the user message
-        knowledge_prefix = ""
-        if self.knowledge:
-            knowledge_prefix = self.knowledge.format_relevant_for_message(question)
-        self._current_question = question
-        self.messages.append({"role": "user", "content": knowledge_prefix + question})
-        self._pending_clarification = False
-        self._pending_tool_call_id = None
-        self._iteration = 0
-
-        yield from self._run_loop()
-
-    def continue_with_answer(self, answer: str) -> Generator[AgentStep, None, None]:
-        """Continue after a clarification question was answered by the user."""
-        if not self._pending_clarification:
-            yield AgentStep("error", message="No pending clarification to answer.")
+        try:
+            response = self.llm.chat(messages, tools=tools)
+        except Exception as e:
+            logger.error("LLM step-1 error: %s", e, exc_info=True)
+            yield AgentStep("error", message=f"Ошибка LLM: {e}")
             return
 
-        self.messages.append({
-            "role": "tool",
-            "tool_call_id": self._pending_tool_call_id,
-            "content": json.dumps({"user_answer": answer}, ensure_ascii=False),
-        })
-        self._pending_clarification = False
-        self._pending_tool_call_id = None
+        usage = response.pop("usage", None)
+        if usage:
+            yield AgentStep("llm_usage", **usage)
 
-        yield from self._run_loop()
+        tool_calls = response.get("tool_calls")
+        if not tool_calls:
+            yield AgentStep("answer", content=response.get("content", ""))
+            return
 
-    def _run_loop(self) -> Generator[AgentStep, None, None]:
-        """Core agent loop — shared between ask() and continue_with_answer()."""
-        while self._iteration < self.max_iterations:
-            self._iteration += 1
-            logger.info(f"Agent iteration {self._iteration}/{self.max_iterations}")
-
-            yield AgentStep("llm_thinking",
-                            iteration=self._iteration,
-                            max_iterations=self.max_iterations)
-
-            # Emit LLM request debug info (full messages for debugging)
-            debug_messages = []
-            for m in self.messages:
-                role = m.get("role", "?")
-                if role == "system":
-                    debug_messages.append({"role": "system", "content": m.get("content", "")})
-                elif role == "user":
-                    debug_messages.append({"role": "user", "content": m.get("content", "")})
-                elif role == "assistant":
-                    tc = m.get("tool_calls")
-                    if tc:
-                        calls = [f"{c['function']['name']}({c['function']['arguments']})" for c in tc]
-                        debug_messages.append({"role": "assistant", "content": f"[tool_calls: {', '.join(calls)}]"})
-                    else:
-                        debug_messages.append({"role": "assistant", "content": m.get("content") or ""})
-                elif role == "tool":
-                    debug_messages.append({"role": "tool", "content": m.get("content", "")})
-            yield AgentStep("llm_request", messages=debug_messages)
-
+        # Execute tool(s)
+        tool_results = []
+        for tc in tool_calls:
+            name = tc["function"]["name"]
             try:
-                response = self.llm.chat(self.messages, tools=TOOLS)
-            except Exception as e:
-                logger.error(f"LLM error: {e}", exc_info=True)
-                yield AgentStep("error", message=f"Ошибка LLM: {e}")
-                return
+                args = json.loads(tc["function"]["arguments"])
+            except json.JSONDecodeError:
+                args = {}
+            yield AgentStep("tool_call", tool=name, arguments=args)
+            result = self.executor.execute(name, args)
+            yield AgentStep("tool_result", tool=name, result=result[:500])
+            tool_results.append({"tool": name, "args": args, "result": result})
 
-            # Emit LLM response debug info
-            resp_debug = {"content": (response.get("content") or "")[:500]}
-            if response.get("tool_calls"):
-                resp_debug["tool_calls"] = [
-                    {"name": tc["function"]["name"],
-                     "arguments": tc["function"]["arguments"][:200]}
-                    for tc in response["tool_calls"]
-                ]
-            yield AgentStep("llm_response", **resp_debug)
+        # ── Extract objects to memory ──
+        for tr in tool_results:
+            new_items = self._extract_objects(tr["tool"], tr["result"])
+            if new_items:
+                self._memory.extend(new_items)
+                # Keep memory bounded
+                if len(self._memory) > 50:
+                    self._memory = self._memory[-50:]
+                labels = ", ".join(
+                    f"{it['label']} (sys_id={it['sys_id']})" for it in new_items
+                )
+                yield AgentStep("memory", items=labels)
 
-            # Emit token usage info (with rate limit data if available)
-            usage = response.pop("usage", None)
-            rate_limit = response.pop("rate_limit", None)
-            if usage:
-                usage_data = {**usage}
-                if rate_limit:
-                    usage_data["rate_limit"] = rate_limit
-                yield AgentStep("llm_usage", **usage_data)
-
-            tool_calls = response.get("tool_calls")
-
-            if not tool_calls:
-                # No tool calls — final answer
-                content = response.get("content", "")
-                if not content:
-                    content = "Не удалось сформировать ответ."
-
-                # Save Q&A to conversation history for cross-turn context
-                if hasattr(self, '_current_question') and self._current_question:
-                    self._conversation_history.append({
-                        "question": self._current_question,
-                        "answer": content[:2000],  # truncate long HTML reports
-                    })
-                    if len(self._conversation_history) > self._max_history_turns:
-                        self._conversation_history = self._conversation_history[-self._max_history_turns:]
-
-                yield AgentStep("answer", content=content)
-                return
-
-            # Add assistant message with tool calls to history
-            self.messages.append(response)
-
-            # Separate ask_user from regular tools
-            ask_user_tc = None
-            regular_tcs = []
-            for tc in tool_calls:
-                if tc["function"]["name"] == "ask_user":
-                    ask_user_tc = tc
-                else:
-                    regular_tcs.append(tc)
-
-            # Execute regular tools first
-            for tc in regular_tcs:
-                func_name = tc["function"]["name"]
-                try:
-                    args = json.loads(tc["function"]["arguments"])
-                except json.JSONDecodeError:
-                    args = {}
-
-                yield AgentStep("tool_call", tool=func_name, arguments=args)
-
-                result = self.executor.execute(func_name, args)
-
-                yield AgentStep("tool_result", tool=func_name, result=result[:500])
-
-                # Flush PSS API debug log
-                api_log = self.executor.pss.flush_log()
-                if api_log:
-                    yield AgentStep("api_calls", calls=api_log)
-
-                # Записать tool-результат (для LLMRecorder)
-                if hasattr(self.llm, 'record_tool_result'):
-                    self.llm.record_tool_result(tc["id"], func_name, result)
-
-                self.messages.append({
+        # ── Follow-up: if first call was a search, allow one more tool call ──
+        first_tool = tool_calls[0]["function"]["name"]
+        if self._needs_followup(first_tool, tool_results):
+            messages.append(response)
+            for tc, tr in zip(tool_calls, tool_results):
+                messages.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],
-                    "content": result,
+                    "content": tr["result"],
                 })
 
-            # Handle ask_user — pause and wait for user response
-            if ask_user_tc:
-                try:
-                    args = json.loads(ask_user_tc["function"]["arguments"])
-                except json.JSONDecodeError:
-                    args = {}
-                question_text = args.get("question", "Уточните ваш запрос.")
-                yield AgentStep("tool_call", tool="ask_user", arguments=args)
-                yield AgentStep("clarification", question=question_text)
-                self._pending_clarification = True
-                self._pending_tool_call_id = ask_user_tc["id"]
+            try:
+                response2 = self.llm.chat(messages, tools=tools)
+            except Exception as e:
+                logger.error("LLM follow-up error: %s", e, exc_info=True)
+                yield AgentStep("error", message=f"Ошибка LLM (follow-up): {e}")
                 return
 
-        # Reached max iterations
-        yield AgentStep("error",
-                        message=f"Превышено максимальное количество итераций ({self.max_iterations}). "
-                                "Попробуйте уточнить вопрос.")
+            usage2 = response2.pop("usage", None)
+            if usage2:
+                yield AgentStep("llm_usage", **usage2)
 
-    def clear_history(self):
-        """Clear conversation history (start fresh context)."""
-        self._conversation_history = []
-        logger.info("Conversation history cleared")
+            tool_calls2 = response2.get("tool_calls")
+            if tool_calls2:
+                for tc in tool_calls2:
+                    name = tc["function"]["name"]
+                    try:
+                        args = json.loads(tc["function"]["arguments"])
+                    except json.JSONDecodeError:
+                        args = {}
+                    yield AgentStep("tool_call", tool=name, arguments=args)
+                    result = self.executor.execute(name, args)
+                    yield AgentStep("tool_result", tool=name, result=result[:500])
+                    tool_results.append({"tool": name, "args": args, "result": result})
 
-    @property
-    def history_count(self) -> int:
-        """Number of previous turns in conversation history."""
-        return len(self._conversation_history)
+                # Extract objects from follow-up results too
+                for tr in tool_results[-len(tool_calls2):]:
+                    new_items = self._extract_objects(tr["tool"], tr["result"])
+                    if new_items:
+                        self._memory.extend(new_items)
+                        if len(self._memory) > 50:
+                            self._memory = self._memory[-50:]
+                        labels = ", ".join(
+                            f"{it['label']} (sys_id={it['sys_id']})"
+                            for it in new_items
+                        )
+                        yield AgentStep("memory", items=labels)
+
+        # ── Step 2: format HTML ──
+        yield AgentStep("step", step=2, description="Форматирование отчёта")
+
+        last_result = tool_results[-1]
+        user_content = (
+            f"Запрос пользователя: {question}\n\n"
+            f"Инструмент: {last_result['tool']}\n"
+            f"Результат:\n{last_result['result']}"
+        )
+
+        format_messages = [
+            {"role": "system", "content": STEP2_PROMPT},
+            {"role": "user", "content": user_content},
+        ]
+
+        try:
+            fmt_response = self.llm.chat(format_messages)
+        except Exception as e:
+            logger.error("LLM step-2 error: %s", e, exc_info=True)
+            yield AgentStep("error", message=f"Ошибка форматирования: {e}")
+            return
+
+        usage3 = fmt_response.pop("usage", None)
+        if usage3:
+            yield AgentStep("llm_usage", **usage3)
+
+        html = fmt_response.get("content", "")
+        # Strip markdown code fences if LLM wraps HTML in ```html...```
+        if html.strip().startswith("```"):
+            lines = html.strip().splitlines()
+            # Remove first line (```html) and last line (```)
+            if lines[-1].strip() == "```":
+                lines = lines[1:-1]
+            else:
+                lines = lines[1:]
+            html = "\n".join(lines)
+        yield AgentStep("answer", content=html)
+
+    # ------------------------------------------------------------------
+    # Memory extraction
+    # ------------------------------------------------------------------
+
+    def _extract_objects(self, tool_name: str, result_str: str) -> list[dict]:
+        """Parse tool result JSON and extract objects with sys_id for memory."""
+        try:
+            data = json.loads(result_str)
+        except (json.JSONDecodeError, ValueError):
+            return []
+
+        objects = []
+
+        if isinstance(data, dict):
+            # Single object with sys_id at top level
+            if "sys_id" in data and not any(
+                k in data for k in ("tree", "instances", "components",
+                                     "processes", "organizations")
+            ):
+                label = self._make_label(data)
+                if label:
+                    objects.append({
+                        "sys_id": data["sys_id"],
+                        "type": data.get("type", tool_name),
+                        "label": label,
+                        "tool": tool_name,
+                    })
+
+            # root_component (from logistic structure)
+            root = data.get("root_component")
+            if isinstance(root, dict) and "sys_id" in root:
+                label = self._make_label(root)
+                if label:
+                    objects.append({
+                        "sys_id": root["sys_id"],
+                        "type": "component",
+                        "label": label,
+                        "tool": tool_name,
+                    })
+
+            # Lists: components, instances, processes, organizations, etc.
+            for list_key in ("components", "instances", "processes",
+                             "organizations", "products", "items",
+                             "folders", "documents", "resources",
+                             "children", "units", "tasks"):
+                items = data.get(list_key)
+                if isinstance(items, list):
+                    for item in items[:20]:  # cap to avoid flooding memory
+                        if isinstance(item, dict) and "sys_id" in item:
+                            label = self._make_label(item)
+                            if label:
+                                objects.append({
+                                    "sys_id": item["sys_id"],
+                                    "type": item.get("type", list_key),
+                                    "label": label,
+                                    "tool": tool_name,
+                                })
+
+            # Tree nodes (logistic structure): extract nested component
+            tree = data.get("tree")
+            if isinstance(tree, list):
+                for node in tree[:30]:
+                    comp = node.get("component") if isinstance(node, dict) else None
+                    if isinstance(comp, dict) and "sys_id" in comp:
+                        label = self._make_label(comp)
+                        if label:
+                            objects.append({
+                                "sys_id": comp["sys_id"],
+                                "type": "component",
+                                "label": label,
+                                "tool": tool_name,
+                            })
+
+        # Deduplicate by sys_id (keep latest)
+        seen = set()
+        unique = []
+        for obj in reversed(objects):
+            if obj["sys_id"] not in seen:
+                seen.add(obj["sys_id"])
+                unique.append(obj)
+        unique.reverse()
+
+        # Also deduplicate against existing memory
+        existing_ids = {m["sys_id"] for m in self._memory}
+        return [o for o in unique if o["sys_id"] not in existing_ids]
+
+    @staticmethod
+    def _make_label(obj: dict) -> str:
+        """Build a human-readable label from object attributes."""
+        parts = []
+        for key in _LABEL_KEYS:
+            val = obj.get(key)
+            if val and isinstance(val, str) and val.strip():
+                parts.append(val.strip())
+                if len(parts) >= 2:
+                    break
+        return ", ".join(parts) if parts else ""
+
+    def _needs_followup(self, first_tool: str, tool_results: list) -> bool:
+        """Check if first tool was a search and we should allow a detail call."""
+        name = first_tool.rsplit(":", 1)[-1] if ":" in first_tool else first_tool
+        return name in _SEARCH_TOOLS
+
+    # ------------------------------------------------------------------
+    # Sync convenience & API compat
+    # ------------------------------------------------------------------
 
     def ask_sync(self, question: str) -> dict:
-        """Synchronous version of ask(). Returns final result dict.
-
-        Note: does not support clarification flow (ask_user).
-
-        Returns:
-            {
-                "answer": str,  # Final answer text (may contain HTML)
-                "steps": list,  # List of step dicts
-                "error": str | None,
-            }
-        """
+        """Synchronous ask — returns final result dict."""
         steps = []
         answer = ""
         error = None
-
         for step in self.ask(question):
             steps.append(step.to_dict())
             if step.type == "answer":
                 answer = step.data.get("content", "")
             elif step.type == "error":
                 error = step.data.get("message", "Unknown error")
+        return {"answer": answer, "steps": steps, "error": error}
 
-        return {
-            "answer": answer,
-            "steps": steps,
-            "error": error,
-        }
+    def clear_history(self):
+        """Clear object memory."""
+        self._memory.clear()
+        logger.info("Agent memory cleared")
+
+    @property
+    def history_count(self) -> int:
+        return len(self._memory)

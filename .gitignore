@@ -5,8 +5,16 @@ logs/
 logs/app.log
 .env
 *_key
+*_key.txt
 api/routes/__pycache__/__init__.cpython-312.pyc
 logs/errors.log
+/ILS_reports_agent/data/recordings
+test_*.png
+.claude/scheduled_tasks.lock
+*.pyc
+/api/routes/__pycache__
+.claude/settings.local.json
+.claude/settings.local.json.deepseek
 deepseek_key.txt
 nvidia_key.txt
 PSS-aiR/REFERENCE_BOOKS_SPEC.md

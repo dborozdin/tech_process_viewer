@@ -343,6 +343,10 @@ components:
         process_id:
           description: Created/updated process ID
           type: integer
+        resource_id:
+          description: Resource ID (returned from resource-add endpoints)
+          nullable: true
+          type: integer
         success:
           description: Operation success
           type: boolean
@@ -374,6 +378,114 @@ components:
         type_id:
           description: Process type system ID
           type: integer
+      type: object
+    Characteristic:
+      properties:
+        description:
+          description: Optional description
+          type: string
+        id:
+          description: Designation/code
+          type: string
+        name:
+          description: Display name
+          type: string
+        sys_id:
+          description: System ID of apl_characteristic
+          type: integer
+      required:
+      - sys_id
+      type: object
+    CharacteristicListResponse:
+      properties:
+        data:
+          description: List of characteristic definitions
+          items:
+            $ref: '#/components/schemas/Characteristic'
+          type: array
+        success:
+          type: boolean
+      type: object
+    CharacteristicValue:
+      properties:
+        characteristic_id:
+          description: Linked characteristic sys_id
+          type: integer
+        characteristic_name:
+          description: Linked characteristic name
+          type: string
+        scope:
+          description: PSS scope field
+          type: string
+        subtype:
+          description: apl_*_characteristic_value subtype
+          type: string
+        sys_id:
+          description: System ID of value
+          type: integer
+        unit:
+          description: Unit name (if measured)
+          type: string
+        value:
+          description: Display value
+          type: string
+      required:
+      - sys_id
+      type: object
+    CharacteristicValueCreate:
+      properties:
+        characteristic_id:
+          description: apl_characteristic sys_id
+          type: integer
+        item_id:
+          description: Owner sys_id (PDF / BP / etc.)
+          type: integer
+        item_type:
+          default: apl_product_definition_formation
+          description: Type of the owner item
+          type: string
+        subtype:
+          default: apl_descriptive_characteristic_value
+          description: apl_*_characteristic_value subtype
+          type: string
+        value:
+          description: Value string
+          type: string
+      required:
+      - characteristic_id
+      - item_id
+      - value
+      type: object
+    CharacteristicValueListResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/CharacteristicValue'
+          type: array
+        success:
+          type: boolean
+      type: object
+    CharacteristicValueResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: '{sys_id: <int>}'
+          type: object
+        message:
+          type: string
+        success:
+          type: boolean
+      type: object
+    CharacteristicValueUpdate:
+      properties:
+        subtype:
+          default: apl_descriptive_characteristic_value
+          type: string
+        value:
+          description: New value string
+          type: string
+      required:
+      - value
       type: object
     ConnectRequest:
       properties:
@@ -1217,6 +1329,9 @@ components:
         name:
           description: Resource type name
           type: string
+        sys_id:
+          description: apl_business_process_resource_type sys_id (use for create_resource.type_id)
+          type: integer
       type: object
     ResourceTypeListResponse:
       properties:
@@ -1243,6 +1358,125 @@ components:
           description: Resource quantity/value
           nullable: true
           type: number
+      type: object
+    SuccessResponse:
+      properties:
+        data:
+          additionalProperties: {}
+          description: Response data
+          type: object
+        message:
+          description: Success message
+          type: string
+        success:
+          description: Operation success status
+          type: boolean
+      required:
+      - success
+      type: object
+    _AllRunResponse:
+      properties:
+        groups:
+          additionalProperties: {}
+          type: object
+        summary:
+          additionalProperties: {}
+          type: object
+      type: object
+    _DocSearchResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/_DocSearchResult'
+          type: array
+        success:
+          type: boolean
+      type: object
+    _DocSearchResult:
+      properties:
+        doc_id:
+          type: string
+        name:
+          type: string
+        sys_id:
+          type: integer
+        type:
+          type: string
+      type: object
+    _LinkProduct:
+      properties:
+        pdf_id:
+          description: apl_product_definition_formation sys_id
+          type: integer
+      required:
+      - pdf_id
+      type: object
+    _RunRequest:
+      properties:
+        group:
+          description: Group key from test_API_settings.json
+          type: string
+      required:
+      - group
+      type: object
+    _RunResponse:
+      properties:
+        duration_s:
+          type: integer
+        finished_at:
+          type: string
+        group:
+          type: string
+        results:
+          items:
+            $ref: '#/components/schemas/_ScenarioResult'
+          type: array
+        started_at:
+          type: string
+        summary:
+          additionalProperties: {}
+          type: object
+        title:
+          type: string
+      type: object
+    _ScenarioResult:
+      properties:
+        duration_ms:
+          type: integer
+        error:
+          type: string
+        http_status:
+          type: integer
+        method:
+          type: string
+        path:
+          type: string
+        response_preview:
+          type: string
+        saved:
+          additionalProperties: {}
+          type: object
+        scenario:
+          type: string
+        status:
+          type: string
+      type: object
+    _SettingsPut:
+      properties:
+        group:
+          description: Group key to replace
+          nullable: true
+          type: string
+        group_def:
+          additionalProperties: {}
+          description: Group definition (title, scenarios)
+          nullable: true
+          type: object
+        settings:
+          additionalProperties: {}
+          description: Replace whole settings (must contain db + groups)
+          nullable: true
+          type: object
       type: object
   securitySchemes:
     SessionKey:
@@ -1745,6 +1979,49 @@ paths:
       schema:
         minimum: 0
         type: integer
+  /api/v1/business-processes/{process_id}/link-product:
+    parameters:
+    - in: path
+      name: process_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    post:
+      description: Привязать бизнес-процесс к изделию (apl_business_process_reference)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_LinkProduct'
+        required: true
+      responses:
+        '201':
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: pdf_id missing
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - business_processes
   /api/v1/business-processes/{process_id}/resources:
     parameters:
     - in: path
@@ -1857,6 +2134,159 @@ paths:
       summary: Update business process resource
       tags:
       - business_processes
+  /api/v1/characteristics/:
+    get:
+      description: List all apl_characteristic definitions
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+  /api/v1/characteristics/values:
+    post:
+      description: Create a new apl_*_characteristic_value linked to an item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacteristicValueCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicValueResponse'
+          description: Created
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Validation failed
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: PSS save failed
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+  /api/v1/characteristics/values/{item_id}:
+    get:
+      description: Get all characteristic values attached to an item (PDF / BP / ...)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacteristicValueListResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+    parameters:
+    - in: path
+      name: item_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+  /api/v1/characteristics/values/{value_id}:
+    delete:
+      description: Delete characteristic value
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
+    parameters:
+    - in: path
+      name: value_id
+      required: true
+      schema:
+        minimum: 0
+        type: integer
+    put:
+      description: Update value (re-saves apl_*_characteristic_value with new scope/val)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CharacteristicValueUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Internal Server Error
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - characteristics
   /api/v1/documents/:
     get:
       description: Get list of documents with optional filtering
@@ -2010,6 +2440,26 @@ paths:
       schema:
         minimum: 0
         type: integer
+  /api/v1/documents/search:
+    get:
+      description: 'Search apl_document by id (substring LIKE). Param: ?q=<text>'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_DocSearchResponse'
+          description: OK
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error1'
+          description: Not connected
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - documents
   /api/v1/documents/{document_id}:
     delete:
       description: Delete document
@@ -2934,6 +3384,93 @@ paths:
       summary: Update resource
       tags:
       - resources
+  /api/v1/test-runner/groups:
+    get:
+      description: Метаданные групп из test_API_settings.json (без выполнения тестов).
+      responses:
+        '200':
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/history:
+    get:
+      description: Последний сохранённый JSON-отчёт. Если ?group= указан — для одной
+        группы; иначе — словарь по всем группам, у которых есть история.
+      responses:
+        '200':
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/run:
+    post:
+      description: Запустить все сценарии указанной группы. Возвращает JSON-отчёт
+        и сохраняет копию в openapi/test_API_results_<group>.json
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_RunRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_RunResponse'
+          description: OK
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/run-all:
+    post:
+      description: Запустить все группы по порядку. Каждая группа сохраняется отдельно.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_AllRunResponse'
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+  /api/v1/test-runner/settings:
+    get:
+      description: Получить целиком текущие test_API_settings.json
+      responses:
+        '200':
+          description: OK
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
+    put:
+      description: 'Перезаписать settings: либо целиком (поле ''settings''), либо
+        одну группу (поля ''group'' и ''group_def''). Перед записью — JSON-валидация
+        и атомарная запись через временный файл.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_SettingsPut'
+        required: true
+      responses:
+        '200':
+          description: OK
+        '422':
+          $ref: '#/components/responses/UNPROCESSABLE_ENTITY'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - test_runner
 security:
 - SessionKey: []
 servers:
@@ -2956,3 +3493,7 @@ tags:
   name: resources
 - description: Organization management endpoints
   name: organizations
+- description: Characteristic definitions and per-item values
+  name: characteristics
+- description: Run grouped API smoke-tests defined in openapi/test_API_settings.json
+  name: test_runner

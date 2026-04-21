@@ -441,6 +441,22 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .form-error { color: var(--danger); font-size: 12px; margin-top: 4px; display: none; }
 .form-error.visible { display: block; }
 
+/* ===== CRUD ===== */
+.crud-toolbar { display:flex; gap:8px; padding:6px 12px; border-bottom:1px solid var(--border-light); background:var(--bg); align-items:center; flex-shrink:0; }
+.crud-toolbar:empty { display:none; }
+.btn-action { background:none; border:none; cursor:pointer; padding:2px 6px; opacity:0.4; font-size:13px; transition: opacity var(--transition); line-height:1; }
+.btn-action:hover { opacity:1; }
+.btn-action.danger:hover { color:var(--danger); }
+.prop-toolbar { display:flex; gap:6px; padding:4px 0 8px; }
+.form-select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:13px; font-family:inherit; outline:none; }
+.form-select:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,85,102,0.15); }
+.form-textarea { min-height:60px; resize:vertical; }
+.crud-form .form-group { margin-bottom:12px; }
+.search-results { max-height:150px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius); margin-top:4px; }
+.search-result-item { padding:6px 10px; cursor:pointer; font-size:13px; }
+.search-result-item:hover { background:var(--hover); }
+.cell-actions { width:60px; text-align:center; white-space:nowrap; }
+
 /* ===== Report Modal ===== */
 .report-modal { width: 80vw; height: 80vh; }
 .report-frame { width: 100%; height: 100%; border: none; }
@@ -501,6 +517,193 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 .text-muted { color: var(--text-secondary); }
 .text-mono { font-family: monospace; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* References Interface */
+#referencesView {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 40px;
+  background: var(--bg);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+#referencesView.hidden { display: none; }
+.references-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+.references-sidebar {
+  width: 240px;
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  background: var(--bg-secondary, #f7f9fc);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.references-sidebar h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ref-type-list { display: flex; flex-direction: column; gap: 4px; }
+.ref-type-item {
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.ref-type-item:hover { background: rgba(0,0,0,0.05); }
+.ref-type-item.active {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+.ref-type-item .ref-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.08);
+  color: inherit;
+}
+.ref-type-item.active .ref-badge { background: rgba(255,255,255,0.25); }
+
+.references-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.references-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: white;
+  flex-shrink: 0;
+}
+.references-header h2 { margin: 0; font-size: 18px; }
+.references-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+#classifierTreeContainer {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px;
+  background: white;
+  border-right: 1px solid var(--border);
+}
+#classifierTreeContainer.hidden { display: none; }
+#referenceDetailsPanel {
+  width: 380px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 16px 20px;
+  background: #fafbfc;
+}
+#referenceDetailsPanel.hidden { display: none; }
+#referenceTableContainer {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+  background: white;
+}
+#referenceTableContainer.hidden { display: none; }
+
+/* Classifier Tree Rows */
+.ref-tree { margin: 0; padding: 0; }
+.tree-node-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.tree-node-row:hover { background: #f0f7ff; }
+.tree-node-row.selected { background: #dceeff; font-weight: 500; }
+.tree-node-row .tree-toggle {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+  font-size: 10px;
+  color: #888;
+  flex-shrink: 0;
+}
+.tree-node-row .tree-icon { margin-right: 6px; flex-shrink: 0; }
+.tree-node-row .tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-node-row .tree-code {
+  color: #888;
+  font-size: 11px;
+  margin-right: 6px;
+  font-family: monospace;
+}
+/* Переопределяем дефолтный `.tree-children { display:none }` из основного дерева
+   навигации — в справочниках используем собственную логику раскрытия через .hidden. */
+#referencesView .tree-children { display: block; padding-left: 18px; }
+#referencesView .tree-children.hidden { display: none; }
+.tree-loading, .tree-error, .tree-empty-child {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+.tree-error { color: #c92a2a; }
+
+/* Details panel */
+.details-title { font-size: 16px; font-weight: 600; margin: 0 0 4px 0; }
+.details-subtitle { color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; }
+.details-table { width: 100%; border-collapse: collapse; }
+.details-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  vertical-align: top;
+}
+.details-table td.details-key {
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  width: 40%;
+}
+.details-table td.details-val {
+  word-break: break-word;
+}
+.details-section { margin-top: 16px; }
+.details-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.details-placeholder {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  padding: 32px 16px;
+}
 </style>
 </head>
 <body>
@@ -510,6 +713,9 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   <header class="header">
     <div class="header-left">
       <div class="header-logo">PSS-<span>aiR</span></div>
+      <button id="btnReferences" class="btn btn-outline" title="Справочники">
+        <span>📚</span> Справочники
+      </button>
     </div>
     <div class="header-center">
       <button id="btnConnect" class="btn btn-outline" title="Подключение к БД">
@@ -586,6 +792,8 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
           <div class="report-menu" id="reportMenu"></div>
         </div>
       </div>
+      <!-- CRUD Toolbar -->
+      <div class="crud-toolbar" id="crudToolbar"></div>
       <!-- Content -->
       <div class="content-area" id="contentArea">
         <div class="empty-state">
@@ -609,6 +817,37 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
         <div class="property-empty">
           <div class="property-empty-icon">📝</div>
           <div>Выберите элемент для просмотра свойств</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- References Interface (hidden by default) -->
+  <div id="referencesView" class="hidden">
+    <div class="references-container">
+      <div class="references-sidebar">
+        <h3>Типы справочников</h3>
+        <div class="ref-type-list" id="refTypeList">
+          <!-- Заполняется динамически из /api/references/types -->
+        </div>
+      </div>
+      <div class="references-content">
+        <div class="references-header">
+          <h2 id="referencesTitle">Классификаторы</h2>
+          <button id="btnBackToMain" class="btn btn-outline">← Назад к основной панели</button>
+        </div>
+        <div class="references-body">
+          <div id="classifierTreeContainer"></div>
+          <div id="referenceDetailsPanel">
+            <div class="details-placeholder">Выберите элемент в дереве, чтобы увидеть детали</div>
+          </div>
+          <div id="referenceTableContainer" class="hidden">
+            <div class="empty-state">
+              <div class="empty-state-icon">🚧</div>
+              <div class="empty-state-text">Функционал в разработке</div>
+              <p class="empty-state-desc">Этот справочник будет реализован в будущих обновлениях.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -690,6 +929,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 
 <script src="/shared/js/db-connection.js"></script>
 <script src="/xlsx.full.min.js"></script>
+<script src="/crud.js"></script>
 <script>
 /* ============================================================
    PSS-aiR — Single Page Application
@@ -788,6 +1028,17 @@ class API {
   report(name, params) {
     const qs = new URLSearchParams(params).toString();
     return this._fetch(`/api/reports/${name}${qs ? '?' + qs : ''}`);
+  }
+
+  // References
+  references = {
+    getTypes: () => this._fetch('/api/references/types'),
+    getClassifiers: () => this._fetch('/api/references/classifiers'),
+    getClassifierRoots: (systemId) => this._fetch(`/api/references/classifiers/${systemId}/roots`),
+    getLevelChildren: (levelId) => this._fetch(`/api/references/levels/${levelId}/children`),
+    getLevelDetails: (levelId) => this._fetch(`/api/references/classifiers/levels/${levelId}`),
+    getReferenceList: (refType) => this._fetch(`/api/references/list/${refType}`),
+    search: (q, type) => this._fetch(`/api/references/search?q=${encodeURIComponent(q)}&type=${type || 'all'}`)
   }
 }
 
@@ -1116,6 +1367,7 @@ class FolderTreeView {
 
     bus.on('connected', () => this.load());
     bus.on('disconnected', () => this.clear());
+    bus.on('folder-tree-refresh', () => this.load());
   }
 
   async load() {
@@ -1528,6 +1780,295 @@ class BreadcrumbNav {
   }
 }
 
+// ===== References View =====
+// Трёхпанельный интерфейс: [Типы справочников] [Дерево] [Детали].
+// Для классификаторов реализована ленивая загрузка: система → корневые уровни → потомки.
+class ReferencesView {
+  constructor() {
+    this.container = document.getElementById('referencesView');
+    this.typeList = document.getElementById('refTypeList');
+    this.treeContainer = document.getElementById('classifierTreeContainer');
+    this.detailsPanel = document.getElementById('referenceDetailsPanel');
+    this.tableContainer = document.getElementById('referenceTableContainer');
+    this.titleEl = document.getElementById('referencesTitle');
+
+    this.currentType = 'classifiers';
+    this._systemsLoaded = false;
+
+    this._initBackButton();
+    this._initTreeDelegation();
+  }
+
+  _initBackButton() {
+    document.getElementById('btnBackToMain').addEventListener('click', () => this.hide());
+  }
+
+  _initTreeDelegation() {
+    // Делегирование: клик по треугольнику — раскрыть/свернуть; клик по любой другой
+    // части строки — выбрать узел (и автоматически раскрыть, если ещё не раскрыт).
+    this.treeContainer.addEventListener('click', (e) => {
+      const row = e.target.closest('.tree-node-row');
+      if (!row) return;
+      const isToggle = e.target.classList.contains('tree-toggle');
+      if (isToggle) {
+        if (row.classList.contains('expandable')) this._toggleNode(row);
+        return;
+      }
+      this._selectNode(row);
+      // Авто-раскрытие при выборе, если узел раскрываемый и ещё не раскрыт
+      if (row.classList.contains('expandable')) {
+        const children = row.nextElementSibling;
+        if (children && children.classList.contains('hidden')) {
+          this._toggleNode(row);
+        }
+      }
+    });
+  }
+
+  async show() {
+    this.container.classList.remove('hidden');
+    if (!this._typesLoaded) {
+      await this._loadTypes();
+      this._typesLoaded = true;
+    }
+    this._switchType('classifiers');
+  }
+
+  hide() {
+    this.container.classList.add('hidden');
+  }
+
+  async _loadTypes() {
+    try {
+      const { types = [] } = await api.references.getTypes();
+      this.typeList.innerHTML = types.map(t => `
+        <div class="ref-type-item ${t.id === 'classifiers' ? 'active' : ''}" data-ref-type="${t.id}">
+          <span class="ref-icon">${t.icon || '📄'}</span>
+          <span>${t.name}</span>
+          ${t.implemented ? `<span class="ref-badge">${t.count || 0}</span>` : ''}
+        </div>
+      `).join('');
+    } catch (err) {
+      // Фолбэк — статический список, если API недоступен (не подключена БД)
+      this.typeList.innerHTML = `
+        <div class="ref-type-item active" data-ref-type="classifiers"><span>📚</span><span>Классификаторы</span></div>
+        <div class="ref-type-item" data-ref-type="units"><span>📏</span><span>Единицы измерения</span></div>
+        <div class="ref-type-item" data-ref-type="organizations"><span>🏢</span><span>Организации</span></div>
+        <div class="ref-type-item" data-ref-type="characteristics"><span>📋</span><span>Характеристики</span></div>
+        <div class="ref-type-item" data-ref-type="other"><span>📄</span><span>Другие справочники</span></div>
+      `;
+    }
+    this.typeList.querySelectorAll('.ref-type-item').forEach(item => {
+      item.addEventListener('click', () => this._switchType(item.dataset.refType));
+    });
+  }
+
+  _switchType(refType) {
+    this.currentType = refType;
+    // Переключаем активный элемент
+    this.typeList.querySelectorAll('.ref-type-item').forEach(i => {
+      i.classList.toggle('active', i.dataset.refType === refType);
+    });
+    // Заголовок
+    const activeItem = this.typeList.querySelector(`.ref-type-item[data-ref-type="${refType}"]`);
+    const title = activeItem ? activeItem.textContent.trim().replace(/\s+\d+$/, '') : refType;
+    this.titleEl.textContent = title;
+
+    if (refType === 'classifiers') {
+      this.treeContainer.classList.remove('hidden');
+      this.detailsPanel.classList.remove('hidden');
+      this.tableContainer.classList.add('hidden');
+      this._showDetailsPlaceholder();
+      this._loadSystems();
+    } else {
+      this.treeContainer.classList.add('hidden');
+      this.detailsPanel.classList.add('hidden');
+      this.tableContainer.classList.remove('hidden');
+    }
+  }
+
+  async _loadSystems() {
+    if (this._systemsLoaded) return;
+    this.treeContainer.innerHTML = '<div class="tree-loading">Загрузка классификаторов...</div>';
+    try {
+      const { systems = [] } = await api.references.getClassifiers();
+      if (!systems.length) {
+        this.treeContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📚</div>
+            <div class="empty-state-text">Системы классификаторов не найдены</div>
+          </div>`;
+        this._systemsLoaded = true;
+        return;
+      }
+      this.treeContainer.innerHTML = `<div class="ref-tree" role="tree">${
+        systems.map(sys => this._renderSystemNode(sys)).join('')
+      }</div>`;
+      this._systemsLoaded = true;
+    } catch (err) {
+      this.treeContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <div class="empty-state-text">Ошибка загрузки классификаторов</div>
+          <p class="empty-state-desc">${this._esc(err.message)}</p>
+        </div>`;
+    }
+  }
+
+  _renderSystemNode(sys) {
+    // Системы всегда раскрываемые (могут иметь корневые уровни)
+    return `
+      <div class="tree-node" data-sys-id="${sys.sys_id}" data-kind="system">
+        <div class="tree-node-row expandable" data-sys-id="${sys.sys_id}" data-kind="system">
+          <span class="tree-toggle">▶</span>
+          <span class="tree-icon">📚</span>
+          <span class="tree-label">${this._esc(sys.name || sys.id || '(без имени)')}</span>
+          <span class="tree-code">${this._esc(sys.id || '')}</span>
+        </div>
+        <div class="tree-children hidden" data-children-of="${sys.sys_id}"></div>
+      </div>`;
+  }
+
+  _renderLevelNode(level) {
+    // Неизвестно наличие детей до первого раскрытия; считаем, что могут быть
+    const label = this._esc(level.name || level.code || level.id || '(без имени)');
+    const code = level.code || level.id || '';
+    return `
+      <div class="tree-node" data-level-id="${level.sys_id}" data-kind="level">
+        <div class="tree-node-row expandable" data-level-id="${level.sys_id}" data-kind="level">
+          <span class="tree-toggle">▶</span>
+          <span class="tree-icon">📁</span>
+          ${code ? `<span class="tree-code">${this._esc(code)}</span>` : ''}
+          <span class="tree-label">${label}</span>
+        </div>
+        <div class="tree-children hidden" data-children-of="${level.sys_id}"></div>
+      </div>`;
+  }
+
+  async _toggleNode(row) {
+    const node = row.closest('.tree-node');
+    const children = node.querySelector(':scope > .tree-children');
+    const toggle = row.querySelector('.tree-toggle');
+    if (!children) return;
+
+    const expanded = !children.classList.contains('hidden');
+    if (expanded) {
+      children.classList.add('hidden');
+      toggle.textContent = '▶';
+      return;
+    }
+    // Раскрываем: если ещё не загружались — загружаем
+    if (!children.dataset.loaded) {
+      toggle.textContent = '⏳';
+      try {
+        let levels = [];
+        if (row.dataset.kind === 'system') {
+          const res = await api.references.getClassifierRoots(row.dataset.sysId);
+          levels = res.levels || [];
+        } else {
+          const res = await api.references.getLevelChildren(row.dataset.levelId);
+          levels = res.levels || [];
+        }
+        if (!levels.length) {
+          children.innerHTML = '<div class="tree-empty-child">Нет дочерних элементов</div>';
+          row.classList.remove('expandable');
+        } else {
+          children.innerHTML = levels.map(lv => this._renderLevelNode(lv)).join('');
+        }
+        children.dataset.loaded = '1';
+      } catch (err) {
+        children.innerHTML = `<div class="tree-error">Ошибка: ${this._esc(err.message)}</div>`;
+      }
+    }
+    children.classList.remove('hidden');
+    toggle.textContent = '▼';
+  }
+
+  async _selectNode(row) {
+    this.treeContainer.querySelectorAll('.tree-node-row.selected').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+
+    if (row.dataset.kind === 'system') {
+      this._renderSystemDetails(row.dataset.sysId);
+    } else if (row.dataset.kind === 'level') {
+      await this._renderLevelDetails(row.dataset.levelId);
+    }
+  }
+
+  _renderSystemDetails(sysId) {
+    this.detailsPanel.innerHTML = `<div class="tree-loading">Загрузка...</div>`;
+    // Детали системы уже загружены в дереве — ищем их
+    const node = this.treeContainer.querySelector(`.tree-node[data-sys-id="${sysId}"] > .tree-node-row`);
+    const sysName = node ? node.querySelector('.tree-label').textContent : '';
+    const sysCode = node ? (node.querySelector('.tree-code').textContent || '') : '';
+    this.detailsPanel.innerHTML = `
+      <div class="details-title">${this._esc(sysName)}</div>
+      <div class="details-subtitle">Система классификаторов · ID ${this._esc(sysCode)}</div>
+      <table class="details-table">
+        <tr><td class="details-key">sys_id</td><td class="details-val">${this._esc(sysId)}</td></tr>
+        <tr><td class="details-key">Тип</td><td class="details-val">apl_classifier_system</td></tr>
+      </table>
+      <div class="details-placeholder">Раскройте систему в дереве для просмотра уровней классификатора</div>
+    `;
+  }
+
+  async _renderLevelDetails(levelId) {
+    this.detailsPanel.innerHTML = `<div class="tree-loading">Загрузка деталей...</div>`;
+    try {
+      const { level } = await api.references.getLevelDetails(levelId);
+      if (!level) {
+        this.detailsPanel.innerHTML = '<div class="details-placeholder">Данные не найдены</div>';
+        return;
+      }
+      const rows = [
+        ['sys_id', level.sys_id],
+        ['ID', level.id],
+        ['Код', level.code],
+        ['Описание', level.description],
+        ['Система', level.system_name ? `${level.system_name} (#${level.system_id})` : ''],
+        ['Родитель', level.parent_name ? `${level.parent_name} (#${level.parent_id})` : ''],
+        ['Тип секции', level.section_type],
+        ['Название (англ.)', level.name_eng],
+        ['ОКПД', level.okpd_code],
+        ['Системный уровень', level.is_system_level ? 'Да' : 'Нет'],
+        ['Дочерних элементов', level.child_count],
+        ['Связанное изделие (PDF)', level.related_product_id ? `#${level.related_product_id}` : ''],
+      ];
+      const techRows = [
+        ['Только конструкция', level.only_construction],
+        ['Проводка', level.wiring],
+        ['Проводка около СУ', level.wiring_near_controls],
+        ['Горючие материалы', level.combustible_materials],
+      ];
+      this.detailsPanel.innerHTML = `
+        <div class="details-title">${this._esc(level.name || '(без имени)')}</div>
+        <div class="details-subtitle">Уровень классификатора${level.code ? ' · ' + this._esc(level.code) : ''}</div>
+        <table class="details-table">
+          ${rows.filter(([, v]) => v !== '' && v !== null && v !== undefined)
+                .map(([k, v]) => `<tr><td class="details-key">${this._esc(k)}</td><td class="details-val">${this._esc(String(v))}</td></tr>`).join('')}
+        </table>
+        <div class="details-section">
+          <h4>Технические признаки</h4>
+          <table class="details-table">
+            ${techRows.map(([k, v]) => `<tr><td class="details-key">${this._esc(k)}</td><td class="details-val">${v ? 'Да' : 'Нет'}</td></tr>`).join('')}
+          </table>
+        </div>
+      `;
+    } catch (err) {
+      this.detailsPanel.innerHTML = `<div class="tree-error">Ошибка загрузки: ${this._esc(err.message)}</div>`;
+    }
+  }
+
+  _showDetailsPlaceholder() {
+    this.detailsPanel.innerHTML = '<div class="details-placeholder">Выберите элемент в дереве, чтобы увидеть детали</div>';
+  }
+
+  _esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+}
+
 // ===== Content View =====
 class ContentView {
   constructor(containerId) {
@@ -1544,12 +2085,63 @@ class ContentView {
     this._colBtn.style.display = 'none';
     this._colBtn.addEventListener('click', () => this._onColumnsBtnClick());
 
+    this._crud = null;
+
     bus.on('folder-selected', (data) => {
       this.folderPath = []; // reset path when selecting from tree
       this.loadFolderContents(data);
     });
-    bus.on('navigate-home', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this.showEmpty(); });
-    bus.on('disconnected', () => { this.folderPath = []; this._currentView = null; this._opsColumnTypesCache = null; this._updateColBtn(); this.showEmpty(); });
+    bus.on('navigate-home', () => { this.folderPath = []; this._currentView = null; this._updateColBtn(); this._updateCrudToolbar(); this.showEmpty(); });
+    bus.on('disconnected', () => { this.folderPath = []; this._currentView = null; this._opsColumnTypesCache = null; this._updateColBtn(); this._updateCrudToolbar(); this.showEmpty(); });
+  }
+
+  setCrudManager(crud) { this._crud = crud; }
+
+  _updateCrudToolbar() {
+    const toolbar = document.getElementById('crudToolbar');
+    if (!toolbar) return;
+    toolbar.innerHTML = '';
+    if (!this._crud) return;
+
+    if (this._currentView === 'folder' && this.currentFolder) {
+      const folderId = this.currentFolder.id || this.currentFolder.sys_id;
+      toolbar.innerHTML =
+        `<button class="btn btn-primary btn-sm" id="crudBtnCreateProduct">+ Изделие</button>` +
+        `<button class="btn btn-secondary btn-sm" id="crudBtnCreateFolder">+ Папка</button>` +
+        `<button class="btn btn-secondary btn-sm" id="crudBtnCreateProcess">+ Процесс</button>`;
+      document.getElementById('crudBtnCreateProduct').addEventListener('click', () => {
+        this._crud.createProduct(folderId, () => this.loadFolderContents(this.currentFolder));
+      });
+      document.getElementById('crudBtnCreateFolder').addEventListener('click', () => {
+        this._crud.createFolder(folderId, () => {
+          this.loadFolderContents(this.currentFolder);
+          bus.emit('folder-tree-refresh');
+        });
+      });
+      document.getElementById('crudBtnCreateProcess').addEventListener('click', () => {
+        this._crud.createProcess(folderId, () => this.loadFolderContents(this.currentFolder));
+      });
+    } else if (this._currentView === 'bom' && this._lastBomTree) {
+      const root = this._lastBomTree.root || this._lastBomTree;
+      const rootId = root.sys_id || null;
+      const rootName = root.name || '';
+      const rootDesignation = root.product_id || root.designation || '';
+      if (rootId) {
+        toolbar.innerHTML =
+          `<button class="btn btn-primary btn-sm" id="crudBtnAddComponent">+ Существующее</button>` +
+          `<button class="btn btn-secondary btn-sm" id="crudBtnCreateInBom">+ Создать новое</button>`;
+        const reloadBom = () => contentView.loadProductBOM(rootId, rootName);
+        document.getElementById('crudBtnAddComponent').addEventListener('click', () => {
+          this._crud.addBomComponent(rootId, reloadBom);
+        });
+        document.getElementById('crudBtnCreateInBom').addEventListener('click', () => {
+          const folderId = this.currentFolder ? (this.currentFolder.id || this.currentFolder.sys_id) : null;
+          this._crud.createProduct(folderId, reloadBom, {
+            pdf_id: rootId, designation: rootDesignation, name: rootName
+          });
+        });
+      }
+    }
   }
 
   _updateColBtn() {
@@ -1573,14 +2165,17 @@ class ContentView {
     this.currentFolder = folder;
     this._updateBreadcrumb();
     showSpinner(this.container);
+    const reqGen = (this._folderReqGen = (this._folderReqGen || 0) + 1);
     try {
       const data = await api.folderContents(folder.id);
+      if (reqGen !== this._folderReqGen) return;  // superseded by newer request
       this._renderFolderTable(data);
     } catch (err) {
+      if (reqGen !== this._folderReqGen) return;
       toaster.show('Ошибка загрузки содержимого: ' + err.message, 'error');
       this.showEmpty('Ошибка загрузки');
     } finally {
-      removeSpinner(this.container);
+      if (reqGen === this._folderReqGen) removeSpinner(this.container);
     }
   }
 
@@ -1663,20 +2258,23 @@ class ContentView {
       if (af !== bf) return af - bf;
       return (a.name || '').localeCompare(b.name || '');
     });
+    this._currentView = 'folder';
+    this._updateColBtn();
+    this._updateCrudToolbar();
+
     if (!items.length) {
       this.container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Папка пуста</div></div>';
       return;
     }
-
-    this._currentView = 'folder';
-    this._updateColBtn();
     const cols = this._getVisibleColumns();
+    const hasCrud = !!this._crud;
     const typeIcons = { product: '📦', process: '<span class="icon-process"></span>', document: '📋', folder: '📁' };
 
     let html = '<table class="data-table"><thead><tr>';
     cols.forEach(c => {
       html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
     });
+    if (hasCrud) html += '<th class="cell-actions"></th>';
     html += '</tr></thead><tbody>';
 
     items.forEach(item => {
@@ -1706,10 +2304,56 @@ class ContentView {
           html += `<td class="cell-id">${item.sys_id || ''}</td>`;
         }
       });
+      if (hasCrud) {
+        html += `<td class="cell-actions">` +
+          `<button class="btn-action crud-edit" title="Редактировать" data-id="${item.sys_id}" data-category="${item.category || ''}">&#9998;</button>` +
+          `<button class="btn-action danger crud-delete" title="Удалить" data-id="${item.sys_id}" data-name="${this._esc(item.name || '')}" data-category="${item.category || ''}">&#10005;</button>` +
+          `</td>`;
+      }
       html += '</tr>';
     });
     html += '</tbody></table>';
     this.container.innerHTML = html;
+
+    // CRUD action buttons
+    if (hasCrud) {
+      const folderId = this.currentFolder ? (this.currentFolder.id || this.currentFolder.sys_id) : null;
+      this.container.querySelectorAll('.crud-edit').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const cat = btn.dataset.category;
+          if (cat === 'product') {
+            try {
+              const details = await api.productFullInfo(id);
+              this._crud.editProduct(id, details || {}, () => this.loadFolderContents(this.currentFolder));
+            } catch (err) { this._crud.editProduct(id, {}, () => this.loadFolderContents(this.currentFolder)); }
+          } else if (cat === 'folder') {
+            const row = btn.closest('tr');
+            this._crud.renameFolder(id, row.dataset.name || '', () => {
+              this.loadFolderContents(this.currentFolder);
+              bus.emit('folder-tree-refresh');
+            });
+          }
+        });
+      });
+      this.container.querySelectorAll('.crud-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const name = btn.dataset.name;
+          const cat = btn.dataset.category;
+          if (cat === 'product') {
+            this._crud.deleteProduct(id, name, folderId, () => this.loadFolderContents(this.currentFolder));
+          } else if (cat === 'folder') {
+            this._crud.deleteFolder(id, name, () => {
+              this.loadFolderContents(this.currentFolder);
+              bus.emit('folder-tree-refresh');
+            });
+          }
+        });
+      });
+    }
 
     // Expand arrow click → open BOM
     this.container.querySelectorAll('.folder-expand').forEach(arrow => {
@@ -1826,13 +2470,15 @@ class ContentView {
 
   _renderBOM(tree) {
     this._lastBomTree = tree;
+    this._currentView = 'bom';
+    this._updateColBtn();
+    this._updateCrudToolbar();
     if (!tree || !tree.root) {
       this.showEmpty('Состав изделия пуст');
       return;
     }
-    this._currentView = 'bom';
-    this._updateColBtn();
     const cols = this._getBomColumns();
+    const hasCrud = !!this._crud;
 
     // Table header
     let html = '';
@@ -1840,6 +2486,7 @@ class ContentView {
     cols.forEach(c => {
       html += c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`;
     });
+    if (hasCrud) html += '<th class="cell-actions"></th>';
     html += '</tr></thead><tbody>';
 
     // Merge root with its children for unified rendering
@@ -1856,7 +2503,7 @@ class ContentView {
         ? `<span class="tree-toggle expanded bom-toggle">▶</span>`
         : `<span class="tree-toggle leaf"></span>`;
 
-      html += `<tr class="content-row bom-row" data-id="${node.sys_id}" data-depth="${depth}" data-type="product">`;
+      html += `<tr class="content-row bom-row" data-id="${node.sys_id}" data-bom-id="${node.bom_sys_id || ''}" data-depth="${depth}" data-type="product" data-name="${this._esc(node.name || '')}" data-qty="${node.quantity != null ? node.quantity : ''}" data-ref="${this._esc(node.reference_designator || '')}">`;
       cols.forEach(c => {
         if (c.key === 'name') {
           const pad = 4 + depth * 20;
@@ -1883,6 +2530,14 @@ class ContentView {
           html += `<td class="cell-id">${node.bom_sys_id || ''}</td>`;
         }
       });
+      if (hasCrud && depth > 0 && node.bom_sys_id) {
+        html += `<td class="cell-actions">` +
+          `<button class="btn-action crud-bom-edit" title="Редактировать связь" data-bom-id="${node.bom_sys_id}">&#9998;</button>` +
+          `<button class="btn-action danger crud-bom-delete" title="Удалить из состава" data-bom-id="${node.bom_sys_id}" data-name="${this._esc(node.name || '')}">&#10005;</button>` +
+          `</td>`;
+      } else if (hasCrud) {
+        html += '<td class="cell-actions"></td>';
+      }
       html += '</tr>';
       if (node.children) node.children.forEach(child => renderRows(child, depth + 1));
     };
@@ -1890,6 +2545,28 @@ class ContentView {
     renderRows(rootNode, 0);
     html += '</tbody></table>';
     this.container.innerHTML = html;
+
+    // BOM CRUD action buttons
+    if (hasCrud) {
+      this.container.querySelectorAll('.crud-bom-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const bomId = btn.dataset.bomId;
+          const row = btn.closest('tr');
+          this._crud.editBomLink(bomId, {
+            quantity: row.dataset.qty,
+            reference_designator: row.dataset.ref,
+          }, () => contentView.loadProductBOM(rootNode.sys_id, rootNode.name || ''));
+        });
+      });
+      this.container.querySelectorAll('.crud-bom-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const bomId = btn.dataset.bomId;
+          this._crud.deleteBomLink(bomId, btn.dataset.name, () => contentView.loadProductBOM(rootNode.sys_id, rootNode.name || ''));
+        });
+      });
+    }
 
     // Toggle collapse/expand
     this.container.querySelectorAll('.bom-toggle').forEach(toggle => {
@@ -2283,9 +2960,13 @@ class PropertyPanel {
       this._renderCurrentTab();
     });
 
+    this._crud = null;
+
     bus.on('item-selected', (data) => this.loadItem(data));
     bus.on('disconnected', () => this.clear());
   }
+
+  setCrudManager(crud) { this._crud = crud; }
 
   clear() {
     this.currentItem = null;
@@ -2299,7 +2980,7 @@ class PropertyPanel {
     this.currentTab = 'attrs';
 
     // Dynamic tabs based on item type
-    const isProcess = item.type === 'process' || item.type === 'Process';
+    const isProcess = item.type === 'process' || item.type === 'Process' || item.type === 'apl_business_process';
     if (isProcess) {
       this.tabsContainer.innerHTML =
         '<div class="property-tab active" data-tab="attrs">Атрибуты</div>' +
@@ -2378,6 +3059,14 @@ class PropertyPanel {
     if (!data) { this._showEmpty('Нет данных'); return; }
 
     let html = '<div style="padding:4px 0;">';
+    // Edit button
+    if (this._crud && this.currentItem) {
+      const isProduct = this.currentItem.type === 'product' || this.currentItem.type === 'Product';
+      const isProcess = this.currentItem.type === 'process' || this.currentItem.type === 'Process';
+      if (isProduct || isProcess) {
+        html += '<div class="prop-toolbar"><button class="btn btn-sm btn-secondary" id="propEditBtn">&#9998; Редактировать</button></div>';
+      }
+    }
 
     if (this.currentItem.type === 'product' || this.currentItem.type === 'Product') {
       const fields = [
@@ -2433,6 +3122,26 @@ class PropertyPanel {
 
     html += '</div>';
     this.contentContainer.innerHTML = html;
+
+    // Wire edit button
+    const editBtn = document.getElementById('propEditBtn');
+    if (editBtn && this._crud) {
+      editBtn.addEventListener('click', () => {
+        const item = this.currentItem;
+        const isProduct = item.type === 'product' || item.type === 'Product';
+        if (isProduct) {
+          this._crud.editProduct(item.id, data, () => {
+            this.cache = {};
+            this._loadAttributes(item);
+          });
+        } else {
+          this._crud.editProcess(item.id, data, () => {
+            this.cache = {};
+            this._loadAttributes(item);
+          });
+        }
+      });
+    }
   }
 
   async _renderCharacteristics() {
@@ -2464,16 +3173,58 @@ class PropertyPanel {
   }
 
   _displayChars(chars) {
-    if (!chars.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Характеристики отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar"><button class="btn btn-sm btn-primary" id="propAddChar">+ Характеристика</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>';
-    chars.forEach(c => {
-      html += `<tr><td>${this._esc(c.name || '')}</td><td>${this._esc(String(c.value != null ? c.value : ''))}</td></tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!chars.length) {
+      html += '<div class="property-empty"><div>Характеристики отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Параметр</th><th>Значение</th>';
+      if (hasCrud) html += '<th style="width:60px"></th>';
+      html += '</tr></thead><tbody>';
+      chars.forEach(c => {
+        const sysId = c.sys_id || '';
+        html += `<tr><td>${this._esc(c.name || '')}</td><td>${this._esc(String(c.value != null ? c.value : ''))}</td>`;
+        if (hasCrud && sysId) {
+          html += `<td class="cell-actions">` +
+            `<button class="btn-action crud-char-edit" data-id="${sysId}" data-value="${this._esc(String(c.value != null ? c.value : ''))}" data-subtype="${this._esc(c.subtype || '')}">&#9998;</button>` +
+            `<button class="btn-action danger crud-char-delete" data-id="${sysId}" data-name="${this._esc(c.name || '')}">&#10005;</button></td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshChars = () => { this.cache.chars = null; this._renderCharacteristics(); };
+      const addBtn = document.getElementById('propAddChar');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const t = this.currentItem.type;
+          const itemType = (t === 'process' || t === 'Process' || t === 'apl_business_process')
+            ? 'apl_business_process'
+            : 'apl_product_definition_formation';
+          this._crud.addCharacteristic(this.currentItem.id, itemType, refreshChars);
+        });
+      }
+      this.contentContainer.querySelectorAll('.crud-char-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.editCharacteristic(btn.dataset.id, {
+            value: btn.dataset.value, subtype: btn.dataset.subtype
+          }, refreshChars);
+        });
+      });
+      this.contentContainer.querySelectorAll('.crud-char-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.deleteCharacteristic(btn.dataset.id, btn.dataset.name, refreshChars);
+        });
+      });
+    }
   }
 
   async _renderDocuments() {
@@ -2489,33 +3240,65 @@ class PropertyPanel {
       this.cache.docs = Array.isArray(docs) ? docs : [];
       this._displayDocs(this.cache.docs);
     } catch {
-      this.cache.docs = [];
-      if (this.cache.attrs && this.cache.attrs.documents) {
-        this.cache.docs = this.cache.attrs.documents;
-        this._displayDocs(this.cache.docs);
-      } else {
-        this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы не найдены</div></div>';
-      }
+      // Even on fetch error we must keep the toolbar so the user can attach/upload.
+      this.cache.docs = (this.cache.attrs && this.cache.attrs.documents) || [];
+      this._displayDocs(this.cache.docs);
     } finally {
       removeSpinner(this.contentContainer);
     }
   }
 
   _displayDocs(docs) {
-    if (!docs.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Документы отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    const itemType = (this.currentItem.type === 'process' || this.currentItem.type === 'Process')
+      ? 'apl_business_process' : 'apl_product_definition_formation';
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar">' +
+        '<button class="btn btn-sm btn-primary" id="propAttachDoc">Привязать</button>' +
+        '<button class="btn btn-sm btn-secondary" id="propUploadDoc">Загрузить</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Документ</th><th>Код</th><th>Тип</th></tr></thead><tbody>';
-    docs.forEach(d => {
-      html += `<tr>
-        <td>${this._esc(d.name || '')}</td>
-        <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
-        <td>${this._esc(d.type || '')}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!docs.length) {
+      html += '<div class="property-empty"><div>Документы отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Документ</th><th>Код</th><th>Тип</th>';
+      if (hasCrud) html += '<th style="width:40px"></th>';
+      html += '</tr></thead><tbody>';
+      docs.forEach(d => {
+        const refId = d.ref_sys_id || d.ref_id || d.reference_id || '';
+        html += `<tr>
+          <td>${this._esc(d.name || '')}</td>
+          <td class="text-mono" style="font-size:12px;">${this._esc(d.code || '')}</td>
+          <td>${this._esc(d.type || '')}</td>`;
+        if (hasCrud && refId) {
+          html += `<td class="cell-actions"><button class="btn-action danger crud-doc-detach" data-ref-id="${refId}" data-name="${this._esc(d.name || '')}">&#10005;</button></td>`;
+        } else if (hasCrud) {
+          html += '<td></td>';
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshDocs = () => { this.cache.docs = null; this._renderDocuments(); };
+      const attachBtn = document.getElementById('propAttachDoc');
+      if (attachBtn) {
+        attachBtn.addEventListener('click', () => this._crud.attachDocument(this.currentItem.id, itemType, refreshDocs));
+      }
+      const uploadBtn = document.getElementById('propUploadDoc');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', () => this._crud.uploadDocument(this.currentItem.id, itemType, refreshDocs));
+      }
+      this.contentContainer.querySelectorAll('.crud-doc-detach').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.detachDocument(btn.dataset.refId, btn.dataset.name, refreshDocs);
+        });
+      });
+    }
   }
 
   async _renderResources() {
@@ -2538,21 +3321,58 @@ class PropertyPanel {
   }
 
   _displayResources(resources) {
-    if (!resources || !resources.length) {
-      this.contentContainer.innerHTML = '<div class="property-empty"><div>Ресурсы отсутствуют</div></div>';
-      return;
+    const hasCrud = !!this._crud;
+    let html = '';
+    if (hasCrud) {
+      html += '<div class="prop-toolbar"><button class="btn btn-sm btn-primary" id="propAddResource">+ Ресурс</button></div>';
     }
-    let html = '<table class="prop-table"><thead><tr><th>Тип</th><th>Наименование</th><th>Значение</th><th>Ед.</th></tr></thead><tbody>';
-    resources.forEach(r => {
-      html += `<tr>
-        <td>${this._esc(r.type || '')}</td>
-        <td>${this._esc(r.name || '')}</td>
-        <td>${this._esc(String(r.value != null ? r.value : ''))}</td>
-        <td>${this._esc(r.unit || '')}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    this.contentContainer.innerHTML = html;
+    if (!resources || !resources.length) {
+      html += '<div class="property-empty"><div>Ресурсы отсутствуют</div></div>';
+      this.contentContainer.innerHTML = html;
+    } else {
+      html += '<table class="prop-table"><thead><tr><th>Тип</th><th>Наименование</th><th>Значение</th><th>Ед.</th>';
+      if (hasCrud) html += '<th style="width:60px"></th>';
+      html += '</tr></thead><tbody>';
+      resources.forEach(r => {
+        const sysId = r.sys_id || '';
+        html += `<tr>
+          <td>${this._esc(r.type || '')}</td>
+          <td>${this._esc(r.name || '')}</td>
+          <td>${this._esc(String(r.value != null ? r.value : ''))}</td>
+          <td>${this._esc(r.unit || '')}</td>`;
+        if (hasCrud && sysId) {
+          html += `<td class="cell-actions">` +
+            `<button class="btn-action crud-res-edit" data-id="${sysId}" data-name="${this._esc(r.name || '')}" data-value="${r.value != null ? r.value : 0}">&#9998;</button>` +
+            `<button class="btn-action danger crud-res-delete" data-id="${sysId}" data-name="${this._esc(r.name || '')}">&#10005;</button></td>`;
+        } else if (hasCrud) {
+          html += '<td></td>';
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      this.contentContainer.innerHTML = html;
+    }
+
+    // Wire CRUD buttons
+    if (hasCrud) {
+      const refreshRes = () => { this.cache.resources = null; this._renderResources(); };
+      const addBtn = document.getElementById('propAddResource');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => this._crud.addResource(this.currentItem.id, refreshRes));
+      }
+      this.contentContainer.querySelectorAll('.crud-res-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.editResource(btn.dataset.id, {
+            name: btn.dataset.name, value: btn.dataset.value
+          }, refreshRes);
+        });
+      });
+      this.contentContainer.querySelectorAll('.crud-res-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this._crud.deleteResource(btn.dataset.id, btn.dataset.name, refreshRes);
+        });
+      });
+    }
   }
 
   async _renderMaterials() {
@@ -2849,6 +3669,11 @@ document.addEventListener('DOMContentLoaded', () => {
   breadcrumb.addButton(contentView._colBtn);
   propertyPanel = new PropertyPanel('propertyTabs', 'propertyContent');
 
+  // Expose for test automation (Playwright via page.evaluate)
+  window.bus = bus;
+  window.contentView = contentView;
+  window.propertyPanel = propertyPanel;
+
   // Right panel toggle
   const btnToggleRight = document.getElementById('btnToggleRight');
   const panelRight = document.getElementById('panelRight');
@@ -2860,6 +3685,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const search = new SearchController('searchInput', 'btnSearch');
   const reports = new ReportManager();
   const statusBar = new StatusBarUpdater();
+  const referencesView = new ReferencesView();
+
+  // References button — overlay поверх основного интерфейса (position:absolute, z-index выше)
+  document.getElementById('btnReferences').addEventListener('click', () => {
+    referencesView.show();
+  });
 
   // Resizers
   new PanelResizer('resizeLeft', 'panelLeft', 'left');
@@ -2895,6 +3726,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     contentView.loadProcessDetails(data.id);
   });
+
+  // CRUD Manager
+  const crudManager = new CrudManager(bus, api, toaster);
+  contentView.setCrudManager(crudManager);
+  propertyPanel.setCrudManager(crudManager);
 
   // Check connection on load
   conn.checkStatus();

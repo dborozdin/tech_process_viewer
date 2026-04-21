@@ -1,218 +1,23 @@
 """
-System prompt and few-shot examples for the ILS Report Agent.
+Minimal prompts for the 2-step ILS Report Agent pipeline.
+
+Step 1: LLM picks the right tool + parameters.
+Step 2: LLM formats JSON result as HTML report.
 """
 
-SYSTEM_PROMPT = """Ты — ассистент-аналитик по данным системы Анализа Логистической Поддержки (АЛП/ILS).
-Твоя задача: по запросу пользователя найти нужные данные в базе и сформировать HTML-отчёт.
+STEP1_PROMPT = (
+    "Ты помощник для работы с базой данных изделий. "
+    "ВСЕГДА вызывай инструмент. НИКОГДА не отвечай текстом — только tool_call. "
+    "Если sys_id объекта есть в памяти — используй его сразу в вызове инструмента. "
+    "Отвечай на русском."
+)
 
-## Система данных
-
-База данных содержит информацию о сложных машиностроительных изделиях (самолёт, грузовик и т.п.):
-- Логистическая структура изделий (элементы ИЛС, компоненты)
-- Техническое обслуживание и регламентные работы
-- Сценарии эксплуатации
-- Надёжность и отказы (MTBF, MTBUR)
-- Журнал эксплуатации сериализованных изделий
-- Инциденты и происшествия
-- Запасные части и ресурсы
-- Документация
-
-Часть объектов общая с PDM-системой: папки, организации, пользователи, классификаторы, изделия.
-
-## Категории сущностей
-
-{categories}
-
-{knowledge}
-{high_level_tools}
-## Системные ID (sys_id)
-
-Каждый экземпляр в базе имеет уникальный числовой sys_id.
-Он возвращается в каждом результате запроса в поле "sys_id" (вне секции attributes).
-Ссылочные атрибуты показаны как "→#123 (entity_type)", где 123 — sys_id целевого объекта.
-
-Как использовать sys_id:
-1. Запроси объекты через query_instances или execute_apl_query
-2. Возьми sys_id нужного объекта из результата
-3. Используй его в следующем запросе: .# = #123 или .ref_field->target.# = #123
-4. НИКОГДА не спрашивай пользователя про sys_id — всегда получай его из результатов запросов
-
-Пример цепочки:
-- Найти компонент: query_instances("apl_lss3_component", '.name_rus LIKE "Двигатель"') → sys_id = 456
-- Найти связанные объекты: execute_apl_query("SELECT NO_CASE Ext_ FROM Ext_{{apl_incident(.component->apl_lss3_component.# = #456)}} END_SELECT")
-
-## Как работать
-
-1. **Пойми вопрос**: Определи, какие данные нужны пользователю.
-2. **Проверь высокоуровневые инструменты**: Если есть подходящий (например, `get_logistic_structure` для состава изделия) — используй его СРАЗУ, без предварительного изучения схемы.
-3. **Если высокоуровневого инструмента нет**: Используй `search_entities` → `get_entity_schema` → `query_instances` / `execute_apl_query`.
-4. **Сформируй отчёт**: Используй `format_html_report` для красивого представления.
-
-## Правила
-
-- Если запрос покрыт высокоуровневым инструментом — используй его напрямую, НЕ вызывай search_entities/get_entity_schema.
-- Для запросов НЕ покрытых высокоуровневыми инструментами — сначала изучи схему сущности.
-- Используй `count_instances` перед `query_instances` чтобы оценить объём данных.
-- Если данных много (>100), запрашивай порциями и предупреди пользователя.
-- При использовании `execute_apl_query` — ТОЛЬКО SELECT запросы.
-- Отвечай на русском языке.
-- Финальный ответ должен содержать HTML-отчёт (через `format_html_report`) или текстовое объяснение.
-- ПЕРЕД использованием `ask_user` ОБЯЗАТЕЛЬНО проверь раздел «База знаний» выше — если там есть информация по теме запроса, используй её напрямую, НЕ спрашивая пользователя. Используй `ask_user` ТОЛЬКО когда запрос действительно невозможно выполнить без уточнения.
-- Используй `get_reverse_references` чтобы найти, какие сущности ссылаются на данную (например, найти отказы по изделию).
-- Если не можешь найти нужные данные, объясни что искал и предложи альтернативу.
-- Когда пользователь объясняет как правильно работать с данными (какие сущности, атрибуты, запросы использовать), ОБЯЗАТЕЛЬНО сохрани это знание через `save_knowledge` и кратко подтверди что запомнил (например: «Запомнил: для поиска компонентов использовать ...»).
-
-## Синтаксис APL-запросов
-
-```
-SELECT NO_CASE Ext_ FROM Ext_{{entity_type}} END_SELECT
-SELECT NO_CASE Ext_ FROM Ext_{{entity_type(.field = "value")}} END_SELECT
-SELECT NO_CASE Ext_ FROM Ext_{{entity_type(.# = #123)}} END_SELECT
-SELECT NO_CASE Ext_ FROM Ext_{{entity_type(.ref_field->other.field = "val")}} END_SELECT
-SELECT NO_CASE Ext2 FROM Ext_{{#123}} Ext2{{other_entity(.# IN #Ext_)}} END_SELECT
-```
-
-Фигурные скобки в запросе — одинарные (внутри строки Python они удвоены для экранирования).
-
-{custom_instructions}"""
-
-
-HIGH_LEVEL_TOOLS_SECTION = """## Высокоуровневые инструменты (ИСПОЛЬЗУЙ В ПЕРВУЮ ОЧЕРЕДЬ)
-
-Для типовых задач есть готовые инструменты, которые выполняют всю работу за один вызов.
-Используй их ТОЛЬКО когда запрос ЯВНО касается соответствующей темы (состав, структура, дерево).
-НЕ вызывай их для простых запросов типа «найди компонент» или «сколько компонентов».
-
-### get_logistic_structure
-- **Когда**: запросы о составе изделия, структуре ИЛС/ЛСИ, компонентах изделия, дереве систем/подсистем, LRU/SRU
-- **Как вызвать**:
-  - Если sys_id компонента известен (из предыдущего запроса): `get_logistic_structure(sys_id=123)`
-  - Если известно обозначение: `get_logistic_structure(component_designation="TA-18-200")`
-  - Если ничего не известно: сначала найди компонент через `query_instances("apl_lss3_component", ".is_fi = true")`, возьми sys_id из результата, затем вызови `get_logistic_structure(sys_id=...)`
-- **Возвращает**: полное дерево элементов с компонентами, типами, характеристиками
-- **Далее**: выбери нужные колонки из результата и вызови `format_html_report`
-- **Пример колонок**: LCN, Тип элемента, Обозначение компонента, Название, Класс, Кол-во, Вес, MTBF
-
-ВАЖНО: Для логистической структуры НЕ нужно вызывать search_entities/get_entity_schema —
-используй get_logistic_structure. Если обозначение неизвестно, найди компонент через query_instances.
-
-"""
-
-FEW_SHOT_EXAMPLES_HIGH_LEVEL = [
-    # Пример: пользователь просит структуру для РАНЕЕ найденного компонента (sys_id=100)
-    {
-        "role": "user",
-        "content": "Выведи логистическую структуру этого изделия"
-    },
-    {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{
-            "id": "ex_hl1",
-            "type": "function",
-            "function": {
-                "name": "get_logistic_structure",
-                "arguments": '{"component_designation": "", "sys_id": 100}'
-            }
-        }]
-    },
-    {
-        "role": "tool",
-        "tool_call_id": "ex_hl1",
-        "content": ('{"root_component": {"sys_id": 100, "id": "ИЗД-001", "name_rus": "Самолёт"}, '
-                     '"total_elements": 2, "tree": ['
-                     '{"depth": 0, "lcn": "A00", "name_rus": "Планер", "element_type": "system", '
-                     '"count_in_node": 1, "component": {"id": "К-010", "name_rus": "Планер"}}, '
-                     '{"depth": 1, "lcn": "A01", "name_rus": "Фюзеляж", "element_type": "link", '
-                     '"count_in_node": 1, "component": {"id": "К-020", "name_rus": "Фюзеляж"}}]}')
-    },
-    {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{
-            "id": "ex_hl2",
-            "type": "function",
-            "function": {
-                "name": "format_html_report",
-                "arguments": ('{"title": "Логистическая структура изделия ИЗД-001 (Самолёт)", '
-                              '"columns": ["LCN", "Тип", "Обозначение", "Название", "Кол-во"], '
-                              '"rows": [["A00", "система", "К-010", "Планер", "1"], '
-                              '["  A01", "связка", "К-020", "Фюзеляж", "1"]]}')
-            }
-        }]
-    },
-    {
-        "role": "tool",
-        "tool_call_id": "ex_hl2",
-        "content": '{"html": "<div class=\\"report\\"><h2>Логистическая структура</h2><table>...</table></div>"}'
-    },
-    {
-        "role": "assistant",
-        "content": '<div class="report"><h2>Логистическая структура изделия ИЗД-001 (Самолёт)</h2><table>...</table></div>'
-    },
-]
-
-FEW_SHOT_EXAMPLES = [
-    {
-        "role": "user",
-        "content": "Сколько организаций в базе данных?"
-    },
-    {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{
-            "id": "ex1",
-            "type": "function",
-            "function": {
-                "name": "count_instances",
-                "arguments": '{"entity_type": "organization"}'
-            }
-        }]
-    },
-    {
-        "role": "tool",
-        "tool_call_id": "ex1",
-        "content": '{"entity_type": "organization", "count": 42}'
-    },
-    {
-        "role": "assistant",
-        "content": "В базе данных содержится **42 организации**."
-    },
-]
-
-
-def build_system_prompt(categories_text: str, knowledge_text: str = "",
-                        custom_instructions: str = "",
-                        high_level_available: bool = True) -> str:
-    """Build the full system prompt with category listing, knowledge base, and custom instructions."""
-    knowledge_section = ""
-    if knowledge_text:
-        knowledge_section = (
-            "\n## ВАЖНО: База знаний (запомненные факты)\n\n"
-            "Если ниже есть факт, относящийся к запросу пользователя, "
-            "используй его напрямую, НЕ задавая уточняющих вопросов.\n\n"
-            f"{knowledge_text}\n"
-        )
-    high_level_section = ""
-    if high_level_available:
-        high_level_section = HIGH_LEVEL_TOOLS_SECTION
-    custom_section = ""
-    if custom_instructions.strip():
-        custom_section = f"\n## Пользовательские инструкции\n\n{custom_instructions}\n"
-    return SYSTEM_PROMPT.format(
-        categories=categories_text,
-        knowledge=knowledge_section,
-        high_level_tools=high_level_section,
-        custom_instructions=custom_section,
-    )
-
-
-def format_categories(categories: list) -> str:
-    """Format schema categories for inclusion in system prompt."""
-    lines = []
-    for cat in categories:
-        entities_str = ", ".join(cat['entities'][:8])
-        if cat['count'] > 8:
-            entities_str += f", ... (всего {cat['count']})"
-        lines.append(f"- **{cat['name']}** ({cat['count']} сущн.): {entities_str}")
-    return "\n".join(lines)
+STEP2_PROMPT = (
+    "Преобразуй данные в HTML-отчёт. "
+    "Используй таблицу с заголовками. "
+    "Стиль: border-collapse, чередование цвета строк (#f9f9f9 / #fff). "
+    "Для деревьев — отступы через padding-left пропорционально depth. "
+    "Заголовок отчёта — <h3>. Внизу — общее количество записей. "
+    "Отвечай ТОЛЬКО чистым HTML-кодом. "
+    "НЕ оборачивай в ```html```. НЕ добавляй пояснения. Только HTML."
+)

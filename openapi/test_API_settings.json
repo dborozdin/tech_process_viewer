@@ -1,0 +1,531 @@
+{
+  "_comment": "Конфиг для test-runner: тестовая БД и сценарии по группам OpenAPI tag.",
+  "db": {
+    "server_port": "http://localhost:7239",
+    "db": "pss_moma_08_07_2025",
+    "user": "Administrator",
+    "password": ""
+  },
+  "_scenarios_comment": "Каждая группа = OpenAPI tag (как в Swagger UI). Сценарий — последовательный список шагов; placeholder {key} в path/body берётся из state, save_as сохраняет ответ в state.",
+  "groups": {
+    "auth": {
+      "title": "Auth / Connection",
+      "scenarios": [
+        {
+          "id": "dblist",
+          "method": "GET",
+          "path": "/api/dblist"
+        },
+        {
+          "id": "connect",
+          "method": "POST",
+          "path": "/api/connect",
+          "body_from": "db",
+          "expect_status": 200
+        },
+        {
+          "id": "status",
+          "method": "GET",
+          "path": "/api/status",
+          "expect_status": 200
+        },
+        {
+          "id": "disconnect",
+          "method": "POST",
+          "path": "/api/disconnect",
+          "expect_status": 200
+        },
+        {
+          "id": "reconnect",
+          "method": "POST",
+          "path": "/api/connect",
+          "body_from": "db",
+          "expect_status": 200
+        }
+      ]
+    },
+    "products": {
+      "title": "Products",
+      "scenarios": [
+        {
+          "id": "create_assy",
+          "method": "POST",
+          "path": "/api/v1/products/",
+          "body": {
+            "id": "RUN-ASSY-001",
+            "name": "RunAssy"
+          },
+          "save_as": {
+            "product_id": "$.product_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_pdf",
+          "method": "GET",
+          "path": "/api/v1/products/{product_id}",
+          "save_as": {
+            "pdf_id": "$.definitions[0].id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "update",
+          "method": "PUT",
+          "path": "/api/v1/products/{product_id}",
+          "body": {
+            "name": "RunAssyEdited"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "delete",
+          "method": "DELETE",
+          "path": "/api/v1/products/{product_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        }
+      ]
+    },
+    "products-bom": {
+      "title": "Products: BOM",
+      "scenarios": [
+        {
+          "id": "make_assy",
+          "method": "POST",
+          "path": "/api/v1/products/",
+          "body": {
+            "id": "RUN-BOM-A",
+            "name": "RunBomA"
+          },
+          "save_as": {
+            "assy_pid": "$.product_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_assy_pdf",
+          "method": "GET",
+          "path": "/api/v1/products/{assy_pid}",
+          "save_as": {
+            "assy_pdf": "$.definitions[0].id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "make_comp",
+          "method": "POST",
+          "path": "/api/v1/products/",
+          "body": {
+            "id": "RUN-BOM-C",
+            "name": "RunBomC"
+          },
+          "save_as": {
+            "comp_pid": "$.product_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_comp_pdf",
+          "method": "GET",
+          "path": "/api/v1/products/{comp_pid}",
+          "save_as": {
+            "comp_pdf": "$.definitions[0].id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "add_bom",
+          "method": "POST",
+          "path": "/api/v1/products/{assy_pid}/bom/items",
+          "body": {
+            "component_id": "{comp_pdf}",
+            "quantity": 5
+          },
+          "save_as": {
+            "bom_id": "$.bom_item_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_bom",
+          "method": "GET",
+          "path": "/api/v1/products/{assy_pid}/bom",
+          "expect_status": 200
+        },
+        {
+          "id": "del_bom",
+          "method": "DELETE",
+          "path": "/api/v1/products/{assy_pid}/bom/items/{bom_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        },
+        {
+          "id": "del_assy",
+          "method": "DELETE",
+          "path": "/api/v1/products/{assy_pid}",
+          "expect_status": [
+            200,
+            204
+          ]
+        },
+        {
+          "id": "del_comp",
+          "method": "DELETE",
+          "path": "/api/v1/products/{comp_pid}",
+          "expect_status": [
+            200,
+            204
+          ]
+        }
+      ]
+    },
+    "business-processes": {
+      "title": "Business Processes",
+      "scenarios": [
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/api/v1/business-processes/",
+          "body": {
+            "id": "RUN-BP-001",
+            "name": "RunBp"
+          },
+          "save_as": {
+            "bp_id": "$.process_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "update",
+          "method": "PUT",
+          "path": "/api/v1/business-processes/{bp_id}",
+          "body": {
+            "name": "RunBpEdited",
+            "description": "edited"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "create_child",
+          "method": "POST",
+          "path": "/api/v1/business-processes/",
+          "body": {
+            "id": "RUN-BP-CH",
+            "name": "RunBpCh"
+          },
+          "save_as": {
+            "child_id": "$.process_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "add_element",
+          "method": "POST",
+          "path": "/api/v1/business-processes/{bp_id}/elements",
+          "body": {
+            "element_id": "{child_id}"
+          },
+          "expect_status": [
+            200,
+            201
+          ]
+        },
+        {
+          "id": "del_element",
+          "method": "DELETE",
+          "path": "/api/v1/business-processes/{bp_id}/elements/{child_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        },
+        {
+          "id": "make_assy_for_link",
+          "method": "POST",
+          "path": "/api/v1/products/",
+          "body": {
+            "id": "RUN-BP-LK",
+            "name": "RunBpLk"
+          },
+          "save_as": {
+            "link_pid": "$.product_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_link_pdf",
+          "method": "GET",
+          "path": "/api/v1/products/{link_pid}",
+          "save_as": {
+            "link_pdf": "$.definitions[0].id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "link_product",
+          "method": "POST",
+          "path": "/api/v1/business-processes/{bp_id}/link-product",
+          "body": {
+            "pdf_id": "{link_pdf}"
+          },
+          "expect_status": [
+            200,
+            201
+          ]
+        },
+        {
+          "id": "cleanup_child",
+          "method": "DELETE",
+          "path": "/api/v1/business-processes/{child_id}",
+          "expect_status": [
+            200,
+            204,
+            500
+          ]
+        },
+        {
+          "id": "cleanup_bp",
+          "method": "DELETE",
+          "path": "/api/v1/business-processes/{bp_id}",
+          "expect_status": [
+            200,
+            204,
+            500
+          ]
+        },
+        {
+          "id": "cleanup_pid",
+          "method": "DELETE",
+          "path": "/api/v1/products/{link_pid}",
+          "expect_status": [
+            200,
+            204
+          ]
+        }
+      ]
+    },
+    "characteristics": {
+      "title": "Characteristics",
+      "scenarios": [
+        {
+          "id": "list",
+          "method": "GET",
+          "path": "/api/v1/characteristics/",
+          "save_as": {
+            "char_id": "$.data[0].sys_id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "make_owner",
+          "method": "POST",
+          "path": "/api/v1/products/",
+          "body": {
+            "id": "RUN-CHR-O",
+            "name": "RunChrO"
+          },
+          "save_as": {
+            "owner_pid": "$.product_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get_owner_pdf",
+          "method": "GET",
+          "path": "/api/v1/products/{owner_pid}",
+          "save_as": {
+            "owner_pdf": "$.definitions[0].id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "create_value",
+          "method": "POST",
+          "path": "/api/v1/characteristics/values",
+          "body": {
+            "item_id": "{owner_pdf}",
+            "characteristic_id": "{char_id}",
+            "value": "RunChrVal",
+            "subtype": "apl_descriptive_characteristic_value",
+            "item_type": "apl_product_definition_formation"
+          },
+          "save_as": {
+            "val_id": "$.data.sys_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "list_values",
+          "method": "GET",
+          "path": "/api/v1/characteristics/values/{owner_pdf}",
+          "expect_status": 200
+        },
+        {
+          "id": "update_value",
+          "method": "PUT",
+          "path": "/api/v1/characteristics/values/{val_id}",
+          "body": {
+            "value": "RunChrValEdited",
+            "subtype": "apl_descriptive_characteristic_value"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "delete_value",
+          "method": "DELETE",
+          "path": "/api/v1/characteristics/values/{val_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        },
+        {
+          "id": "cleanup_owner",
+          "method": "DELETE",
+          "path": "/api/v1/products/{owner_pid}",
+          "expect_status": [
+            200,
+            204
+          ]
+        }
+      ]
+    },
+    "resources": {
+      "title": "Resources",
+      "scenarios": [
+        {
+          "id": "list_types",
+          "method": "GET",
+          "path": "/api/v1/resources/types",
+          "save_as": {
+            "type_id": "$.resource_types[0].sys_id"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "create_bp",
+          "method": "POST",
+          "path": "/api/v1/business-processes/",
+          "body": {
+            "id": "RUN-RES-BP",
+            "name": "RunResBp"
+          },
+          "save_as": {
+            "bp_id": "$.process_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "create_resource",
+          "method": "POST",
+          "path": "/api/v1/business-processes/{bp_id}/resources",
+          "body": {
+            "id": "RUN-RES-1",
+            "name": "RunRes",
+            "type_id": "{type_id}",
+            "value_component": 7
+          },
+          "save_as": {
+            "res_id": "$.resource_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "update_resource",
+          "method": "PUT",
+          "path": "/api/v1/business-processes/{bp_id}/resources/{res_id}",
+          "body": {
+            "name": "RunResEdited",
+            "value_component": 9
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "delete_resource",
+          "method": "DELETE",
+          "path": "/api/v1/business-processes/{bp_id}/resources/{res_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        },
+        {
+          "id": "cleanup_bp",
+          "method": "DELETE",
+          "path": "/api/v1/business-processes/{bp_id}",
+          "expect_status": [
+            200,
+            204,
+            500
+          ]
+        }
+      ]
+    },
+    "documents": {
+      "title": "Documents",
+      "scenarios": [
+        {
+          "id": "search",
+          "method": "GET",
+          "path": "/api/v1/documents/search?q=A",
+          "expect_status": 200
+        }
+      ]
+    },
+    "organizations": {
+      "title": "Organizations",
+      "scenarios": [
+        {
+          "id": "list",
+          "method": "GET",
+          "path": "/api/v1/organizations/",
+          "expect_status": 200
+        },
+        {
+          "id": "create",
+          "method": "POST",
+          "path": "/api/v1/organizations/",
+          "body": {
+            "id": "RUN-ORG-001",
+            "name": "RunOrg",
+            "description": "test"
+          },
+          "save_as": {
+            "org_id": "$.organization_id"
+          },
+          "expect_status": 201
+        },
+        {
+          "id": "get",
+          "method": "GET",
+          "path": "/api/v1/organizations/{org_id}",
+          "expect_status": 200
+        },
+        {
+          "id": "update",
+          "method": "PUT",
+          "path": "/api/v1/organizations/{org_id}",
+          "body": {
+            "name": "RunOrgEdited",
+            "description": "edited"
+          },
+          "expect_status": 200
+        },
+        {
+          "id": "delete",
+          "method": "DELETE",
+          "path": "/api/v1/organizations/{org_id}",
+          "expect_status": [
+            200,
+            204
+          ]
+        }
+      ]
+    }
+  }
+}

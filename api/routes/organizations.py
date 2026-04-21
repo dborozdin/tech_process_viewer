@@ -102,17 +102,18 @@ class OrganizationList(MethodView):
         if 'description' in organization_data:
             attributes['description'] = organization_data['description']
 
-        # Create organization
+        # Create organization. create_instance returns dict {id, type, index}
         result = db_api.create_instance('organization', attributes)
 
         if result:
-            created_org = db_api.org_api.get_organization(result)
+            org_sys_id = result.get('id') if isinstance(result, dict) else result
+            created_org = db_api.org_api.get_organization(org_sys_id) if org_sys_id else None
             if created_org:
                 return {
                     'success': True,
                     'message': 'Organization created successfully',
                     'data': created_org,
-                    'organization_id': result
+                    'organization_id': org_sys_id
                 }
 
         abort(500, message="Failed to create organization")
@@ -151,14 +152,15 @@ class OrganizationDetail(MethodView):
         if not existing:
             abort(404, message=f"Organization {organization_id} not found")
 
-        # Update organization
-        result = db_api.org_api.update_organization(organization_id, update_data)
+        # Update organization (returns bool); re-fetch to return full data.
+        ok = db_api.org_api.update_organization(organization_id, update_data)
 
-        if result:
+        if ok:
+            updated = db_api.org_api.get_organization(organization_id) or {}
             return {
                 'success': True,
                 'message': 'Organization updated successfully',
-                'data': result,
+                'data': updated,
                 'organization_id': organization_id
             }
 

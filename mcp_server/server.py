@@ -38,6 +38,8 @@ if _EXPRESS_API_ROOT not in sys.path:
 
 from ILS_reports_agent.pss.api_client import PSSClient
 from ILS_reports_agent.pss.schema import get_schema
+from api.ils_logstruct_api import ILSLogStructAPI
+from api.ils_tasks_api import ILSTasksAPI
 
 logger = logging.getLogger("mcp.pss")
 
@@ -61,6 +63,8 @@ HTML_SCHEMA_PATH = os.path.join(_PROJECT_ROOT, "db_schema_doc", "apl_pss_a_1419_
 _client: PSSClient | None = None
 _schema = None
 _db_api = None  # DatabaseAPI instance for high-level operations
+_ils_logstruct_api: ILSLogStructAPI | None = None
+_ils_tasks_api: ILSTasksAPI | None = None
 
 server = Server("pss-database")
 
@@ -98,6 +102,24 @@ def _get_db_api():
     return _db_api
 
 
+def _get_ils_logstruct_api() -> ILSLogStructAPI:
+    """Get or create ILSLogStructAPI instance."""
+    global _ils_logstruct_api
+    if _ils_logstruct_api is None:
+        _ils_logstruct_api = ILSLogStructAPI(_get_client())
+        logger.info("ILSLogStructAPI initialized")
+    return _ils_logstruct_api
+
+
+def _get_ils_tasks_api() -> ILSTasksAPI:
+    """Get or create ILSTasksAPI instance."""
+    global _ils_tasks_api
+    if _ils_tasks_api is None:
+        _ils_tasks_api = ILSTasksAPI(_get_client())
+        logger.info("ILSTasksAPI initialized")
+    return _ils_tasks_api
+
+
 def _json_response(data) -> list[TextContent]:
     """Wrap data as MCP TextContent JSON response."""
     return [TextContent(type="text", text=json.dumps(data, ensure_ascii=False, indent=2))]
@@ -132,19 +154,12 @@ TOOLS = [
     # ==================== connection — Server/DB connection ====================
     Tool(
         name="connection_status",
-        description=(
-            "[Подключение] Проверить текущее состояние подключения к БД PSS. "
-            "Возвращает: подключён ли сервер, имя БД, пользователь, адрес сервера."
-        ),
+        description="Проверить состояние подключения к БД.",
         inputSchema={"type": "object", "properties": {}, "required": []},
     ),
     Tool(
         name="connect",
-        description=(
-            "[Подключение] Подключиться к базе данных PSS (или переподключиться к другой). "
-            "Все параметры опциональны — если не указаны, используются значения из env "
-            "(PSS_SERVER, PSS_DB, PSS_USER). При переподключении старая сессия закрывается."
-        ),
+        description="Подключиться к базе данных PSS или переподключиться к другой.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -172,20 +187,12 @@ TOOLS = [
     # ==================== schema_* — Metadata ====================
     Tool(
         name="schema_list_categories",
-        description=(
-            "[Схема] Просмотр категорий данных PSS. "
-            "Возвращает разделы схемы (PDM, ILS, общие) с перечнем типов сущностей. "
-            "Используй как отправную точку для изучения модели данных."
-        ),
+        description="Список категорий сущностей в схеме данных.",
         inputSchema={"type": "object", "properties": {}, "required": []},
     ),
     Tool(
         name="schema_search",
-        description=(
-            "[Схема] Поиск типов сущностей по ключевому слову. "
-            "Ищет по имени, описанию, разделу и атрибутам. "
-            "Примеры: 'изделие', 'документ', 'organization', 'BOM', 'техпроцесс'."
-        ),
+        description="Поиск типов сущностей по ключевому слову.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -199,11 +206,7 @@ TOOLS = [
     ),
     Tool(
         name="schema_get_entity",
-        description=(
-            "[Схема] Получить полную схему сущности: атрибуты, типы данных, "
-            "связи с другими сущностями, унаследованные атрибуты. "
-            "Используй перед написанием APL-запросов, чтобы знать имена полей."
-        ),
+        description="Полная схема сущности: атрибуты, типы, связи.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -217,10 +220,7 @@ TOOLS = [
     ),
     Tool(
         name="schema_describe",
-        description=(
-            "[Схема] Описание сущности на русском языке: назначение, "
-            "ключевые атрибуты, связи, примеры использования."
-        ),
+        description="Описание сущности на русском языке.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -236,12 +236,7 @@ TOOLS = [
     # ==================== data_* — Low-level data access ====================
     Tool(
         name="data_query",
-        description=(
-            "[Данные] Запросить экземпляры сущности с опциональными фильтрами APL. "
-            "Примеры фильтров: '.name LIKE \"деталь*\"', '.id = \"ABC-123\"', "
-            "'.# = #12345' (по sys_id). "
-            "Для сложных запросов используй data_apl_query."
-        ),
+        description="Запросить экземпляры сущности с фильтром.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -264,10 +259,7 @@ TOOLS = [
     ),
     Tool(
         name="data_get_instance",
-        description=(
-            "[Данные] Получить один экземпляр по sys_id. "
-            "Возвращает все атрибуты включая ссылки на связанные объекты."
-        ),
+        description="Получить один экземпляр по sys_id со всеми атрибутами.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -281,15 +273,7 @@ TOOLS = [
     ),
     Tool(
         name="data_apl_query",
-        description=(
-            "[Данные] Выполнить произвольный APL SELECT-запрос. "
-            "Только чтение; модификация данных запрещена. "
-            "Синтаксис: SELECT NO_CASE Ext_ FROM Ext_{тип_сущности(.фильтр)} END_SELECT. "
-            "Примеры:\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{organization} END_SELECT\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{product(.name LIKE \"Самолёт*\")} END_SELECT\n"
-            "  SELECT NO_CASE Ext_ FROM Ext_{apl_product_definition_formation(.of_product->product.id = \"ABC\")} END_SELECT"
-        ),
+        description="Выполнить произвольный APL SELECT-запрос к базе данных.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -305,11 +289,7 @@ TOOLS = [
     # ==================== pdm_* — High-level PDM operations ====================
     Tool(
         name="pdm_search_products",
-        description=(
-            "[PDM] Поиск изделий по обозначению (id) или наименованию (name). "
-            "Ищет среди сущностей product с LIKE. "
-            "Возвращает список найденных изделий с sys_id, id, name."
-        ),
+        description="Найти изделия PDM по обозначению или наименованию.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -328,11 +308,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_product",
-        description=(
-            "[PDM] Получить полную информацию об изделии: "
-            "атрибуты product_definition_formation (обозначение, тип, make_or_buy), "
-            "характеристики (properties), связанные документы."
-        ),
+        description="Получить полную информацию об изделии по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -346,11 +322,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_bom",
-        description=(
-            "[PDM] Получить структуру входимости изделия (BOM — Bill of Materials). "
-            "Возвращает компоненты первого уровня: дочерние изделия с количествами и единицами измерения. "
-            "Для рекурсивного обхода вызывай повторно для каждого дочернего изделия."
-        ),
+        description="Состав изделия (BOM) — дочерние компоненты с количествами.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -364,11 +336,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_folders",
-        description=(
-            "[PDM] Получить список папок из базы PSS. "
-            "Папки организуют объекты (изделия, документы, процессы) в иерархию. "
-            "Без фильтра возвращает все папки; с фильтром — по имени."
-        ),
+        description="Список папок в базе, с опциональным фильтром по имени.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -382,10 +350,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_folder_contents",
-        description=(
-            "[PDM] Получить содержимое папки: вложенные папки, изделия, документы, процессы. "
-            "Возвращает список объектов с их sys_id и типами."
-        ),
+        description="Содержимое папки: вложенные папки, изделия, документы.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -399,10 +364,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_documents",
-        description=(
-            "[PDM] Получить документы, привязанные к объекту (изделию, процессу и т.д.) "
-            "через связку apl_document_reference. Возвращает список документов с атрибутами."
-        ),
+        description="Документы, привязанные к объекту по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -416,11 +378,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_characteristics",
-        description=(
-            "[PDM] Получить характеристики (свойства) изделия. "
-            "Характеристики расширяют базовый набор атрибутов изделия "
-            "(вес, габариты, материал и т.д.) через сущность apl_property_definition."
-        ),
+        description="Характеристики (свойства) изделия по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -434,10 +392,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_find_product_by_code",
-        description=(
-            "[PDM] Найти изделие по точному обозначению (code1). "
-            "Возвращает sys_id найденного apl_product_definition_formation или null."
-        ),
+        description="Найти изделие по точному обозначению (code1).",
         inputSchema={
             "type": "object",
             "properties": {
@@ -452,12 +407,7 @@ TOOLS = [
 
     Tool(
         name="pdm_get_product_full_info",
-        description=(
-            "[PDM] Получить полные атрибуты изделия и его версии (formation). "
-            "Возвращает: обозначение (designation), наименование (name), описание, "
-            "коды изделия (product_code) и версии (code1, code2), тип формирования, "
-            "make_or_buy. Полезно для получения всех данных об одном изделии."
-        ),
+        description="Все атрибуты изделия и его версии по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -473,11 +423,7 @@ TOOLS = [
     # ==================== pdm_* — Tech Processes, Organizations, Resources ====================
     Tool(
         name="pdm_get_processes",
-        description=(
-            "[PDM] Получить список техпроцессов (бизнес-процессов) для изделия. "
-            "Возвращает процессы (apl_action_method) привязанные к указанному изделию "
-            "через apl_applied_action. Каждый процесс содержит имя, тип и организацию."
-        ),
+        description="Список техпроцессов для изделия по его sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -491,11 +437,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_hierarchy",
-        description=(
-            "[PDM] Получить иерархию техпроцесса: процесс → фазы → операции. "
-            "Возвращает дочерние элементы процесса (подпроцессы, фазы, операции) "
-            "через атрибут elements. Для рекурсивного обхода вызывай повторно для дочерних."
-        ),
+        description="Иерархия техпроцесса: фазы и операции.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -509,11 +451,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_details",
-        description=(
-            "[PDM] Полные детали техпроцесса: атрибуты, операции (с нормами времени), "
-            "документы, материалы (ресурсы). Возвращает всё необходимое для отображения "
-            "карточки техпроцесса."
-        ),
+        description="Детали техпроцесса: операции, документы, ресурсы.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -527,11 +465,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_list_organizations",
-        description=(
-            "[PDM] Список организаций (organization) в базе данных. "
-            "Организации — это предприятия, цеха, подразделения, "
-            "участвующие в производственных процессах."
-        ),
+        description="Список организаций в базе данных.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -550,10 +484,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_organization",
-        description=(
-            "[PDM] Получить детали организации по sys_id: имя, id, описание, "
-            "связанные организации."
-        ),
+        description="Детали организации по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -567,11 +498,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_process_resources",
-        description=(
-            "[PDM] Получить ресурсы техпроцесса: материалы, нормы расхода, "
-            "единицы измерения. Ресурсы (apl_action_resource) привязаны к процессу "
-            "и содержат тип ресурса, количество и единицу измерения."
-        ),
+        description="Ресурсы техпроцесса: материалы и нормы расхода.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -585,11 +512,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_list_units",
-        description=(
-            "[PDM] Список единиц измерения (apl_unit) в базе данных. "
-            "Используются в BOM (количество компонентов), ресурсах (нормы расхода), "
-            "характеристиках изделий."
-        ),
+        description="Список единиц измерения в базе.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -605,12 +528,7 @@ TOOLS = [
     # ── Характеристики (apl_characteristic / apl_characteristic_value) ──
     Tool(
         name="pdm_list_characteristic_types",
-        description=(
-            "[PDM] Список типов характеристик (apl_characteristic). "
-            "Каждая характеристика — это определение (название, ед. измерения), "
-            "которое может быть назначено объектам (процессам, изделиям). "
-            "Значения характеристик хранятся в apl_characteristic_value."
-        ),
+        description="Список типов характеристик в базе.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -625,15 +543,7 @@ TOOLS = [
     ),
     Tool(
         name="pdm_get_characteristic_values",
-        description=(
-            "[PDM] Получить значения характеристик (apl_characteristic_value) "
-            "для заданного объекта. apl_characteristic_value — супертип: "
-            "возвращаемые экземпляры будут конкретных подтипов "
-            "(apl_descriptive_characteristic_value, apl_measured_characteristic_value, "
-            "apl_enumeration_characteristic_value и др.). "
-            "Поле scope содержит отображаемое значение. "
-            "Поле characteristic ссылается на тип (apl_characteristic)."
-        ),
+        description="Значения характеристик для объекта по sys_id.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -643,6 +553,322 @@ TOOLS = [
                 },
             },
             "required": ["item_id"],
+        },
+    ),
+    # ── CRUD характеристик ──
+    Tool(
+        name="pdm_create_characteristic_value",
+        description="Создать значение характеристики для объекта.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "integer", "description": "sys_id объекта"},
+                "characteristic_id": {"type": "integer", "description": "sys_id определения характеристики"},
+                "value": {"type": "string", "description": "Значение характеристики"},
+                "subtype": {
+                    "type": "string",
+                    "description": "Подтип значения (по умолч. apl_descriptive_characteristic_value)",
+                    "default": "apl_descriptive_characteristic_value",
+                },
+            },
+            "required": ["item_id", "characteristic_id", "value"],
+        },
+    ),
+    Tool(
+        name="pdm_update_characteristic_value",
+        description="Обновить значение характеристики.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "value_id": {"type": "integer", "description": "sys_id значения характеристики"},
+                "value": {"type": "string", "description": "Новое значение"},
+                "subtype": {
+                    "type": "string",
+                    "description": "Подтип значения",
+                    "default": "apl_descriptive_characteristic_value",
+                },
+            },
+            "required": ["value_id", "value"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_characteristic_value",
+        description="Удалить значение характеристики.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "value_id": {"type": "integer", "description": "sys_id значения характеристики"},
+            },
+            "required": ["value_id"],
+        },
+    ),
+    # ==================== pdm_* — Classifiers ====================
+    Tool(
+        name="pdm_get_classifiers",
+        description="Получить список систем классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "Опциональный фильтр по конкретной системе (sys_id системы классификатора)",
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_tree",
+        description=(
+            "Получить неглубокое дерево классификатора (система + корневые уровни). "
+            "Для больших классификаторов (тысячи уровней) используйте ленивую загрузку через "
+            "pdm_get_classifier_children."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "sys_id системы классификатора (обязательно)",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Глубина дерева (1 = только корневые уровни; 2 = с прямыми потомками). По умолч. 2.",
+                    "default": 2,
+                },
+            },
+            "required": ["system_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_roots",
+        description="Получить корневые уровни классификатора (ленивая загрузка дерева).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "sys_id системы классификатора (обязательно)",
+                },
+            },
+            "required": ["system_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_children",
+        description="Получить прямые дочерние уровни для указанного уровня классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "parent_level_id": {
+                    "type": "integer",
+                    "description": "sys_id родительского уровня (обязательно)",
+                },
+            },
+            "required": ["parent_level_id"],
+        },
+    ),
+    Tool(
+        name="pdm_get_classifier_level",
+        description="Получить детальную информацию об уровне классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "level_id": {
+                    "type": "integer",
+                    "description": "sys_id уровня классификатора (обязательно)",
+                },
+            },
+            "required": ["level_id"],
+        },
+    ),
+    Tool(
+        name="pdm_create_classifier_system",
+        description="Создать новую систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Строковый идентификатор системы (обязательно)",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Название системы (обязательно)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Описание системы",
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "description": "ID родительской системы (опционально)",
+                },
+                "default_level_id": {
+                    "type": "integer",
+                    "description": "ID уровня по умолчанию (опционально)",
+                },
+            },
+            "required": ["id", "name"],
+        },
+    ),
+    Tool(
+        name="pdm_update_classifier_system",
+        description="Обновить систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID системы для обновления (обязательно)",
+                },
+                "updates": {
+                    "type": "object",
+                    "description": "Обновляемые атрибуты (JSON объект)",
+                },
+            },
+            "required": ["sys_id", "updates"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_classifier_system",
+        description="Удалить систему классификаторов.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID системы для удаления (обязательно)",
+                },
+            },
+            "required": ["sys_id"],
+        },
+    ),
+    Tool(
+        name="pdm_create_classifier_level",
+        description="Создать новый уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "system_id": {
+                    "type": "integer",
+                    "description": "ID системы классификатора (обязательно)",
+                },
+                "id": {
+                    "type": "string",
+                    "description": "Строковый идентификатор уровня (обязательно)",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Название уровня (обязательно)",
+                },
+                "code": {
+                    "type": "string",
+                    "description": "Код уровня (обязательно)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Описание уровня",
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "description": "ID родительского уровня (опционально)",
+                },
+                "related_product_id": {
+                    "type": "integer",
+                    "description": "ID связанного изделия (опционально)",
+                },
+            },
+            "required": ["system_id", "id", "name", "code"],
+        },
+    ),
+    Tool(
+        name="pdm_update_classifier_level",
+        description="Обновить уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID уровня для обновления (обязательно)",
+                },
+                "updates": {
+                    "type": "object",
+                    "description": "Обновляемые атрибуты (JSON объект)",
+                },
+            },
+            "required": ["sys_id", "updates"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_classifier_level",
+        description="Удалить уровень классификатора.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sys_id": {
+                    "type": "integer",
+                    "description": "ID уровня для удаления (обязательно)",
+                },
+            },
+            "required": ["sys_id"],
+        },
+    ),
+    # ==================== ILS — Logistic structure ====================
+    Tool(
+        name="ils_find_final_products",
+        description="Найти финальные изделия по наименованию или обозначению.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "search_text": {
+                    "type": "string",
+                    "description": (
+                        "Текст для фильтрации по наименованию (name_rus) "
+                        "или обозначению (id). "
+                        "Если не указан — возвращаются все финальные изделия."
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Макс. количество результатов (по умолч. 50)",
+                    "default": 50,
+                },
+            },
+            "required": [],
+        },
+    ),
+    Tool(
+        name="ils_get_logistic_structure",
+        description="Дерево логистической структуры компонента по sys_id.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "integer",
+                    "description": "sys_id компонента (apl_lss3_component)",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Максимальная глубина обхода дерева (по умолч. 10)",
+                    "default": 10,
+                },
+            },
+            "required": ["component_id"],
+        },
+    ),
+    Tool(
+        name="ils_get_tasks",
+        description="Технологические карты (работы) для компонента по sys_id.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "component_id": {
+                    "type": "integer",
+                    "description": "sys_id компонента (apl_lss3_component)",
+                },
+            },
+            "required": ["component_id"],
         },
     ),
 ]
@@ -719,6 +945,30 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_list_characteristic_types(arguments)
         elif name == "pdm_get_characteristic_values":
             return _handle_pdm_get_characteristic_values(arguments)
+        elif name == "pdm_create_characteristic_value":
+            return _handle_pdm_create_characteristic_value(arguments)
+        elif name == "pdm_update_characteristic_value":
+            return _handle_pdm_update_characteristic_value(arguments)
+        elif name == "pdm_delete_characteristic_value":
+            return _handle_pdm_delete_characteristic_value(arguments)
+        # Classifiers tools
+        elif name == "pdm_get_classifiers":
+            return _handle_pdm_get_classifiers(arguments)
+        elif name == "pdm_get_classifier_tree":
+            return _handle_pdm_get_classifier_tree(arguments)
+        elif name == "pdm_get_classifier_roots":
+            return _handle_pdm_get_classifier_roots(arguments)
+        elif name == "pdm_get_classifier_children":
+            return _handle_pdm_get_classifier_children(arguments)
+        elif name == "pdm_get_classifier_level":
+            return _handle_pdm_get_classifier_level(arguments)
+        # ILS tools
+        elif name == "ils_find_final_products":
+            return _handle_ils_find_final_products(arguments)
+        elif name == "ils_get_logistic_structure":
+            return _handle_ils_get_logistic_structure(arguments)
+        elif name == "ils_get_tasks":
+            return _handle_ils_get_tasks(arguments)
         else:
             return _error_response(f"Unknown tool: {name}")
     except ConnectionError as e:
@@ -732,7 +982,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 def _reconnect(server_url: str, db: str, user: str, password: str):
     """Disconnect existing sessions and reconnect with new parameters."""
-    global _client, _db_api, PSS_SERVER, PSS_DB, PSS_USER, PSS_PASSWORD
+    global _client, _db_api, _ils_logstruct_api, _ils_tasks_api, PSS_SERVER, PSS_DB, PSS_USER, PSS_PASSWORD
 
     # Disconnect existing client
     if _client is not None:
@@ -749,6 +999,9 @@ def _reconnect(server_url: str, db: str, user: str, password: str):
         except Exception:
             pass
         _db_api = None
+
+    _ils_logstruct_api = None
+    _ils_tasks_api = None
 
     # Update globals
     PSS_SERVER = server_url
@@ -1119,6 +1372,254 @@ def _handle_pdm_get_characteristic_values(arguments: dict) -> list[TextContent]:
     })
 
 
+def _handle_pdm_create_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Создать значение характеристики."""
+    item_id = arguments.get("item_id")
+    char_id = arguments.get("characteristic_id")
+    value = arguments.get("value", "")
+    subtype = arguments.get("subtype", "apl_descriptive_characteristic_value")
+
+    if item_id is None or char_id is None:
+        return _error_response("item_id and characteristic_id are required")
+
+    db_api = _get_db_api()
+    result = db_api.characteristic_api.create_characteristic_value(
+        int(item_id), int(char_id), value, subtype
+    )
+
+    if result:
+        return _json_response({
+            "success": True,
+            "sys_id": result.get("id") if isinstance(result, dict) else None,
+        })
+    return _error_response("Failed to create characteristic value")
+
+
+def _handle_pdm_update_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Обновить значение характеристики."""
+    value_id = arguments.get("value_id")
+    new_value = arguments.get("value", "")
+    subtype = arguments.get("subtype", "apl_descriptive_characteristic_value")
+
+    if value_id is None:
+        return _error_response("value_id is required")
+
+    db_api = _get_db_api()
+    success = db_api.characteristic_api.update_characteristic_value(
+        int(value_id), new_value, subtype
+    )
+
+    return _json_response({"success": bool(success), "value_id": value_id})
+
+
+def _handle_pdm_delete_characteristic_value(arguments: dict) -> list[TextContent]:
+    """Удалить значение характеристики."""
+    value_id = arguments.get("value_id")
+    if value_id is None:
+        return _error_response("value_id is required")
+
+    db_api = _get_db_api()
+    success = db_api.characteristic_api.delete_characteristic_value(int(value_id))
+
+    return _json_response({"success": bool(success), "value_id": value_id})
+
+
+def _handle_pdm_get_classifiers(arguments: dict) -> list[TextContent]:
+    """Получить список систем классификаторов."""
+    db_api = _get_db_api()
+    system_id = arguments.get("system_id")
+    try:
+        if system_id:
+            one = db_api.classifiers_api.get_classifier_system(int(system_id))
+            if not one:
+                return _error_response(f"Система классификатора с sys_id {system_id} не найдена")
+            return _json_response({"systems": [one]})
+        systems = db_api.classifiers_api.get_classifier_systems()
+        return _json_response({"systems": systems})
+    except Exception as e:
+        logger.error(f"Error getting classifier systems: {e}")
+        return _error_response(f"Ошибка при получении систем классификаторов: {e}")
+
+
+def _handle_pdm_get_classifier_tree(arguments: dict) -> list[TextContent]:
+    """Получить неглубокое дерево классификатора."""
+    system_id = arguments.get("system_id")
+    if system_id is None:
+        return _error_response("system_id is required")
+    max_depth = arguments.get("max_depth", 2)
+    db_api = _get_db_api()
+    try:
+        tree = db_api.classifiers_api.get_classifier_tree(int(system_id), int(max_depth))
+        return _json_response(tree)
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error getting classifier tree: {e}")
+        return _error_response(f"Ошибка при получении дерева классификатора: {e}")
+
+
+def _handle_pdm_get_classifier_roots(arguments: dict) -> list[TextContent]:
+    """Получить корневые уровни системы классификаторов."""
+    system_id = arguments.get("system_id")
+    if system_id is None:
+        return _error_response("system_id is required")
+    db_api = _get_db_api()
+    try:
+        levels = db_api.classifiers_api.get_root_levels(int(system_id))
+        return _json_response({"levels": levels})
+    except Exception as e:
+        logger.error(f"Error getting classifier roots: {e}")
+        return _error_response(f"Ошибка при получении корневых уровней: {e}")
+
+
+def _handle_pdm_get_classifier_children(arguments: dict) -> list[TextContent]:
+    """Получить прямые дочерние уровни классификатора."""
+    parent_level_id = arguments.get("parent_level_id")
+    if parent_level_id is None:
+        return _error_response("parent_level_id is required")
+    db_api = _get_db_api()
+    try:
+        levels = db_api.classifiers_api.get_child_levels(int(parent_level_id))
+        return _json_response({"levels": levels})
+    except Exception as e:
+        logger.error(f"Error getting classifier children: {e}")
+        return _error_response(f"Ошибка при получении дочерних уровней: {e}")
+
+
+def _handle_pdm_get_classifier_level(arguments: dict) -> list[TextContent]:
+    """Получить детальную информацию об уровне классификатора."""
+    level_id = arguments.get("level_id")
+    if level_id is None:
+        return _error_response("level_id is required")
+    db_api = _get_db_api()
+    try:
+        details = db_api.classifiers_api.get_classifier_level_details(int(level_id))
+        return _json_response({"level": details})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error getting classifier level details: {e}")
+        return _error_response(f"Ошибка при получении деталей уровня классификатора: {e}")
+
+
+def _handle_pdm_create_classifier_system(arguments: dict) -> list[TextContent]:
+    """Создать новую систему классификаторов."""
+    db_api = _get_db_api()
+    try:
+        system_data = {
+            "id": arguments.get("id"),
+            "name": arguments.get("name"),
+            "description": arguments.get("description", ""),
+            "parent_id": arguments.get("parent_id"),
+            "default_level_id": arguments.get("default_level_id"),
+        }
+        # Удаляем None значения
+        system_data = {k: v for k, v in system_data.items() if v is not None}
+        result = db_api.classifiers_api.create_classifier_system(system_data)
+        return _json_response({"system": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error creating classifier system: {e}")
+        return _error_response(f"Ошибка при создании системы классификаторов: {e}")
+
+
+def _handle_pdm_update_classifier_system(arguments: dict) -> list[TextContent]:
+    """Обновить систему классификаторов."""
+    sys_id = arguments.get("sys_id")
+    updates = arguments.get("updates")
+    if sys_id is None or updates is None:
+        return _error_response("sys_id and updates are required")
+    db_api = _get_db_api()
+    try:
+        result = db_api.classifiers_api.update_classifier_system(int(sys_id), updates)
+        return _json_response({"system": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error updating classifier system {sys_id}: {e}")
+        return _error_response(f"Ошибка при обновлении системы классификаторов: {e}")
+
+
+def _handle_pdm_delete_classifier_system(arguments: dict) -> list[TextContent]:
+    """Удалить систему классификаторов."""
+    sys_id = arguments.get("sys_id")
+    if sys_id is None:
+        return _error_response("sys_id is required")
+    db_api = _get_db_api()
+    try:
+        success = db_api.classifiers_api.delete_classifier_system(int(sys_id))
+        if success:
+            return _json_response({"success": True, "message": f"Система {sys_id} удалена"})
+        else:
+            return _error_response(f"Не удалось удалить систему {sys_id}")
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error deleting classifier system {sys_id}: {e}")
+        return _error_response(f"Ошибка при удалении системы классификаторов: {e}")
+
+
+def _handle_pdm_create_classifier_level(arguments: dict) -> list[TextContent]:
+    """Создать новый уровень классификатора."""
+    db_api = _get_db_api()
+    try:
+        level_data = {
+            "system_id": arguments.get("system_id"),
+            "id": arguments.get("id"),
+            "name": arguments.get("name"),
+            "code": arguments.get("code"),
+            "description": arguments.get("description", ""),
+            "parent_id": arguments.get("parent_id"),
+            "related_product_id": arguments.get("related_product_id"),
+        }
+        # Удаляем None значения
+        level_data = {k: v for k, v in level_data.items() if v is not None}
+        result = db_api.classifiers_api.create_classifier_level(level_data)
+        return _json_response({"level": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error creating classifier level: {e}")
+        return _error_response(f"Ошибка при создании уровня классификатора: {e}")
+
+
+def _handle_pdm_update_classifier_level(arguments: dict) -> list[TextContent]:
+    """Обновить уровень классификатора."""
+    sys_id = arguments.get("sys_id")
+    updates = arguments.get("updates")
+    if sys_id is None or updates is None:
+        return _error_response("sys_id and updates are required")
+    db_api = _get_db_api()
+    try:
+        result = db_api.classifiers_api.update_classifier_level(int(sys_id), updates)
+        return _json_response({"level": result, "success": True})
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error updating classifier level {sys_id}: {e}")
+        return _error_response(f"Ошибка при обновлении уровня классификатора: {e}")
+
+
+def _handle_pdm_delete_classifier_level(arguments: dict) -> list[TextContent]:
+    """Удалить уровень классификатора."""
+    sys_id = arguments.get("sys_id")
+    if sys_id is None:
+        return _error_response("sys_id is required")
+    db_api = _get_db_api()
+    try:
+        success = db_api.classifiers_api.delete_classifier_level(int(sys_id))
+        if success:
+            return _json_response({"success": True, "message": f"Уровень {sys_id} удален"})
+        else:
+            return _error_response(f"Не удалось удалить уровень {sys_id}")
+    except ValueError as e:
+        return _error_response(str(e))
+    except Exception as e:
+        logger.error(f"Error deleting classifier level {sys_id}: {e}")
+        return _error_response(f"Ошибка при удалении уровня классификатора: {e}")
+
+
 def _handle_pdm_find_by_code(arguments: dict) -> list[TextContent]:
     code = arguments.get("code", "")
     if not code:
@@ -1407,6 +1908,38 @@ def _handle_pdm_list_units(arguments: dict) -> list[TextContent]:
         "count": len(simplified),
         "units": simplified,
     })
+
+
+# ==================== ILS — Logistic structure handlers ====================
+
+def _handle_ils_find_final_products(arguments: dict) -> list[TextContent]:
+    api = _get_ils_logstruct_api()
+    result = api.find_final_products(
+        search_text=arguments.get("search_text", ""),
+        limit=arguments.get("limit", 50),
+    )
+    return _json_response(result)
+
+
+def _handle_ils_get_logistic_structure(arguments: dict) -> list[TextContent]:
+    component_id = arguments.get("component_id")
+    if component_id is None:
+        return _error_response("component_id is required")
+    api = _get_ils_logstruct_api()
+    result = api.get_logistic_structure(
+        sys_id=int(component_id),
+        max_depth=arguments.get("max_depth", 10),
+    )
+    return _json_response(result)
+
+
+def _handle_ils_get_tasks(arguments: dict) -> list[TextContent]:
+    component_id = arguments.get("component_id")
+    if component_id is None:
+        return _error_response("component_id is required")
+    api = _get_ils_tasks_api()
+    result = api.get_tasks(int(component_id))
+    return _json_response(result)
 
 
 # ---------------------------------------------------------------------------

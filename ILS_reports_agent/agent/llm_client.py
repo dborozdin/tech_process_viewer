@@ -17,7 +17,7 @@ class LLMClient:
 
     def __init__(self, base_url: str, api_key: str, model: str,
                  temperature: float = 0.1, max_tokens: int = 4096,
-                 timeout: float = 120):
+                 timeout: float = 180):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens

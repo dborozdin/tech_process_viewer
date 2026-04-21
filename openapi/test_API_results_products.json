@@ -1,0 +1,62 @@
+{
+  "group": "products",
+  "title": "Products",
+  "started_at": "2026-04-20T13:20:27",
+  "finished_at": "2026-04-20T13:20:31",
+  "duration_s": 4,
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0
+  },
+  "results": [
+    {
+      "scenario": "create_assy",
+      "method": "POST",
+      "path": "/api/v1/products/",
+      "http_status": 201,
+      "duration_ms": 1226,
+      "status": "PASS",
+      "saved": {
+        "product_id": 816113
+      },
+      "response_preview": "{\"data\": {\"access\": \"OWN\", \"attributes\": {\"id\": \"RUN-ASSY-001\", \"name\": \"RunAssy\"}, \"id\": 816113, \"type\": \"product\"}, \"message\": \"Product created successfully\", \"product_id\": 816113, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "get_pdf",
+      "method": "GET",
+      "path": "/api/v1/products/816113",
+      "http_status": 200,
+      "duration_ms": 545,
+      "status": "PASS",
+      "saved": {
+        "pdf_id": 816112
+      },
+      "response_preview": "{\"definition_count\": 1, \"definitions\": [{\"attributes\": {\"of_product\": {\"id\": 816113, \"type\": \"product\"}}, \"id\": 816112, \"type\": \"apl_product_definition_formation\"}], \"product\": {\"access\": \"OWN\", \"attributes\": {\"id\": \"RUN-ASSY-001\", \"name\": \"RunAssy\"}, \"id\": 816113, \"type\": \"product\"}}",
+      "error": ""
+    },
+    {
+      "scenario": "update",
+      "method": "PUT",
+      "path": "/api/v1/products/816113",
+      "http_status": 200,
+      "duration_ms": 973,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"data\": {\"type\": \"product\"}, \"message\": \"Product updated successfully\", \"product_id\": 816113, \"success\": true}",
+      "error": ""
+    },
+    {
+      "scenario": "delete",
+      "method": "DELETE",
+      "path": "/api/v1/products/816113",
+      "http_status": 204,
+      "duration_ms": 1036,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "\"\"",
+      "error": ""
+    }
+  ]
+}

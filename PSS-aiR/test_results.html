@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>PSS-aiR CRUD Test Results</title>
+<style>
+body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f5f5f5; }
+h1 { color: #003d4d; } h2 { color: #005566; margin-top: 30px; }
+.summary { font-size: 18px; margin: 10px 0 20px; }
+.pass { color: #28a745; font-weight: bold; } .fail { color: #cc3333; font-weight: bold; }
+.skip { color: #888; }
+table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 14px; }
+th { background: #005566; color: white; }
+tr:nth-child(even) { background: #f9f9f9; }
+.note { color: #666; font-size: 12px; }
+</style></head><body>
+<h1>PSS-aiR CRUD — Результаты тестирования</h1>
+<p>Начало: 2026-04-18 01:07:23 | Окончание: 2026-04-18 01:15:05 | Длительность: 463с</p>
+<p class="summary">Итого: <span class="pass">21 PASS</span>, <span class="fail">0 FAIL</span>, <span class="skip">0 SKIP</span> из 21</p>
+<h2>Результаты</h2>
+<table><tr><th>#</th><th>Описание</th><th>Начало</th><th>Окончание</th><th>Длит., мс</th><th>Результат</th><th>Примечание</th></tr>
+<tr><td>T01</td><td>Загрузка приложения</td><td>01:08:45</td><td>01:08:50</td><td>4827</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T02</td><td>Подключение к БД</td><td>01:08:51</td><td>01:08:55</td><td>4003</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T03</td><td>Загрузка дерева папок</td><td>01:08:56</td><td>01:09:01</td><td>5044</td><td class="pass">PASS</td><td class="note">81 nodes</td></tr>
+<tr><td>T04</td><td>Выбор папки — CRUD-тулбар</td><td>01:09:02</td><td>01:09:04</td><td>2096</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T05</td><td>Создание изделия</td><td>01:09:05</td><td>01:09:22</td><td>16368</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T06</td><td>Редактирование изделия</td><td>01:09:23</td><td>01:09:38</td><td>15366</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T07</td><td>Удаление изделия</td><td>01:09:39</td><td>01:09:53</td><td>14275</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T08</td><td>Создание сборки и компонента</td><td>01:09:54</td><td>01:10:31</td><td>36158</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T09</td><td>BOM — добавить существующий компонент</td><td>01:10:32</td><td>01:10:45</td><td>13735</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T09b</td><td>BOM — создать новое изделие в составе</td><td>01:10:46</td><td>01:11:14</td><td>27726</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T10</td><td>BOM — редактировать связь</td><td>01:11:15</td><td>01:11:24</td><td>9238</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T11</td><td>BOM — удалить связь</td><td>01:11:25</td><td>01:11:44</td><td>18314</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T12</td><td>Создание бизнес-процесса</td><td>01:11:45</td><td>01:12:02</td><td>17576</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T13</td><td>PropertyPanel — Редактировать</td><td>01:12:03</td><td>01:12:17</td><td>13463</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T14</td><td>Добавление характеристики</td><td>01:12:18</td><td>01:12:34</td><td>16317</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T15</td><td>Удаление характеристики</td><td>01:12:35</td><td>01:12:44</td><td>9222</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T16</td><td>Добавление ресурса</td><td>01:12:45</td><td>01:13:13</td><td>27792</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T17</td><td>Удаление ресурса</td><td>01:13:14</td><td>01:13:23</td><td>9246</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T18</td><td>Привязка документа</td><td>01:13:24</td><td>01:14:01</td><td>36972</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T19</td><td>Отвязка документа</td><td>01:14:02</td><td>01:14:11</td><td>9189</td><td class="pass">PASS</td><td class="note"></td></tr>
+<tr><td>T20</td><td>Очистка тестовых данных</td><td>01:14:12</td><td>01:15:03</td><td>50243</td><td class="pass">PASS</td><td class="note"></td></tr>
+</table>
+<h2>Рекомендации по исправлению FAIL</h2><p>См. <a href="failed_tests_fix_plan.md">failed_tests_fix_plan.md</a> — заполняется вручную после прогона на основе stack traces выше.</p>
+<h2>История прогонов</h2><table><tr><th>Прогон</th><th>PASS</th><th>FAIL</th><th>SKIP</th></tr>
+<tr><td>#1</td><td>3</td><td>1</td><td>17</td></tr>
+<tr><td>#2</td><td>21</td><td>0</td><td>0</td></tr>
+</table>
+</body></html>

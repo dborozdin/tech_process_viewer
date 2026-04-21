@@ -321,14 +321,24 @@ class BusinessProcessResources(MethodView):
         if not process:
             abort(404, message=f"Business process {process_id} not found")
 
-        # Create resource using resources API
+        # Create resource using resources API. Note: pss_resources_api.create_resource
+        # has 8-param signature (res_id, res_name, res_type, bp, item, item_type, value, unit) —
+        # call with kwargs to avoid positional argument confusion.
         type_id = resource_data['type_id']
-        object_id = resource_data.get('object_id')
-        value = resource_data.get('value_component')
-        unit_id = resource_data.get('unit_id')
+        object_id = resource_data.get('object_id') or 0
+        value = resource_data.get('value_component') or 0
+        unit_id = resource_data.get('unit_id') or 0
+        object_type = resource_data.get('object_type', 'organization')
 
         resource_id = db_api.resources_api.create_resource(
-            process_id, type_id, object_id, value, unit_id
+            res_id=resource_data.get('id', ''),
+            res_name=resource_data.get('name', ''),
+            res_type=type_id,
+            bp=process_id,
+            item=object_id,
+            item_type=object_type,
+            value=value,
+            unit=unit_id,
         )
 
         if resource_id:
@@ -338,7 +348,8 @@ class BusinessProcessResources(MethodView):
                 'success': True,
                 'message': 'Resource added to business process successfully',
                 'data': updated_process,
-                'process_id': process_id
+                'process_id': process_id,
+                'resource_id': resource_id,
             }
 
         abort(500, message="Failed to add resource to business process")
@@ -387,3 +398,34 @@ class BusinessProcessResourceDetail(MethodView):
             abort(500, message="Failed to delete resource")
 
         return '', 204
+
+
+# ── Link BP to product (CRUD migration from /api/business-processes/{bp}/link-product) ─
+
+from ..schemas.common_schemas import fields as _f
+
+
+class _LinkProductSchema(__import__('marshmallow').Schema):
+    class Meta:
+        unknown = __import__('marshmallow').EXCLUDE
+    pdf_id = _f.Int(required=True, description="apl_product_definition_formation sys_id")
+
+
+@blp.route('/<int:process_id>/link-product')
+class BusinessProcessLinkProduct(MethodView):
+    @blp.arguments(_LinkProductSchema)
+    @blp.response(201)
+    @blp.alt_response(400, schema=ErrorSchema, description="pdf_id missing")
+    @blp.alt_response(401, schema=ErrorSchema, description="Not connected")
+    @blp.alt_response(500, schema=ErrorSchema)
+    @blp.doc(description="Привязать бизнес-процесс к изделию (apl_business_process_reference)")
+    def post(self, data, process_id):
+        db_api = get_db_api()
+        try:
+            ref_id = db_api.bp_api.find_or_create_bp_reference(bp=process_id, pdf=data['pdf_id'])
+            if not ref_id:
+                abort(500, message="Failed to link")
+            return {"success": True, "message": "BP linked to product",
+                    "data": {"ref_id": ref_id}}
+        except Exception as e:
+            abort(500, message=str(e))

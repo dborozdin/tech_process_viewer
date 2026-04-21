@@ -22,6 +22,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+            z-index: 1100;
         }
 
         header h1 { font-size: 18px; font-weight: 600; }
@@ -735,9 +737,15 @@
             <button class="settings-toggle" id="llmToggle" onclick="toggleLlmPanel()">LLM</button>
             <button class="settings-toggle" id="settingsToggle" onclick="toggleSettingsPanel()">&#9881; Промпт</button>
             <button class="history-toggle" id="historyToggle" onclick="toggleHistoryPanel()">История</button>
+            <button class="settings-toggle" id="toolsToggle" onclick="toggleToolsPanel()" title="Доступные MCP-инструменты">Инструменты</button>
             <button class="debug-toggle" id="debugToggle" onclick="toggleDebugPanel()">API Debug</button>
         </div>
     </header>
+
+    <div class="settings-panel" id="toolsPanel" style="max-height:300px; overflow-y:auto; position:relative; z-index:1100;">
+        <h4 style="margin:0 0 8px 0; font-size:14px;">Доступные инструменты (<span id="toolsCount">0</span>)</h4>
+        <div id="toolsList" style="font-size:12px; line-height:1.6;"></div>
+    </div>
 
     <div class="settings-panel" id="llmPanel">
         <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
@@ -745,6 +753,7 @@
                 <label for="llmProvider">Провайдер:</label>
                 <select id="llmProvider" onchange="onProviderChange()" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
                     <option value="openrouter">OpenRouter</option>
+                    <option value="nvidia">NVIDIA API (free)</option>
                     <option value="ollama">Ollama (bolt.cals.ru)</option>
                     <option value="mock">Mock (записи сессий)</option>
                 </select>
@@ -1048,6 +1057,30 @@
 
         // --- Debug panel ---
 
+        function toggleToolsPanel() {
+            const panel = document.getElementById('toolsPanel');
+            const btn = document.getElementById('toolsToggle');
+            panel.classList.toggle('open');
+            btn.classList.toggle('active');
+            if (panel.classList.contains('open') && !panel.dataset.loaded) loadTools();
+        }
+
+        async function loadTools() {
+            const panel = document.getElementById('toolsPanel');
+            const list = document.getElementById('toolsList');
+            try {
+                const resp = await fetch('/api/tools');
+                const data = await resp.json();
+                document.getElementById('toolsCount').textContent = data.count;
+                list.innerHTML = data.tools.map(t =>
+                    `<div style="margin-bottom:2px;"><b style="color:#1a237e;">${t.name}</b>: ${t.description}</div>`
+                ).join('');
+                panel.dataset.loaded = '1';
+            } catch (e) {
+                list.innerHTML = '<div style="color:red;">Ошибка загрузки</div>';
+            }
+        }
+
         function toggleDebugPanel() {
             const panel = document.getElementById('debugPanel');
             const btn = document.getElementById('debugToggle');
@@ -1286,6 +1319,11 @@
                     div.textContent = `\u2713 ${step.tool} \u2192 ${result}${(step.result || '').length > 120 ? '...' : ''}`;
                     const prev = container.querySelector('.step.tool_call:last-of-type .spinner');
                     if (prev) prev.remove();
+                    break;
+                case 'memory':
+                    div.innerHTML = `&#128203; Записано в память: <b>${step.items}</b>`;
+                    div.style.borderLeftColor = '#1565c0';
+                    div.style.background = '#e3f2fd';
                     break;
                 case 'error':
                     div.textContent = `\u2717 ${step.message}`;
@@ -1785,7 +1823,7 @@
             const provider = document.getElementById('llmProvider').value;
             const isMock = provider === 'mock';
             document.getElementById('llmApiKeyRow').style.display =
-                provider === 'openrouter' ? '' : 'none';
+                (provider === 'openrouter' || provider === 'nvidia') ? '' : 'none';
             document.getElementById('ollamaPullRow').style.display =
                 provider === 'ollama' ? '' : 'none';
             document.getElementById('checkToolsBtn').style.display =
@@ -1887,7 +1925,7 @@
                 temperature: parseFloat(document.getElementById('llmTemperature').value),
                 max_tokens: parseInt(document.getElementById('llmMaxTokens').value),
             };
-            if (provider === 'openrouter') {
+            if (provider === 'openrouter' || provider === 'nvidia') {
                 const key = document.getElementById('llmApiKey').value.trim();
                 if (key) payload.api_key = key;
             }

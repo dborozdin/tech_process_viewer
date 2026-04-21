@@ -86,6 +86,7 @@ class ResourceResponseSchema(SuccessResponseSchema):
 # Resource Type Schema
 class ResourceTypeSchema(Schema):
     """Schema for resource type"""
+    sys_id = fields.Int(description="apl_business_process_resource_type sys_id (use for create_resource.type_id)")
     id = fields.Str(description="Resource type ID")
     name = fields.Str(description="Resource type name")
     description = fields.Str(allow_none=True, description="Description")

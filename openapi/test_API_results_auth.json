@@ -1,0 +1,69 @@
+{
+  "group": "auth",
+  "title": "Auth / Connection",
+  "started_at": "2026-04-20T13:18:55",
+  "finished_at": "2026-04-20T13:19:25",
+  "duration_s": 29,
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "results": [
+    {
+      "scenario": "dblist",
+      "method": "GET",
+      "path": "/api/dblist",
+      "http_status": 200,
+      "duration_ms": 4220,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"dblist\": [\"db_moma_25_03_25\", \"ils_lessons12\", \"pss_empty_moma_08_07_2025\", \"pss_moma_08_07_2025\", \"pss_moma_08_07_2025_copy\", \"pss_source_moma_08_07_2025\", \"ПНЦР_Maximo\"]}",
+      "error": ""
+    },
+    {
+      "scenario": "connect",
+      "method": "POST",
+      "path": "/api/connect",
+      "http_status": 200,
+      "duration_ms": 6357,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A5773624F1BA48\", \"user\": \"Administrator\"}",
+      "error": ""
+    },
+    {
+      "scenario": "status",
+      "method": "GET",
+      "path": "/api/status",
+      "http_status": 200,
+      "duration_ms": 2144,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"connected\": true, \"message\": \"Connected to database\", \"session_key\": \"0x10A577...\"}",
+      "error": ""
+    },
+    {
+      "scenario": "disconnect",
+      "method": "POST",
+      "path": "/api/disconnect",
+      "http_status": 200,
+      "duration_ms": 4255,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"disconnected\": true, \"message\": \"Successfully disconnected from database\"}",
+      "error": ""
+    },
+    {
+      "scenario": "reconnect",
+      "method": "POST",
+      "path": "/api/connect",
+      "http_status": 200,
+      "duration_ms": 6349,
+      "status": "PASS",
+      "saved": {},
+      "response_preview": "{\"connected\": true, \"db\": \"pss_moma_08_07_2025\", \"session_key\": \"0x10A5774224F1EC07\", \"user\": \"Administrator\"}",
+      "error": ""
+    }
+  ]
+}

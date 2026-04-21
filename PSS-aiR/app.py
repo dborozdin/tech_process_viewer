@@ -20,6 +20,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(_PSS_C_DIR)))
 from tech_process_viewer.api.pss_api import DatabaseAPI
 from tech_process_viewer.globals import logger
 
+# Включить детальный лог всех запросов к PSS REST API
+import pss_request_logger
+pss_request_logger.install()
+
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.config['SECRET_KEY'] = 'pss-c-dev-secret'
 
@@ -108,12 +112,16 @@ from routes.products import bp as products_bp
 from routes.documents import bp as documents_bp
 from routes.processes import bp as processes_bp
 from routes.reports import bp as reports_bp
+from routes.crud import bp as crud_bp
+from routes.references import bp as references_bp
 
 app.register_blueprint(folders_bp)
 app.register_blueprint(products_bp)
 app.register_blueprint(documents_bp)
 app.register_blueprint(processes_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(crud_bp)
+app.register_blueprint(references_bp)
 
 
 # ========== Static Files ==========
@@ -136,4 +144,4 @@ def index():
 
 if __name__ == '__main__':
     print(f" * PSS-aiR: http://localhost:5002/")
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5002, threaded=True)

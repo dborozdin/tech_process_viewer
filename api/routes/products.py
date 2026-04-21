@@ -400,6 +400,9 @@ class ProductBOMItems(MethodView):
             unit_id=unit_id,
             reference_designator=bom_data.get('reference_designator')
         )
+        # add_component_to_bom may return (sys_id, "created"/"found") tuple — unwrap.
+        if isinstance(bom_item_id, tuple):
+            bom_item_id = bom_item_id[0]
 
         if bom_item_id:
             bom_item = db_api.products_api.get_bom_item(bom_item_id)

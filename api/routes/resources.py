@@ -253,6 +253,7 @@ class ResourceTypeList(MethodView):
         for type_inst in types:
             attrs = type_inst.get('attributes', {})
             type_list.append({
+                'sys_id': type_inst.get('id'),
                 'id': attrs.get('id'),
                 'name': attrs.get('name'),
                 'description': attrs.get('description')

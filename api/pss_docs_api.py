@@ -331,7 +331,7 @@ class DocumentsAPI:
                     print(f'Error uploading blob')
                     print(f'Error description: {error_desc}')
                     print(f'Error description: {error_desc}')
-                    return (response.status_code, error_desc, error_json, response.request)
+                    return None
             
             except requests.RequestException as e:
                 # Ошибка запроса (например, таймаут, DNS и т.п.)

@@ -34,6 +34,10 @@ api = Api(app)
 from tech_process_viewer.api.routes.auth import blp as auth_blp
 api.register_blueprint(auth_blp)
 
+# Register CRUD routes blueprint
+from tech_process_viewer.api.routes.crud_routes import crud_blp
+app.register_blueprint(crud_blp)
+
 # ========== HTML Routes ==========
 
 @app.route('/')
@@ -283,7 +287,7 @@ def get_tp_details(tech_proc_id):
         op['steps'] = []
     tech_proc['operations'] = operations
 
-    # Documents (batch)
+    # Documents (batch) — include ref_id for detach support
     tech_proc['documents'] = []
     query_docs = f"""SELECT NO_CASE
     Ext_
@@ -293,10 +297,12 @@ def get_tp_details(tech_proc_id):
     docs_data = query_apl(API, query_docs, "Document references for TP")
 
     doc_ids = []
+    doc_ref_map = {}  # doc_sys_id -> ref_sys_id
     for inst in docs_data.get("instances", []):
         assigned_doc = inst.get("attributes", {}).get("assigned_document", {})
         if isinstance(assigned_doc, dict) and 'id' in assigned_doc:
             doc_ids.append(assigned_doc['id'])
+            doc_ref_map[assigned_doc['id']] = inst.get('id')
 
     if doc_ids:
         doc_instances = batch_query_by_ids(API, doc_ids, "Document details (batch)")
@@ -317,10 +323,13 @@ def get_tp_details(tech_proc_id):
             dattrs = dinst.get("attributes", {})
             kind = dattrs.get('kind', {})
             type_id = kind.get('id') if isinstance(kind, dict) else None
+            doc_sys_id = dinst.get('id')
             tech_proc['documents'].append({
                 'name': dattrs.get('name', ''),
                 'code': dattrs.get('id', ''),
-                'type': doc_type_map.get(type_id, '')
+                'type': doc_type_map.get(type_id, ''),
+                'doc_sys_id': doc_sys_id,
+                'ref_id': doc_ref_map.get(doc_sys_id)
             })
 
     # Materials (batch where possible)
@@ -408,6 +417,39 @@ def get_tp_details(tech_proc_id):
                     'quantity': aattrs.get('value_component', ''),
                     'uom': unit_map.get(unit_id, '')
                 })
+
+    # Characteristics
+    tech_proc['characteristics'] = []
+    try:
+        char_values = API.characteristic_api.get_values_for_item(tech_proc_id)
+        char_ids_to_resolve = set()
+        for val in char_values:
+            char_ref = val.get('attributes', {}).get('characteristic', {})
+            if isinstance(char_ref, dict) and 'id' in char_ref:
+                char_ids_to_resolve.add(char_ref['id'])
+
+        # Batch resolve characteristic names
+        char_name_map = {}
+        if char_ids_to_resolve:
+            char_instances = batch_query_by_ids(API, list(char_ids_to_resolve), "Characteristic definitions (batch)")
+            for cinst in char_instances:
+                char_name_map[cinst.get('id')] = cinst.get('attributes', {}).get('name', '')
+
+        for val in char_values:
+            attrs = val.get('attributes', {})
+            char_ref = attrs.get('characteristic', {})
+            char_id = char_ref.get('id') if isinstance(char_ref, dict) else None
+            parsed = API.characteristic_api._extract_display_value(val)
+            tech_proc['characteristics'].append({
+                'sys_id': val.get('id'),
+                'characteristic_name': char_name_map.get(char_id, ''),
+                'characteristic_id': char_id,
+                'value': parsed.get('value', ''),
+                'subtype': val.get('type', ''),
+                'unit': parsed.get('unit', '')
+            })
+    except Exception as e:
+        logger.error(f"Error loading characteristics: {e}")
 
     return tech_proc
 
