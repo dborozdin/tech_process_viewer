@@ -7,3 +7,7 @@ logs/app.log
 *_key
 api/routes/__pycache__/__init__.cpython-312.pyc
 logs/errors.log
+deepseek_key.txt
+nvidia_key.txt
+PSS-aiR/REFERENCE_BOOKS_SPEC.md
+.claude/settings.local.json
