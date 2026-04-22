@@ -19,6 +19,11 @@ class ReferenceService:
             return None
         return self.db_api.classifiers_api
 
+    def _units_api(self):
+        if not self.db_api or not hasattr(self.db_api, 'units_api'):
+            return None
+        return self.db_api.units_api
+
     # ===== Классификаторы =====
 
     @track_performance("get_classifier_systems")
@@ -159,18 +164,133 @@ class ReferenceService:
             logger.error(f"Error deleting classifier level {sys_id}: {e}")
             return False
 
+    # ===== Единицы измерения =====
+
+    @track_performance("get_units_list")
+    def get_units_list(self, limit=100):
+        api = self._units_api()
+        if not api:
+            return []
+        try:
+            return api.list_units(limit)
+        except Exception as e:
+            logger.error(f"Error getting units list: {e}")
+            return []
+
+    @track_performance("get_unit_details")
+    def get_unit_details(self, sys_id):
+        api = self._units_api()
+        if not api:
+            return None
+        try:
+            return api.get_unit(int(sys_id))
+        except Exception as e:
+            logger.error(f"Error getting unit details for {sys_id}: {e}")
+            return None
+
+    SI_UNIT_DIMENSIONS = {
+        'metre':    {'length_exponent': 1},
+        'gram':     {'mass_exponent': 1},
+        'second':   {'time_exponent': 1},
+        'ampere':   {'electric_current_exponent': 1},
+        'kelvin':   {'thermodynamic_temperature_exponent': 1},
+        'mole':     {'amount_of_substance_exponent': 1},
+        'candela':  {'luminous_intensity_exponent': 1},
+        'hertz':    {'time_exponent': -1},
+        'newton':   {'mass_exponent': 1, 'length_exponent': 1, 'time_exponent': -2},
+        'pascal':   {'mass_exponent': 1, 'length_exponent': -1, 'time_exponent': -2},
+        'joule':    {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -2},
+        'watt':     {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -3},
+        'coulomb':  {'electric_current_exponent': 1, 'time_exponent': 1},
+        'volt':     {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -3, 'electric_current_exponent': -1},
+        'farad':    {'mass_exponent': -1, 'length_exponent': -2, 'time_exponent': 4, 'electric_current_exponent': 2},
+        'ohm':      {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -3, 'electric_current_exponent': -2},
+        'siemens':  {'mass_exponent': -1, 'length_exponent': -2, 'time_exponent': 3, 'electric_current_exponent': 2},
+        'weber':    {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -2, 'electric_current_exponent': -1},
+        'tesla':    {'mass_exponent': 1, 'time_exponent': -2, 'electric_current_exponent': -1},
+        'henry':    {'mass_exponent': 1, 'length_exponent': 2, 'time_exponent': -2, 'electric_current_exponent': -2},
+        'degree_celsius': {'thermodynamic_temperature_exponent': 1},
+        'lumen':    {'luminous_intensity_exponent': 1},
+        'lux':      {'luminous_intensity_exponent': 1, 'length_exponent': -2},
+        'becquerel': {'time_exponent': -1},
+        'gray':     {'length_exponent': 2, 'time_exponent': -2},
+        'sievert':  {'length_exponent': 2, 'time_exponent': -2},
+        'radian':   {},
+        'steradian': {},
+    }
+
+    @track_performance("create_unit")
+    def create_unit(self, unit_data):
+        api = self._units_api()
+        if not api:
+            return None
+        try:
+            subtype = unit_data.pop('subtype', 'si_unit')
+            si_name = unit_data.get('si_name', '')
+
+            if subtype == 'si_unit' and si_name:
+                dims_map = self.SI_UNIT_DIMENSIONS.get(si_name, {})
+                all_dims = {
+                    'length_exponent': 0,
+                    'mass_exponent': 0,
+                    'time_exponent': 0,
+                    'electric_current_exponent': 0,
+                    'thermodynamic_temperature_exponent': 0,
+                    'amount_of_substance_exponent': 0,
+                    'luminous_intensity_exponent': 0,
+                }
+                all_dims.update(dims_map)
+                unit_data['dimensions'] = {
+                    'id': 0,
+                    'index': 1,
+                    'type': 'dimensional_exponents',
+                    'attributes': all_dims,
+                }
+                unit_data.pop('si_name', None)
+
+            result = self.db_api.create_instance(subtype, unit_data)
+            if result:
+                return api._map_unit(result)
+            return None
+        except Exception as e:
+            logger.error(f"Error creating unit: {e}")
+            return None
+
+    @track_performance("update_unit")
+    def update_unit(self, sys_id, updates):
+        api = self._units_api()
+        if not api:
+            return {}
+        try:
+            return api.update_unit(int(sys_id), updates)
+        except Exception as e:
+            logger.error(f"Error updating unit {sys_id}: {e}")
+            return {}
+
+    @track_performance("delete_unit")
+    def delete_unit(self, sys_id):
+        api = self._units_api()
+        if not api:
+            return False
+        try:
+            return api.delete_unit(int(sys_id))
+        except Exception as e:
+            logger.error(f"Error deleting unit {sys_id}: {e}")
+            return False
+
     # ===== Список типов справочников / заглушки =====
 
     @track_performance("get_all_reference_types")
     def get_all_reference_types(self):
         count = len(self.get_classifier_systems()) if self._api() else 0
+        units_count = self.db_api.get_instance_count('apl_unit', use_load=True) if self._units_api() else 0
         return [
             {'id': 'classifiers', 'name': 'Классификаторы', 'icon': '📚',
              'description': 'Системы и уровни классификации объектов',
              'implemented': True, 'count': count},
             {'id': 'units', 'name': 'Единицы измерения', 'icon': '📏',
              'description': 'Базовые и производные единицы измерения',
-             'implemented': False, 'count': 0},
+             'implemented': True, 'count': units_count},
             {'id': 'organizations', 'name': 'Организации', 'icon': '🏢',
              'description': 'Организации-исполнители и подрядчики',
              'implemented': False, 'count': 0},
@@ -184,7 +304,12 @@ class ReferenceService:
 
     @track_performance("get_reference_list")
     def get_reference_list(self, ref_type):
-        """Заглушка для неподдерживаемых типов справочников."""
+        if ref_type == 'units':
+            return {
+                'type': 'units',
+                'name': 'Единицы измерения',
+                'items': self.get_units_list(),
+            }
         known = {
             'units': 'Единицы измерения',
             'organizations': 'Организации',

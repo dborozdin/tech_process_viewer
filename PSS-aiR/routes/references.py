@@ -227,3 +227,80 @@ def delete_classifier_level(sys_id):
     except Exception as e:
         current_app.logger.error(f"Error deleting classifier level {sys_id}: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ===== Единицы измерения =====
+
+@bp.route('/units')
+def list_units():
+    svc, err = _need_service()
+    if err:
+        return err
+    limit = request.args.get('limit', 100, type=int)
+    return jsonify({'units': svc.get_units_list(limit)})
+
+
+@bp.route('/units/<int:unit_id>')
+def get_unit(unit_id):
+    svc, err = _need_service()
+    if err:
+        return err
+    try:
+        unit = svc.get_unit_details(unit_id)
+        if not unit:
+            return jsonify({'error': 'Unit not found'}), 404
+        return jsonify({'unit': unit})
+    except Exception as e:
+        current_app.logger.error(f"Error getting unit {unit_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/units', methods=['POST'])
+def create_unit():
+    svc, err = _need_service()
+    if err:
+        return err
+    data = request.get_json() or {}
+    if not data.get('name'):
+        return jsonify({'error': 'name required'}), 400
+    try:
+        result = svc.create_unit(data)
+        if not result:
+            return jsonify({'error': 'Failed to create unit'}), 500
+        return jsonify({'unit': result})
+    except Exception as e:
+        current_app.logger.error(f"Error creating unit: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/units/<int:unit_id>', methods=['PUT'])
+def update_unit(unit_id):
+    svc, err = _need_service()
+    if err:
+        return err
+    data = request.get_json() or {}
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    try:
+        result = svc.update_unit(unit_id, data)
+        if not result:
+            return jsonify({'error': 'Failed to update unit'}), 500
+        return jsonify({'unit': result})
+    except Exception as e:
+        current_app.logger.error(f"Error updating unit {unit_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/units/<int:unit_id>', methods=['DELETE'])
+def delete_unit(unit_id):
+    svc, err = _need_service()
+    if err:
+        return err
+    try:
+        ok = svc.delete_unit(unit_id)
+        if not ok:
+            return jsonify({'error': 'Failed to delete unit'}), 500
+        return jsonify({'message': 'Unit deleted successfully'})
+    except Exception as e:
+        current_app.logger.error(f"Error deleting unit {unit_id}: {e}")
+        return jsonify({'error': str(e)}), 500
