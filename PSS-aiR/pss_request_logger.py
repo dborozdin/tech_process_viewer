@@ -128,9 +128,12 @@ def install():
     _original_send = requests.adapters.HTTPAdapter.send
     requests.adapters.HTTPAdapter.send = _patched_send
 
-    # Clear old log
+    # Clear old log (truncate instead of remove to avoid PermissionError on Windows)
     if os.path.exists(LOG_PATH):
-        os.remove(LOG_PATH)
+        try:
+            os.remove(LOG_PATH)
+        except PermissionError:
+            open(LOG_PATH, 'w').close()
 
     print(f"[PSS Logger] Installed. Log: {LOG_PATH}")
 

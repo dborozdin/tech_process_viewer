@@ -15,6 +15,9 @@ from tech_process_viewer.globals import logger
 
 class DatabaseAPI:
     def __init__(self, url_db_api, db_credentials):
+        # Отключаем IPv6 в urllib3 — localhost резолвится в ::1, urllib3 пробует
+        # IPv6 первым, ждёт таймаута, затем падает на IPv4 (+1-2с на запрос).
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
         self.URL_DB_API = url_db_api
         self.URL_CONNECT = f'{url_db_api}/connect/{db_credentials}'
         self.URL_DISCONNECT = f'{url_db_api}/disconnect'

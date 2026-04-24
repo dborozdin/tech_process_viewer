@@ -96,6 +96,17 @@ class ReferenceService:
             logger.error(f"Error searching classifiers: {e}")
             return {'systems': [], 'levels': []}
 
+    @track_performance("get_classifier_associations")
+    def get_classifier_associations(self, level_sys_id, item_type=None):
+        api = self._api()
+        if not api:
+            return []
+        try:
+            return api.get_classifier_associations(int(level_sys_id), item_type=item_type)
+        except Exception as e:
+            logger.error(f"Error getting associations for level {level_sys_id}: {e}")
+            return []
+
     # ===== CRUD (проксируем на ClassifiersAPI) =====
 
     @track_performance("create_classifier_system")

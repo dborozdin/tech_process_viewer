@@ -728,6 +728,13 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
   text-align: center;
   padding: 32px 16px;
 }
+/* Details tabs */
+.details-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; gap: 0; }
+.details-tab { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; user-select: none; }
+.details-tab:hover { color: var(--text); }
+.details-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+.details-tab-content { display: none; }
+.details-tab-content.active { display: block; }
 </style>
 </head>
 <body>
@@ -1061,6 +1068,7 @@ class API {
     getClassifierRoots: (systemId) => this._fetch(`/api/references/classifiers/${systemId}/roots`),
     getLevelChildren: (levelId) => this._fetch(`/api/references/levels/${levelId}/children`),
     getLevelDetails: (levelId) => this._fetch(`/api/references/classifiers/levels/${levelId}`),
+    getLevelAssociations: (levelId) => this._fetch(`/api/references/classifiers/levels/${levelId}/associations`),
     getReferenceList: (refType) => this._fetch(`/api/references/list/${refType}`),
     search: (q, type) => this._fetch(`/api/references/search?q=${encodeURIComponent(q)}&type=${type || 'all'}`),
     // Units CRUD
@@ -1986,6 +1994,23 @@ class ReferencesView {
       </div>`;
   }
 
+  _renderAssociationNode(assoc) {
+    const isPdf = assoc.item_type === 'apl_product_definition_formation';
+    const details = assoc.item_details || {};
+    const label = isPdf ? this._esc((details.designation ? details.designation + ': ' : '') + (details.product_name || `#${assoc.item_id}`)) : `#${assoc.item_id}`;
+    const code = isPdf ? this._esc(details.code1 || details.product_code || '') : '';
+    const name = isPdf ? this._esc(details.product_name || '') : '';
+    return `
+      <div class="tree-node" data-item-id="${assoc.item_id}" data-kind="association" data-assoc-json='${JSON.stringify(assoc).replace(/'/g, "&#39;")}'>
+        <div class="tree-node-row" data-kind="association" data-item-id="${assoc.item_id}">
+          <span class="tree-toggle leaf" style="visibility:hidden">▶</span>
+          <span class="tree-icon">📦</span>
+          ${code ? `<span class="tree-code">${this._esc(code)}</span>` : ''}
+          <span class="tree-label" title="${name}">${label}</span>
+        </div>
+      </div>`;
+  }
+
   async _toggleNode(row) {
     const node = row.closest('.tree-node');
     const children = node.querySelector(':scope > .tree-children');
@@ -2002,19 +2027,29 @@ class ReferencesView {
     if (!children.dataset.loaded) {
       toggle.textContent = '⏳';
       try {
-        let levels = [];
+        let parts = [];
         if (row.dataset.kind === 'system') {
           const res = await api.references.getClassifierRoots(row.dataset.sysId);
-          levels = res.levels || [];
+          const levels = res.levels || [];
+          parts = levels.map(lv => this._renderLevelNode(lv));
         } else {
-          const res = await api.references.getLevelChildren(row.dataset.levelId);
-          levels = res.levels || [];
+          // Загружаем дочерние уровни + классифицированные изделия
+          const [levelsRes, assocRes] = await Promise.all([
+            api.references.getLevelChildren(row.dataset.levelId),
+            api.references.getLevelAssociations(row.dataset.levelId),
+          ]);
+          const levels = levelsRes.levels || [];
+          const assocs = assocRes.associations || [];
+          parts = [
+            ...levels.map(lv => this._renderLevelNode(lv)),
+            ...assocs.map(a => this._renderAssociationNode(a)),
+          ];
         }
-        if (!levels.length) {
+        if (!parts.length) {
           children.innerHTML = '<div class="tree-empty-child">Нет дочерних элементов</div>';
           row.classList.remove('expandable');
         } else {
-          children.innerHTML = levels.map(lv => this._renderLevelNode(lv)).join('');
+          children.innerHTML = parts.join('');
         }
         children.dataset.loaded = '1';
       } catch (err) {
@@ -2033,7 +2068,43 @@ class ReferencesView {
       this._renderSystemDetails(row.dataset.sysId);
     } else if (row.dataset.kind === 'level') {
       await this._renderLevelDetails(row.dataset.levelId);
+    } else if (row.dataset.kind === 'association') {
+      this._renderAssociationDetails(row.dataset.itemId);
     }
+  }
+
+  _renderAssociationDetails(itemId) {
+    // Найти данные ассоциации в дереве
+    const node = this.treeContainer.querySelector(`.tree-node-row[data-item-id="${itemId}"]`);
+    const nodeContainer = node ? node.closest('.tree-node') : null;
+    let assoc = null;
+    if (nodeContainer && nodeContainer.dataset.assocJson) {
+      try { assoc = JSON.parse(nodeContainer.dataset.assocJson); } catch (_) {}
+    }
+    const details = (assoc && assoc.item_details) || {};
+    const isPdf = assoc && assoc.item_type === 'apl_product_definition_formation';
+    this.detailsPanel.innerHTML = `
+      <div class="details-title">${this._esc(details.designation || details.product_name || `#${itemId}`)}</div>
+      <div class="details-subtitle">${isPdf ? 'Классифицированное изделие' : 'Элемент'} · ${this._esc(assoc ? assoc.item_type : '')}</div>
+      <table class="details-table">
+        ${isPdf ? `
+        <tr><td class="details-key">Обозначение</td><td class="details-val">${this._esc(details.designation || '-')}</td></tr>
+        <tr><td class="details-key">Наименование</td><td class="details-val">${this._esc(details.product_name || '-')}</td></tr>
+        <tr><td class="details-key">Описание</td><td class="details-val">${this._esc(details.description || '-')}</td></tr>
+        <tr><td class="details-key">Код продукта</td><td class="details-val">${this._esc(details.product_code || '-')}</td></tr>
+        <tr><td class="details-key">Код1 (PDF)</td><td class="details-val">${this._esc(details.code1 || '-')}</td></tr>
+        <tr><td class="details-key">Тип формирования</td><td class="details-val">${this._esc(details.formation_type || '-')}</td></tr>
+        <tr><td class="details-key">Make or Buy</td><td class="details-val">${this._esc(details.make_or_buy || '-')}</td></tr>
+        ` : `
+        <tr><td class="details-key">item_id</td><td class="details-val">${this._esc(String(itemId))}</td></tr>
+        <tr><td class="details-key">item_type</td><td class="details-val">${this._esc(assoc ? assoc.item_type : '')}</td></tr>
+        `}
+        ${assoc ? `
+        <tr><td class="details-key">sys_id (ассоциации)</td><td class="details-val">${this._esc(String(assoc.sys_id))}</td></tr>
+        <tr><td class="details-key">Индекс</td><td class="details-val">${this._esc(String(assoc.index))}</td></tr>
+        ` : ''}
+      </table>
+    `;
   }
 
   _renderSystemDetails(sysId) {
@@ -2081,7 +2152,7 @@ class ReferencesView {
         ['Проводка около СУ', level.wiring_near_controls],
         ['Горючие материалы', level.combustible_materials],
       ];
-      this.detailsPanel.innerHTML = `
+      const propertiesHtml = `
         <div class="details-title">${this._esc(level.name || '(без имени)')}</div>
         <div class="details-subtitle">Уровень классификатора${level.code ? ' · ' + this._esc(level.code) : ''}</div>
         <table class="details-table">
@@ -2095,6 +2166,79 @@ class ReferencesView {
           </table>
         </div>
       `;
+
+      // Загрузка классифицированных изделий
+      let itemsHtml = '';
+      let assocCount = 0;
+      try {
+        const assocData = await api.references.getLevelAssociations(levelId);
+        const assocs = assocData.associations || [];
+        assocCount = assocs.length;
+        if (assocs.length > 0) {
+          const assocRows = assocs.map(a => {
+            const isPdf = a.item_type === 'apl_product_definition_formation';
+            const details = a.item_details || {};
+            const icon = isPdf ? '📦' : '📎';
+            const designation = isPdf ? this._esc((details.designation ? details.designation + ': ' : '') + (details.product_name || '-')) : this._esc(String(a.item_id));
+            const name = isPdf ? this._esc(details.product_name || '-') : '';
+            const code1 = isPdf ? this._esc(details.code1 || '') : '';
+            const formationType = isPdf ? this._esc(details.formation_type || '') : '';
+            const makeOrBuy = isPdf ? this._esc(details.make_or_buy || '') : '';
+            return `<tr>
+              <td>${icon}</td>
+              <td class="cell-id">${designation}</td>
+              <td class="cell-name">${name}</td>
+              <td>${code1}</td>
+              <td>${formationType}</td>
+              <td>${makeOrBuy}</td>
+              <td>${this._esc(String(a.index))}</td>
+            </tr>`;
+          }).join('');
+          itemsHtml = `
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th style="width:30px"></th>
+                  <th>Обозначение</th>
+                  <th>Наименование</th>
+                  <th>Код1</th>
+                  <th>Тип</th>
+                  <th>Изготовление</th>
+                  <th>Индекс</th>
+                </tr>
+              </thead>
+              <tbody>${assocRows}</tbody>
+            </table>`;
+        } else {
+          itemsHtml = '<div class="details-placeholder">Нет классифицированных изделий</div>';
+        }
+      } catch (_) {
+        itemsHtml = '<div class="details-placeholder">Ошибка загрузки классифицированных изделий</div>';
+      }
+
+      // Рендерим вкладки
+      this.detailsPanel.innerHTML = `
+        <div class="details-tabs">
+          <div class="details-tab active" data-tab="props">Свойства уровня</div>
+          <div class="details-tab" data-tab="items">Классифицированные изделия${assocCount > 0 ? ` (${assocCount})` : ''}</div>
+        </div>
+        <div class="details-tab-content active" data-tab="props">${propertiesHtml}</div>
+        <div class="details-tab-content" data-tab="items">${itemsHtml}</div>
+      `;
+
+      // Переключение вкладок
+      const tabs = this.detailsPanel.querySelector('.details-tabs');
+      if (tabs) {
+        tabs.addEventListener('click', (e) => {
+          const tab = e.target.closest('.details-tab');
+          if (!tab) return;
+          this.detailsPanel.querySelectorAll('.details-tab').forEach(t => t.classList.remove('active'));
+          this.detailsPanel.querySelectorAll('.details-tab-content').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const content = this.detailsPanel.querySelector(`.details-tab-content[data-tab="${tab.dataset.tab}"]`);
+          if (content) content.classList.add('active');
+        });
+      }
     } catch (err) {
       this.detailsPanel.innerHTML = `<div class="tree-error">Ошибка загрузки: ${this._esc(err.message)}</div>`;
     }

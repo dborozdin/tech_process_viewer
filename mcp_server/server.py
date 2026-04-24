@@ -863,6 +863,24 @@ TOOLS = [
             "required": ["sys_id"],
         },
     ),
+    Tool(
+        name="pdm_get_classifier_associations",
+        description="Получить классификационные ассоциации для уровня (что классифицировано данным уровнем).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "classifier_level_id": {
+                    "type": "integer",
+                    "description": "sys_id уровня классификатора (обязательно)",
+                },
+                "item_type": {
+                    "type": "string",
+                    "description": "Опциональный фильтр по типу элемента (например, 'apl_product_definition_formation')",
+                },
+            },
+            "required": ["classifier_level_id"],
+        },
+    ),
     # ==================== ILS — Logistic structure ====================
     Tool(
         name="ils_find_final_products",
@@ -1019,6 +1037,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_get_classifier_children(arguments)
         elif name == "pdm_get_classifier_level":
             return _handle_pdm_get_classifier_level(arguments)
+        elif name == "pdm_get_classifier_associations":
+            return _handle_pdm_get_classifier_associations(arguments)
         # ILS tools
         elif name == "ils_find_final_products":
             return _handle_ils_find_final_products(arguments)
@@ -1675,6 +1695,27 @@ def _handle_pdm_delete_classifier_level(arguments: dict) -> list[TextContent]:
     except Exception as e:
         logger.error(f"Error deleting classifier level {sys_id}: {e}")
         return _error_response(f"Ошибка при удалении уровня классификатора: {e}")
+
+
+def _handle_pdm_get_classifier_associations(arguments: dict) -> list[TextContent]:
+    """Получить классификационные ассоциации для уровня."""
+    level_id = arguments.get("classifier_level_id")
+    if level_id is None:
+        return _error_response("classifier_level_id is required")
+    item_type = arguments.get("item_type")
+    db_api = _get_db_api()
+    try:
+        associations = db_api.classifiers_api.get_classifier_associations(
+            int(level_id), item_type=item_type
+        )
+        return _json_response({
+            "level_id": level_id,
+            "count": len(associations),
+            "associations": associations,
+        })
+    except Exception as e:
+        logger.error(f"Error getting classifier associations for level {level_id}: {e}")
+        return _error_response(f"Ошибка при получении ассоциаций: {e}")
 
 
 def _handle_pdm_find_by_code(arguments: dict) -> list[TextContent]:

@@ -102,6 +102,21 @@ def get_classifier_level_details(level_id):
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@bp.route('/classifiers/levels/<int:level_id>/associations')
+def get_classifier_level_associations(level_id):
+    """Классификационные ассоциации для уровня."""
+    svc, err = _need_service()
+    if err:
+        return err
+    item_type = request.args.get('item_type')
+    try:
+        associations = svc.get_classifier_associations(level_id, item_type=item_type)
+        return jsonify({'level_id': level_id, 'associations': associations})
+    except Exception as e:
+        current_app.logger.error(f"Error getting associations for level {level_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/search')
 def search():
     """Поиск по классификаторам (системы и уровни)."""

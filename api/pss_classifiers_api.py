@@ -59,6 +59,23 @@ def _map_level(inst: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _map_association(inst: Dict[str, Any]) -> Dict[str, Any]:
+    """Преобразовать raw-instance apl_classifier_association → dict для API."""
+    attrs = inst.get('attributes', {})
+    item_ref = attrs.get('item') or {}
+    return {
+        'sys_id': inst.get('id'),
+        'classifier_id': _ref_id(attrs.get('classifier')),
+        'item_id': _ref_id(item_ref),
+        'item_type': item_ref.get('type') if isinstance(item_ref, dict) else '',
+        'system_id': _ref_id(attrs.get('system')),
+        'index': attrs.get('index', 0),
+        'id': attrs.get('id') or '',
+        'pdf_count': attrs.get('pdf_count'),
+        'inner_label': attrs.get('inner_label') or '',
+    }
+
+
 class ClassifiersAPI:
     """API для работы с системами классификаторов и их уровнями (ленивая загрузка)."""
 
@@ -83,18 +100,38 @@ class ClassifiersAPI:
     # ===== Уровни классификаторов =====
 
     def get_root_levels(self, system_sys_id: int) -> List[Dict[str, Any]]:
-        """Получить корневые уровни системы (уровни без родителя)."""
-        # Все уровни системы, затем фильтруем по отсутствию parent.
-        # В PSS APL нельзя напрямую фильтровать по "parent отсутствует".
+        """Получить корневые уровни системы (уровни без родителя).
+
+        Использует пагинацию (порции по 500) для загрузки всех уровней системы,
+        т.к. PSS APL не позволяет фильтровать по отсутствию ссылки (parent = null).
+        """
         query = (
             f"SELECT NO_CASE Ext_ FROM Ext_{{apl_classifier_level"
             f"(.system->apl_classifier_system.# = #{system_sys_id})}} END_SELECT"
         )
-        result = query_apl(self.db_api, query, f"get_root_levels system={system_sys_id}")
-        levels = [_map_level(inst) for inst in result.get('instances', [])]
-        # Корневые — это уровни без parent_id
-        roots = [lv for lv in levels if not lv.get('parent_id')]
-        return roots
+        all_roots = []
+        page_size = 500
+        start = 0
+
+        while True:
+            result = query_apl(self.db_api, query,
+                               f"get_root_levels system={system_sys_id} page start={start}",
+                               size=page_size, start=start)
+            instances = result.get('instances', [])
+            if not instances:
+                break
+
+            for inst in instances:
+                lv = _map_level(inst)
+                if not lv.get('parent_id'):
+                    all_roots.append(lv)
+
+            count_all = result.get('count_all', 0)
+            start += page_size
+            if start >= count_all:
+                break
+
+        return all_roots
 
     def get_child_levels(self, parent_level_sys_id: int) -> List[Dict[str, Any]]:
         """Получить прямые дочерние уровни для заданного родительского уровня."""
@@ -102,7 +139,7 @@ class ClassifiersAPI:
             f"SELECT NO_CASE Ext_ FROM Ext_{{apl_classifier_level"
             f"(.parent->apl_classifier_level.# = #{parent_level_sys_id})}} END_SELECT"
         )
-        result = query_apl(self.db_api, query, f"get_child_levels parent={parent_level_sys_id}")
+        result = query_apl(self.db_api, query, f"get_child_levels parent={parent_level_sys_id}", size=5000)
         return [_map_level(inst) for inst in result.get('instances', [])]
 
     def get_classifier_level_details(self, level_sys_id: int) -> Dict[str, Any]:
@@ -189,7 +226,7 @@ class ClassifiersAPI:
 
         if search_type in ('all', 'levels'):
             query = "SELECT NO_CASE Ext_ FROM Ext_{apl_classifier_level} END_SELECT"
-            result = query_apl(self.db_api, query, "search_classifiers levels")
+            result = query_apl(self.db_api, query, "search_classifiers levels", size=5000)
             for inst in result.get('instances', []):
                 lv = _map_level(inst)
                 if text in (lv.get('id') or '').lower() \
@@ -198,6 +235,88 @@ class ClassifiersAPI:
                     results['levels'].append(lv)
 
         return results
+
+    # ===== Ассоциации (классифицированные изделия) =====
+
+    def get_classifier_associations(
+        self, level_id: int, item_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Получить классификационные ассоциации для уровня.
+
+        Ассоциации связывают уровень с изделиями (apl_product_definition_formation)
+        через объект apl_classifier_association.
+
+        Опционально фильтрует по типу элемента (item_type).
+        Для product_definition_formation дополнительно подгружает
+        обозначение и наименование продукта.
+        """
+        query = (
+            f"SELECT NO_CASE Ext_ FROM Ext_{{apl_classifier_association"
+            f"(.classifier->apl_classifier_level.# = #{level_id})"
+            f"}} END_SELECT"
+        )
+        result = query_apl(self.db_api, query, f"get_classifier_associations level={level_id}", size=5000)
+        associations = [_map_association(inst) for inst in result.get('instances', [])]
+
+        if item_type:
+            associations = [a for a in associations if a.get('item_type') == item_type]
+
+        # Разрешить детали для product_definition_formation
+        pdf_ids = [
+            a['item_id'] for a in associations
+            if a.get('item_type') == 'apl_product_definition_formation' and a.get('item_id')
+        ]
+        if pdf_ids:
+            from .query_helpers import batch_query_by_ids
+            pdf_instances = batch_query_by_ids(
+                self.db_api, pdf_ids,
+                description=f"resolve classifier association PDFs for level {level_id}"
+            )
+            pdf_map = {}
+            product_ids = []
+            pdf_product_map = {}
+            for inst in pdf_instances:
+                inst_id = inst.get('id')
+                attrs = inst.get('attributes', {})
+                of_product = attrs.get('of_product', {})
+                prod_id = _ref_id(of_product)
+                pdf_map[inst_id] = {
+                    'designation': of_product.get('id') if isinstance(of_product, dict) else '',
+                    'name': attrs.get('name') or '',
+                    'code1': attrs.get('code1') or '',
+                    'formation_type': attrs.get('formation_type') or '',
+                    'make_or_buy': attrs.get('make_or_buy') or '',
+                    'product_sys_id': prod_id,
+                }
+                if prod_id:
+                    product_ids.append(prod_id)
+                    pdf_product_map[inst_id] = prod_id
+
+            # Загрузить объекты product (обозначение, наименование, описание)
+            if product_ids:
+                product_instances = batch_query_by_ids(
+                    self.db_api, list(set(product_ids)),
+                    description=f"resolve product entities for level {level_id} associations"
+                )
+                prod_map = {}
+                for inst in product_instances:
+                    pattrs = inst.get('attributes', {})
+                    prod_map[inst.get('id')] = {
+                        'designation': pattrs.get('id', ''),
+                        'product_name': pattrs.get('name', ''),
+                        'description': pattrs.get('description', ''),
+                        'product_code': pattrs.get('code', ''),
+                    }
+                # Слить product-атрибуты в pdf_map
+                for pdf_id, prod_id in pdf_product_map.items():
+                    if prod_id in prod_map:
+                        pdf_map[pdf_id].update(prod_map[prod_id])
+
+            for a in associations:
+                if a['item_id'] in pdf_map:
+                    a['item_details'] = pdf_map[a['item_id']]
+
+        return associations
 
     # ===== CRUD: системы =====
 

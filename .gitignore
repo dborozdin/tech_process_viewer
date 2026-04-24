@@ -21,3 +21,6 @@ PSS-aiR/REFERENCE_BOOKS_SPEC.md
 .claude/settings.local.json
 apl-git.pem
 .claude/settings.local.json.claude
+pss_requests.log
+PSS-aiR/pss_requests.log
+test_*_report.html

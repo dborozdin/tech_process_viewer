@@ -64,13 +64,16 @@ def track_performance(operation_name):
 
 # === APL-запросы ===
 
-def query_apl(api_instance, query, description=None):
+def query_apl(api_instance, query, description=None, size=None, start=None):
     """Выполняет APL-запрос через активное подключение к PSS.
 
     Args:
         api_instance: Экземпляр DatabaseAPI с активным подключением
         query: Текст APL-запроса (SELECT NO_CASE ...)
         description: Описание запроса для отладки
+        size: Опциональный размер порции (по умолчанию PSS отдаёт 100 записей).
+              Передавайте большие значения (5000), если нужны все записи.
+        start: Опциональное смещение для пагинации (с 0).
 
     Returns:
         dict: JSON-ответ с ключами instances, count_all и др.
@@ -84,8 +87,17 @@ def query_apl(api_instance, query, description=None):
         "Content-Type": "application/json",
         "Cookie": f"X-Apl-SessionKey={api_instance.connect_data['session_key']}"
     }
+    url = api_instance.URL_QUERY
+    params = {}
+    if size is not None:
+        params['size'] = size
+    if start is not None:
+        params['start'] = start
+    if params:
+        qs = '&'.join(f'{k}={v}' for k, v in params.items())
+        url = f"{url}?{qs}"
     response = requests.post(
-        api_instance.URL_QUERY,
+        url,
         headers=headers,
         data=query.encode("utf-8")
     )
@@ -130,7 +142,9 @@ def resolve_org_unit(api_instance, bp_id, res_type_id):
 
 
 def batch_query_by_ids(api_instance, sys_ids, description=None):
-    """Batch-запрос: получить экземпляры по списку sys_id одним запросом.
+    """Batch-запрос: получить экземпляры по списку sys_id.
+
+    При >1000 ID разбивает на порции (PSS не принимает больше 1000 ID в одном Ext_{}).
 
     Args:
         api_instance: Экземпляр DatabaseAPI
@@ -143,11 +157,19 @@ def batch_query_by_ids(api_instance, sys_ids, description=None):
     if not sys_ids:
         return []
 
-    ids_str = ", ".join(f"#{sid}" for sid in sys_ids)
-    query = f"""SELECT NO_CASE
-    Ext_
-    FROM
-    Ext_{{{ids_str}}}
-    END_SELECT"""
-    result = query_apl(api_instance, query, description=description or f"batch query {len(sys_ids)} items")
-    return result.get("instances", [])
+    CHUNK_SIZE = 1000
+    all_instances = []
+
+    for i in range(0, len(sys_ids), CHUNK_SIZE):
+        chunk = sys_ids[i:i + CHUNK_SIZE]
+        ids_str = ", ".join(f"#{sid}" for sid in chunk)
+        query = f"""SELECT NO_CASE
+        Ext_
+        FROM
+        Ext_{{{ids_str}}}
+        END_SELECT"""
+        chunk_desc = f"{description or 'batch query'} chunk {i // CHUNK_SIZE + 1}/{(len(sys_ids) + CHUNK_SIZE - 1) // CHUNK_SIZE}"
+        result = query_apl(api_instance, query, description=chunk_desc)
+        all_instances.extend(result.get("instances", []))
+
+    return all_instances

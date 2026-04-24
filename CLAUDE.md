@@ -103,3 +103,14 @@ PSS-aiR/                # PDM веб-клиент (трёхпанельный SP
 - Перечень тестов: [`PSS-aiR/TEST_SCENARIOS.md`](PSS-aiR/TEST_SCENARIOS.md)
 - Скрипт: [`PSS-aiR/test_ui_scenarios.py`](PSS-aiR/test_ui_scenarios.py)
 - Результаты: [`PSS-aiR/test_results.html`](PSS-aiR/test_results.html)
+
+### Тестирование справочников PSS-aiR
+
+При добавлении API/UI для новых справочников PSS-aiR:
+1. **API-тест**: создать `test_<name>_api.py` в папке `PSS-aiR/` по шаблону `test_units_api.py`
+   - Отчёт: `<name>_report.html`
+2. **UI-тест**: создать `test_<name>_ui.py` в папке `PSS-aiR/` по шаблону `test_units_ui.py`
+   - Отчёт: `<name>_ui_report.html`
+3. **Подключение к БД** всегда через `POST /api/connect` (параметры: `server_port`, `db`, `user`, `password`)
+4. **Отключение** всегда через `POST /api/disconnect`
+5. **LIKE в APL** не работает с кириллицей — фильтровать на Python-стороне
