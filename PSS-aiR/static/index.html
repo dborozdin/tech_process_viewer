@@ -1038,7 +1038,13 @@ class API {
     getLevelChildren: (levelId) => this._fetch(`/api/references/levels/${levelId}/children`),
     getLevelDetails: (levelId) => this._fetch(`/api/references/classifiers/levels/${levelId}`),
     getReferenceList: (refType) => this._fetch(`/api/references/list/${refType}`),
-    search: (q, type) => this._fetch(`/api/references/search?q=${encodeURIComponent(q)}&type=${type || 'all'}`)
+    search: (q, type) => this._fetch(`/api/references/search?q=${encodeURIComponent(q)}&type=${type || 'all'}`),
+    // Units CRUD
+    getUnits: (limit) => this._fetch(`/api/references/units?limit=${limit || 100}`),
+    getUnit: (id) => this._fetch(`/api/references/units/${id}`),
+    createUnit: (data) => this._fetch('/api/references/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    updateUnit: (id, data) => this._fetch(`/api/references/units/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+    deleteUnit: (id) => this._fetch(`/api/references/units/${id}`, { method: 'DELETE' }),
   }
 }
 
@@ -1880,10 +1886,21 @@ class ReferencesView {
       this.tableContainer.classList.add('hidden');
       this._showDetailsPlaceholder();
       this._loadSystems();
+    } else if (refType === 'units') {
+      this.treeContainer.classList.add('hidden');
+      this.detailsPanel.classList.add('hidden');
+      this.tableContainer.classList.remove('hidden');
+      this._loadUnitsTable();
     } else {
       this.treeContainer.classList.add('hidden');
       this.detailsPanel.classList.add('hidden');
       this.tableContainer.classList.remove('hidden');
+      this.tableContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🚧</div>
+          <div class="empty-state-text">Функционал в разработке</div>
+          <p class="empty-state-desc">Этот справочник будет реализован в будущих обновлениях.</p>
+        </div>`;
     }
   }
 
@@ -2061,6 +2078,303 @@ class ReferencesView {
 
   _showDetailsPlaceholder() {
     this.detailsPanel.innerHTML = '<div class="details-placeholder">Выберите элемент в дереве, чтобы увидеть детали</div>';
+  }
+
+  // ===== Units table =====
+
+  async _loadUnitsTable() {
+    this.tableContainer.innerHTML = '<div class="tree-loading">Загрузка единиц измерения...</div>';
+    try {
+      const { units = [] } = await api.references.getUnits();
+      this._renderUnitsTable(units);
+    } catch (err) {
+      this.tableContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <div class="empty-state-text">Ошибка загрузки единиц</div>
+          <p class="empty-state-desc">${this._esc(err.message)}</p>
+        </div>`;
+    }
+  }
+
+  _renderUnitsTable(units) {
+    const toolbar = `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color, #e0e0e0);">
+        <button class="btn btn-primary btn-sm" id="btnCreateUnit">+ Создать единицу</button>
+        <span style="margin-left:auto;color:#888;font-size:12px;">Найдено: ${units.length}</span>
+      </div>`;
+
+    if (!units.length) {
+      this.tableContainer.innerHTML = toolbar + `
+        <div class="empty-state">
+          <div class="empty-state-icon">📏</div>
+          <div class="empty-state-text">Единицы измерения не найдены</div>
+        </div>`;
+      document.getElementById('btnCreateUnit').addEventListener('click', () => this._showUnitModal());
+      return;
+    }
+
+    const rows = units.map(u => `
+      <tr data-sys-id="${u.sys_id}">
+        <td>${this._esc(u.id)}</td>
+        <td style="color:#888;font-size:11px;">${u.sys_id || ''}</td>
+        <td>${this._esc(u.name)}</td>
+        <td>${this._esc(u.description)}</td>
+        <td>${this._esc(u.code)}</td>
+        <td>${this._esc(u.type)}</td>
+        <td class="actions-cell">
+          <button class="btn-icon btn-edit-unit" data-sys-id="${u.sys_id}" title="Редактировать">✏️</button>
+          <button class="btn-icon btn-del-unit" data-sys-id="${u.sys_id}" data-name="${this._esc(u.name)}" title="Удалить">🗑️</button>
+        </td>
+      </tr>`).join('');
+
+    this.tableContainer.innerHTML = toolbar + `
+      <div style="overflow:auto;flex:1;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--bg-secondary,#f5f5f5);position:sticky;top:0;">
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">ID</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">sys_id</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Наименование</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Описание</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Код</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Тип</th>
+              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);width:80px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('btnCreateUnit').addEventListener('click', () => this._showUnitModal());
+    this.tableContainer.querySelectorAll('.btn-edit-unit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sysId = parseInt(btn.dataset.sysId);
+        const row = btn.closest('tr');
+        const unit = units.find(u => u.sys_id === sysId);
+        if (unit) this._showUnitModal(unit);
+      });
+    });
+    this.tableContainer.querySelectorAll('.btn-del-unit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._confirmDeleteUnit(parseInt(btn.dataset.sysId), btn.dataset.name);
+      });
+    });
+  }
+
+  _showUnitModal(unit = null) {
+    const isEdit = !!unit;
+    const title = isEdit ? 'Редактировать единицу' : 'Новая единица измерения';
+    const existing = document.getElementById('unitModalOverlay');
+    if (existing) existing.remove();
+
+    const subtypeOptions = [
+      { value: 'si_unit', label: 'SI единица' },
+      { value: 'context_dependent_unit', label: 'Контекстно-зависимая' },
+      { value: 'conversion_based_unit', label: 'Производная (с коэффициентом)' },
+      { value: 'apl_descriptive_unit', label: 'Описательная' },
+      { value: 'apl_monetary_unit', label: 'Денежная' },
+    ];
+    const siPrefixes = [
+      { value: '', label: '(нет)' },
+      { value: 'exa', label: 'exa (E, 10¹⁸)' },
+      { value: 'peta', label: 'peta (P, 10¹⁵)' },
+      { value: 'tera', label: 'tera (T, 10¹²)' },
+      { value: 'giga', label: 'giga (G, 10⁹)' },
+      { value: 'mega', label: 'mega (M, 10⁶)' },
+      { value: 'kilo', label: 'kilo (k, 10³)' },
+      { value: 'hecto', label: 'hecto (h, 10²)' },
+      { value: 'deca', label: 'deca (da, 10¹)' },
+      { value: 'deci', label: 'deci (d, 10⁻¹)' },
+      { value: 'centi', label: 'centi (c, 10⁻²)' },
+      { value: 'milli', label: 'milli (m, 10⁻³)' },
+      { value: 'micro', label: 'micro (μ, 10⁻⁶)' },
+      { value: 'nano', label: 'nano (n, 10⁻⁹)' },
+      { value: 'pico', label: 'pico (p, 10⁻¹²)' },
+      { value: 'femto', label: 'femto (f, 10⁻¹⁵)' },
+      { value: 'atto', label: 'atto (a, 10⁻¹⁸)' },
+    ];
+    const siNames = [
+      'metre','gram','second','ampere','kelvin','mole','candela',
+      'hertz','newton','pascal','joule','watt','coulomb','volt',
+      'farad','ohm','siemens','weber','tesla','henry','degree_celsius',
+      'lumen','lux','becquerel','gray','sievert','radian','steradian',
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'unitModalOverlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="width:480px;">
+        <div class="modal-header">
+          <span class="modal-title">${title}</span>
+          <button class="modal-close" id="unitModalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Обозначение (ID)</label>
+            <input type="text" class="form-input" id="unitFormId" value="${this._esc(unit?.id || '')}" ${isEdit ? 'disabled' : ''}>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Наименование *</label>
+            <input type="text" class="form-input" id="unitFormName" value="${this._esc(unit?.name || '')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Описание</label>
+            <textarea class="form-input" id="unitFormDesc" rows="2" style="resize:vertical;">${this._esc(unit?.description || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Код</label>
+            <input type="text" class="form-input" id="unitFormCode" value="${this._esc(unit?.code || '')}">
+          </div>
+          ${!isEdit ? `
+          <div class="form-group">
+            <label class="form-label">Тип единицы</label>
+            <select class="form-input" id="unitFormSubtype">
+              ${subtypeOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" id="siPrefixGroup" style="display:none;">
+            <label class="form-label">Приставка SI</label>
+            <select class="form-input" id="unitFormSiPrefix">
+              ${siPrefixes.map(p => `<option value="${p.value}">${p.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" id="siNameGroup" style="display:none;">
+            <label class="form-label">Базовая единица SI</label>
+            <select class="form-input" id="unitFormSiName">
+              ${siNames.map(n => `<option value="${n}">${n}</option>`).join('')}
+            </select>
+          </div>` : ''}
+          <div class="form-error hidden" id="unitFormError"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="unitModalCancel">Отмена</button>
+          <button class="btn btn-primary" id="unitModalSave">Сохранить</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('visible'), 10);
+
+    const close = () => { overlay.classList.remove('visible'); setTimeout(() => overlay.remove(), 200); };
+    document.getElementById('unitModalClose').addEventListener('click', close);
+    document.getElementById('unitModalCancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    // Toggle SI prefix/name fields based on subtype
+    const subtypeEl = document.getElementById('unitFormSubtype');
+    const siPrefixGroup = document.getElementById('siPrefixGroup');
+    const siNameGroup = document.getElementById('siNameGroup');
+    const nameInput = document.getElementById('unitFormName');
+    if (subtypeEl && !isEdit) {
+      subtypeEl.addEventListener('change', () => {
+        const isSi = subtypeEl.value === 'si_unit';
+        if (siPrefixGroup) siPrefixGroup.style.display = isSi ? '' : 'none';
+        if (siNameGroup) siNameGroup.style.display = isSi ? '' : 'none';
+        if (nameInput) nameInput.readOnly = isSi;
+      });
+      // Fire once to set initial state
+      subtypeEl.dispatchEvent(new Event('change'));
+    }
+
+    document.getElementById('unitModalSave').addEventListener('click', async () => {
+      const errEl = document.getElementById('unitFormError');
+
+      if (!isEdit && subtypeEl && subtypeEl.value === 'si_unit') {
+        const siNameEl = document.getElementById('unitFormSiName');
+        const siPrefixEl = document.getElementById('unitFormSiPrefix');
+        const siName = siNameEl ? siNameEl.value : '';
+        if (!siName) { errEl.textContent = 'Выберите базовую единицу SI'; errEl.classList.remove('hidden'); return; }
+
+        const prefix = siPrefixEl ? siPrefixEl.value : '';
+        const data = { id: document.getElementById('unitFormId').value.trim() || siName };
+        data.name = siName;
+        data.si_name = siName;
+        if (prefix) data.prefix = prefix;
+        const desc = document.getElementById('unitFormDesc').value.trim();
+        if (desc) data.description = desc;
+        const code = document.getElementById('unitFormCode').value.trim();
+        if (code) data.code = code;
+        data.subtype = 'si_unit';
+
+        try {
+          await api.references.createUnit(data);
+          close();
+          this._loadUnitsTable();
+        } catch (err) {
+          errEl.textContent = err.message || 'Ошибка сохранения';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const name = document.getElementById('unitFormName').value.trim();
+      if (!name) { errEl.textContent = 'Наименование обязательно'; errEl.classList.remove('hidden'); return; }
+
+      const data = { name };
+      const idVal = document.getElementById('unitFormId').value.trim();
+      if (idVal) data.id = idVal;
+      const desc = document.getElementById('unitFormDesc').value.trim();
+      if (desc) data.description = desc;
+      const code = document.getElementById('unitFormCode').value.trim();
+      if (code) data.code = code;
+
+      try {
+        if (isEdit) {
+          await api.references.updateUnit(unit.sys_id, data);
+        } else {
+          data.subtype = subtypeEl ? subtypeEl.value : 'si_unit';
+          await api.references.createUnit(data);
+        }
+        close();
+        this._loadUnitsTable();
+      } catch (err) {
+        errEl.textContent = err.message || 'Ошибка сохранения';
+        errEl.classList.remove('hidden');
+      }
+    });
+  }
+
+  _confirmDeleteUnit(sysId, name) {
+    const existing = document.getElementById('unitDeleteOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'unitDeleteOverlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="width:400px;">
+        <div class="modal-header">
+          <span class="modal-title">Удалить единицу</span>
+          <button class="modal-close" id="unitDelClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Удалить единицу измерения <b>${this._esc(name)}</b>?</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="unitDelCancel">Отмена</button>
+          <button class="btn btn-danger" id="unitDelConfirm" style="background:#dc3545;color:white;">Удалить</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('visible'), 10);
+
+    const close = () => { overlay.classList.remove('visible'); setTimeout(() => overlay.remove(), 200); };
+    document.getElementById('unitDelClose').addEventListener('click', close);
+    document.getElementById('unitDelCancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    document.getElementById('unitDelConfirm').addEventListener('click', async () => {
+      try {
+        await api.references.deleteUnit(sysId);
+        close();
+        this._loadUnitsTable();
+      } catch (err) {
+        alert('Ошибка удаления: ' + (err.message || err));
+      }
+    });
   }
 
   _esc(s) {

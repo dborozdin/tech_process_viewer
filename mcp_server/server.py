@@ -525,6 +525,55 @@ TOOLS = [
             "required": [],
         },
     ),
+    Tool(
+        name="pdm_get_unit",
+        description="Получить детали единицы измерения по sys_id.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "unit_id": {"type": "integer", "description": "sys_id единицы измерения"},
+            },
+            "required": ["unit_id"],
+        },
+    ),
+    Tool(
+        name="pdm_create_unit",
+        description="Создать новую единицу измерения.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Обозначение единицы"},
+                "name": {"type": "string", "description": "Наименование единицы (обязательно)"},
+                "description": {"type": "string", "description": "Описание"},
+                "code": {"type": "string", "description": "Код"},
+                "subtype": {"type": "string", "description": "Подтип (si_unit, conversion_based_unit и др.)", "default": "si_unit"},
+            },
+            "required": ["name"],
+        },
+    ),
+    Tool(
+        name="pdm_update_unit",
+        description="Обновить атрибуты единицы измерения.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "unit_id": {"type": "integer", "description": "sys_id единицы"},
+                "updates": {"type": "object", "description": "Обновляемые атрибуты (JSON объект)"},
+            },
+            "required": ["unit_id", "updates"],
+        },
+    ),
+    Tool(
+        name="pdm_delete_unit",
+        description="Удалить единицу измерения.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "unit_id": {"type": "integer", "description": "sys_id единицы для удаления"},
+            },
+            "required": ["unit_id"],
+        },
+    ),
     # ── Характеристики (apl_characteristic / apl_characteristic_value) ──
     Tool(
         name="pdm_list_characteristic_types",
@@ -941,6 +990,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return _handle_pdm_get_process_resources(arguments)
         elif name == "pdm_list_units":
             return _handle_pdm_list_units(arguments)
+        elif name == "pdm_get_unit":
+            return _handle_pdm_get_unit(arguments)
+        elif name == "pdm_create_unit":
+            return _handle_pdm_create_unit(arguments)
+        elif name == "pdm_update_unit":
+            return _handle_pdm_update_unit(arguments)
+        elif name == "pdm_delete_unit":
+            return _handle_pdm_delete_unit(arguments)
         elif name == "pdm_list_characteristic_types":
             return _handle_pdm_list_characteristic_types(arguments)
         elif name == "pdm_get_characteristic_values":
@@ -1908,6 +1965,40 @@ def _handle_pdm_list_units(arguments: dict) -> list[TextContent]:
         "count": len(simplified),
         "units": simplified,
     })
+
+
+def _handle_pdm_get_unit(arguments: dict) -> list[TextContent]:
+    unit_id = arguments["unit_id"]
+    client = _get_client()
+    unit = client.units_api.get_unit(unit_id)
+    if not unit:
+        return _json_response({"error": f"Unit {unit_id} not found"})
+    return _json_response({"unit": unit})
+
+
+def _handle_pdm_create_unit(arguments: dict) -> list[TextContent]:
+    client = _get_client()
+    subtype = arguments.pop("subtype", "si_unit")
+    result = client.create_instance(subtype, arguments)
+    if not result:
+        return _json_response({"error": "Failed to create unit"})
+    unit = client.units_api._map_unit(result)
+    return _json_response({"unit": unit})
+
+
+def _handle_pdm_update_unit(arguments: dict) -> list[TextContent]:
+    unit_id = arguments["unit_id"]
+    updates = arguments["updates"]
+    client = _get_client()
+    result = client.units_api.update_unit(unit_id, updates)
+    return _json_response({"unit": result})
+
+
+def _handle_pdm_delete_unit(arguments: dict) -> list[TextContent]:
+    unit_id = arguments["unit_id"]
+    client = _get_client()
+    ok = client.units_api.delete_unit(unit_id)
+    return _json_response({"success": ok, "unit_id": unit_id})
 
 
 # ==================== ILS — Logistic structure handlers ====================

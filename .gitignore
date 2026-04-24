@@ -15,4 +15,9 @@ test_*.png
 /api/routes/__pycache__
 .claude/settings.local.json
 .claude/settings.local.json.deepseek
+deepseek_key.txt
+nvidia_key.txt
+PSS-aiR/REFERENCE_BOOKS_SPEC.md
+.claude/settings.local.json
+apl-git.pem
 .claude/settings.local.json.claude

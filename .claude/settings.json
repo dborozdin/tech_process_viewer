@@ -1,22 +1,22 @@
 {
-  "mcpServers": {
-    "pss": {
-      "command": "F:\\python_projects\\express_api\\.venv\\Scripts\\python.exe",
-      "args": [
-        "-m",
-        "mcp_server.server"
-      ],
-      "cwd": "F:\\python_projects\\express_api\\tech_process_viewer",
-      "env": {
-        "PSS_SERVER": "http://localhost:7239",
-        "PSS_DB": "pss_moma_08_07_2025",
-        "PSS_USER": "Administrator",
-        "PSS_PASSWORD": ""
-      }
-    }
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "3cabcda7c3f144e58ed03fbe1a022e1b.E0ZdsyFQo6DLtdsf",
+    "ANTHROPIC_MODEL": "glm-5.1",
+    "ANTHROPIC_SMALL_FAST_MODEL": "glm-4.5-air"
   },
-  "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
-    "andrej-karpathy-skills@karpathy-skills": true
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash(*)",
+      "PowerShell(*)",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "mcp__*"
+    ]
   }
 }
