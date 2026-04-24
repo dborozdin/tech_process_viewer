@@ -623,6 +623,30 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
 }
 #referenceTableContainer.hidden { display: none; }
 
+/* Reference table toolbar */
+.ref-table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  background: white;
+  flex-shrink: 0;
+}
+.ref-table-toolbar .ref-count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Reference data table */
+#referenceTableContainer .data-table { font-size: 13px; }
+#referenceTableContainer .data-table .cell-actions {
+  white-space: nowrap;
+  text-align: center;
+  width: 80px;
+}
+
 /* Classifier Tree Rows */
 .ref-tree { margin: 0; padding: 0; }
 .tree-node-row {
@@ -834,7 +858,7 @@ html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, san
       <div class="references-content">
         <div class="references-header">
           <h2 id="referencesTitle">Классификаторы</h2>
-          <button id="btnBackToMain" class="btn btn-outline">← Назад к основной панели</button>
+          <button id="btnBackToMain" class="btn btn-secondary">← Назад к основной панели</button>
         </div>
         <div class="references-body">
           <div id="classifierTreeContainer"></div>
@@ -2098,10 +2122,12 @@ class ReferencesView {
   }
 
   _renderUnitsTable(units) {
+    const cols = this._getUnitColumns();
     const toolbar = `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border-color, #e0e0e0);">
+      <div class="ref-table-toolbar">
         <button class="btn btn-primary btn-sm" id="btnCreateUnit">+ Создать единицу</button>
-        <span style="margin-left:auto;color:#888;font-size:12px;">Найдено: ${units.length}</span>
+        <button class="btn-icon" id="btnUnitColumns" title="Настройка колонок">⚙️ Колонки</button>
+        <span class="ref-count">Найдено: ${units.length}</span>
       </div>`;
 
     if (!units.length) {
@@ -2111,46 +2137,44 @@ class ReferencesView {
           <div class="empty-state-text">Единицы измерения не найдены</div>
         </div>`;
       document.getElementById('btnCreateUnit').addEventListener('click', () => this._showUnitModal());
+      document.getElementById('btnUnitColumns').addEventListener('click', () => this._showUnitColumnConfig());
       return;
     }
 
-    const rows = units.map(u => `
-      <tr data-sys-id="${u.sys_id}">
-        <td>${this._esc(u.id)}</td>
-        <td style="color:#888;font-size:11px;">${u.sys_id || ''}</td>
-        <td>${this._esc(u.name)}</td>
-        <td>${this._esc(u.description)}</td>
-        <td>${this._esc(u.code)}</td>
-        <td>${this._esc(u.type)}</td>
-        <td class="actions-cell">
-          <button class="btn-icon btn-edit-unit" data-sys-id="${u.sys_id}" title="Редактировать">✏️</button>
-          <button class="btn-icon btn-del-unit" data-sys-id="${u.sys_id}" data-name="${this._esc(u.name)}" title="Удалить">🗑️</button>
-        </td>
-      </tr>`).join('');
+    const cellRenderers = {
+      id: u => this._esc(u.id),
+      sys_id: u => `<span class="cell-id">${this._esc(u.sys_id || '')}</span>`,
+      name: u => `<span class="cell-name">${this._esc(u.name)}</span>`,
+      description: u => this._esc(u.description),
+      code: u => this._esc(u.code),
+      type: u => this._esc(u.type),
+      actions: u => `<button class="btn-action btn-edit-unit" data-sys-id="${u.sys_id}" title="Редактировать">&#9998;</button><button class="btn-action danger btn-del-unit" data-sys-id="${u.sys_id}" data-name="${this._esc(u.name)}" title="Удалить">&#10005;</button>`,
+    };
+
+    const rows = units.map(u => {
+      let html = '<tr>';
+      cols.forEach(c => {
+        html += '<td>' + (cellRenderers[c.key] ? cellRenderers[c.key](u) : '') + '</td>';
+      });
+      html += '</tr>';
+      return html;
+    }).join('');
+
+    const thHtml = cols.map(c => c.width ? `<th style="width:${c.width}">${c.label}</th>` : `<th>${c.label}</th>`).join('');
 
     this.tableContainer.innerHTML = toolbar + `
       <div style="overflow:auto;flex:1;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr style="background:var(--bg-secondary,#f5f5f5);position:sticky;top:0;">
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">ID</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">sys_id</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Наименование</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Описание</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Код</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);">Тип</th>
-              <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border-color,#ddd);width:80px;">Действия</th>
-            </tr>
-          </thead>
+        <table class="data-table">
+          <thead><tr>${thHtml}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
 
     document.getElementById('btnCreateUnit').addEventListener('click', () => this._showUnitModal());
+    document.getElementById('btnUnitColumns').addEventListener('click', () => this._showUnitColumnConfig());
     this.tableContainer.querySelectorAll('.btn-edit-unit').forEach(btn => {
       btn.addEventListener('click', () => {
         const sysId = parseInt(btn.dataset.sysId);
-        const row = btn.closest('tr');
         const unit = units.find(u => u.sys_id === sysId);
         if (unit) this._showUnitModal(unit);
       });
@@ -2354,7 +2378,7 @@ class ReferencesView {
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="unitDelCancel">Отмена</button>
-          <button class="btn btn-danger" id="unitDelConfirm" style="background:#dc3545;color:white;">Удалить</button>
+          <button class="btn btn-danger" id="unitDelConfirm">Удалить</button>
         </div>
       </div>`;
 
@@ -2375,6 +2399,54 @@ class ReferencesView {
         alert('Ошибка удаления: ' + (err.message || err));
       }
     });
+  }
+
+  // ---- Units column configuration ----
+  static UNIT_COLUMNS = [
+    { key: 'id',          label: 'ID',           width: null,   always: true,  default: true },
+    { key: 'sys_id',      label: 'sys_id',       width: '90px', always: false, default: false },
+    { key: 'name',        label: 'Наименование', width: null,   always: true,  default: true },
+    { key: 'description', label: 'Описание',     width: null,   always: false, default: true },
+    { key: 'code',        label: 'Код',           width: null,  always: false, default: true },
+    { key: 'type',        label: 'Тип',           width: null,  always: false, default: true },
+    { key: 'actions',     label: 'Действия',     width: '80px', always: true,  default: true },
+  ];
+
+  _getUnitColumns() {
+    try {
+      const saved = localStorage.getItem('pss_units_columns');
+      if (saved) {
+        const keys = JSON.parse(saved);
+        return ReferencesView.UNIT_COLUMNS.filter(c => c.always || keys.includes(c.key));
+      }
+    } catch(e) {}
+    return ReferencesView.UNIT_COLUMNS.filter(c => c.always || c.default);
+  }
+
+  _saveUnitColumns(keys) {
+    localStorage.setItem('pss_units_columns', JSON.stringify(keys));
+  }
+
+  _showUnitColumnConfig() {
+    const visible = this._getUnitColumns().map(c => c.key);
+    let html = '<div class="col-config-overlay"><div class="col-config-dialog"><div class="col-config-title">Колонки таблицы</div><div class="col-config-list">';
+    ReferencesView.UNIT_COLUMNS.filter(c => !c.always).forEach(c => {
+      const checked = visible.includes(c.key) ? 'checked' : '';
+      html += `<label class="col-config-item"><input type="checkbox" value="${c.key}" ${checked}> ${c.label}</label>`;
+    });
+    html += '</div><div class="col-config-actions"><button class="btn btn-sm btn-primary col-config-apply">Применить</button><button class="btn btn-sm col-config-cancel">Отмена</button></div></div></div>';
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const overlay = wrapper.firstElementChild;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.col-config-apply').addEventListener('click', () => {
+      const keys = [...overlay.querySelectorAll('input:checked')].map(cb => cb.value);
+      this._saveUnitColumns(keys);
+      overlay.remove();
+      this._loadUnitsTable();
+    });
+    overlay.querySelector('.col-config-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   }
 
   _esc(s) {
